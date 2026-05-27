@@ -1,230 +1,362 @@
 /* PC dashboard refinement overrides
-   Goal: match the shared reference image more closely without changing the app logic. */
+   Goal: fit the main dashboard into one screen on desktop while keeping the reference mockup look. */
 
 @media (min-width: 1321px) {
   .app-shell {
-    grid-template-columns: 206px minmax(0, 1fr);
+    grid-template-columns: 190px minmax(0, 1fr);
   }
 
-  .main {
-    width: min(100%, 1320px);
-    padding: 24px 22px 18px;
-    gap: 14px;
+  .sidebar {
+    padding: 22px 16px 14px;
+    gap: 18px;
   }
 
-  .page-header {
-    min-height: 146px;
-    padding: 24px 26px;
-    align-items: flex-start;
+  .brand-logo {
+    width: 48px;
+    height: 54px;
   }
 
-  .header-main h1 {
-    font-size: 44px;
+  .brand-text {
+    font-size: 18px;
   }
 
-  .header-subline {
-    margin-top: 10px;
-    gap: 22px;
-    font-size: 15px;
-  }
-
-  .team-chip {
-    margin-top: 12px;
-    padding: 6px 11px;
+  .sidebar-nav a {
+    padding: 10px 12px;
     font-size: 13px;
   }
 
-  .header-metrics {
-    width: 470px;
+  .main {
+    width: min(100%, 1220px);
+    padding: 18px 18px 12px;
+    gap: 10px;
   }
 
-  .metric-card {
-    padding: 14px 12px;
+  .page-header {
+    min-height: 112px;
+    padding: 18px 22px;
+    align-items: flex-start;
+    border-radius: 16px;
   }
 
-  .metric-card span {
+  .header-main h1 {
+    font-size: 38px;
+  }
+
+  .header-subline {
+    margin-top: 8px;
+    gap: 18px;
+    font-size: 13px;
+  }
+
+  .team-chip {
+    margin-top: 8px;
+    padding: 5px 10px;
     font-size: 12px;
   }
 
+  .header-metrics {
+    width: 420px;
+  }
+
+  .metric-card {
+    padding: 11px 10px;
+  }
+
+  .metric-card span {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
   .metric-card strong {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .dashboard-grid {
-    grid-template-columns: 176px 1fr 292px;
-    gap: 14px;
+    grid-template-columns: 165px minmax(560px, 1fr) 270px;
+    gap: 12px;
     align-items: stretch;
   }
 
   .left-panel,
   .right-panel {
-    gap: 14px;
+    gap: 12px;
   }
 
   .side-card,
   .chart-card,
   .ranking-card {
-    padding: 15px;
+    padding: 13px;
+    border-radius: 15px;
   }
 
   .side-card h3,
   .chart-card h3,
   .ranking-card h3 {
-    font-size: 16px;
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+
+  .summary-block {
+    padding-bottom: 11px;
+    margin-bottom: 11px;
+  }
+
+  .label {
+    font-size: 11px;
+    margin-bottom: 6px;
   }
 
   .big-number {
-    font-size: 24px;
+    font-size: 21px;
   }
 
   .big-number span {
-    font-size: 15px;
+    font-size: 13px;
+  }
+
+  .sub-positive,
+  .subtext {
+    font-size: 12px;
+    margin-top: 6px;
   }
 
   .record,
   .loss-rate {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .formation-number {
-    font-size: 34px;
+    font-size: 30px;
   }
 
   .formation-mini-pitch {
-    height: 118px;
+    height: 96px;
+    margin-top: 10px;
+  }
+
+  .ghost-button {
+    margin-top: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .pitch-card {
-    padding: 12px;
+    padding: 10px;
+    border-radius: 16px;
   }
 
   .pitch-stage {
-    min-height: 635px;
-    padding: 18px 16px 18px;
-    border-radius: 20px;
+    min-height: 500px;
+    padding: 12px 14px 12px;
+    border-radius: 18px;
+    box-shadow: inset 0 0 0 4px rgba(255,255,255,.66);
+  }
+
+  .pitch-markings {
+    inset: 13px;
+    border-width: 3px;
+  }
+
+  .pitch-markings::before {
+    width: 130px;
+    height: 130px;
+    margin-left: -65px;
+    margin-top: -65px;
+    border-width: 3px;
+  }
+
+  .pitch-markings::after {
+    left: 21%;
+    right: 21%;
+    height: 104px;
+    border-width: 3px;
   }
 
   .pitch-players {
-    min-height: 600px;
-    grid-template-rows: 1fr 1fr 1.15fr .9fr;
-    gap: 18px;
+    min-height: 476px;
+    grid-template-rows: 1fr 1fr 1.1fr .84fr;
+    gap: 10px;
   }
 
   .pitch-row {
-    gap: 18px;
+    gap: 14px;
   }
 
   .row-fw {
-    padding-top: 22px;
+    padding-top: 18px;
   }
 
   .row-mf {
-    padding-top: 4px;
+    padding-top: 0;
   }
 
   .row-df {
-    padding-top: 4px;
-    gap: 14px;
+    padding-top: 0;
+    gap: 11px;
+  }
+
+  .row-gk {
+    align-items: flex-start;
   }
 
   .player-card {
-    width: 118px;
-    min-height: 150px;
-    border-radius: 13px;
-    padding: 10px 9px 12px;
+    width: 102px;
+    min-height: 116px;
+    border-radius: 12px;
+    padding: 8px 7px 9px;
+    box-shadow: 0 10px 18px rgba(0,0,0,.13);
   }
 
   .position-pill {
-    font-size: 10px;
-    padding: 2px 8px;
-    margin-bottom: 7px;
+    font-size: 9px;
+    padding: 2px 7px;
+    margin-bottom: 5px;
   }
 
   .player-card strong {
-    font-size: 12px;
-    line-height: 1.25;
+    font-size: 11px;
+    line-height: 1.2;
   }
 
   .player-card small {
-    font-size: 11px;
+    font-size: 10px;
+    margin-top: 3px;
   }
 
   .player-change {
-    margin-top: 8px;
-    font-size: 16px;
+    margin-top: 6px;
+    font-size: 14px;
   }
 
   .sparkline {
-    left: 12px;
-    right: 12px;
-    bottom: 11px;
-    height: 28px;
+    left: 10px;
+    right: 10px;
+    bottom: 9px;
+    height: 20px;
   }
 
   .sparkline::before {
-    top: 15px;
+    top: 11px;
+    height: 2px;
     box-shadow:
-      14px -5px 0 currentColor,
-      28px -1px 0 currentColor,
-      42px -8px 0 currentColor,
-      56px -3px 0 currentColor,
-      70px -11px 0 currentColor,
-      84px -7px 0 currentColor;
+      11px -4px 0 currentColor,
+      22px -1px 0 currentColor,
+      33px -7px 0 currentColor,
+      44px -3px 0 currentColor,
+      55px -9px 0 currentColor,
+      66px -6px 0 currentColor;
   }
 
   .pitch-legend {
-    padding-top: 10px;
-    font-size: 12px;
-    gap: 12px;
+    padding: 8px 4px 0;
+    font-size: 11px;
+    gap: 10px;
   }
 
-  .chart-box {
-    height: 245px;
+  .card-title-row {
+    margin-bottom: 10px;
   }
 
   .tabs-row {
-    gap: 14px;
+    gap: 12px;
+    margin-bottom: 10px;
   }
 
   .tab {
+    font-size: 12px;
+  }
+
+  .chart-box {
+    height: 196px;
+  }
+
+  .chart-label {
+    font-size: 11px;
+  }
+
+  .chart-label strong {
     font-size: 13px;
+  }
+
+  .chart-axis,
+  .chart-footnote {
+    font-size: 10px;
   }
 
   .ranking-header,
   .ranking-row {
-    grid-template-columns: 42px 1fr 76px;
-    padding: 10px 10px;
+    grid-template-columns: 34px 1fr 68px;
+    padding: 8px 8px;
+    gap: 8px;
   }
 
-  .ranking-name strong {
-    font-size: 12px;
+  .rank-badge {
+    width: 23px;
+    height: 23px;
+    font-size: 11px;
+  }
+
+  .ranking-name strong,
+  .ranking-row b {
+    font-size: 11px;
   }
 
   .ranking-name small,
-  .ranking-footnote,
-  .chart-footnote {
-    font-size: 11px;
+  .ranking-footnote {
+    font-size: 10px;
   }
 
   .editor-grid {
     grid-template-columns: 1fr 1.7fr 1fr;
-    gap: 14px;
+    gap: 12px;
   }
 
   .editor-card,
   .stock-list-card {
-    padding: 15px;
+    padding: 13px;
+  }
+
+  .editor-card h3,
+  .stock-list-card h3 {
+    font-size: 15px;
+    margin-bottom: 9px;
+  }
+
+  .helper-text,
+  .position-status {
+    font-size: 11px;
+  }
+
+  input {
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .filter-row button,
+  .position-buttons button,
+  .stock-item button {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .mini-scores span {
+    font-size: 10px;
+    padding: 5px 8px;
   }
 
   .stock-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .page-footer {
+    font-size: 10px;
+    padding-bottom: 4px;
   }
 }
 
-/* Make the visual dashboard feel less stretched on very wide displays. */
 @media (min-width: 1600px) {
   .main {
-    width: 1280px;
+    width: 1200px;
   }
 }
