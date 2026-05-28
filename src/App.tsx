@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import './match-mode.css';
 
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
@@ -18,6 +19,16 @@ type SelectedStock = Stock & { position?: Position };
 
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
+
+const TOURNAMENT = {
+  name: '日本株代表カップ',
+  duration: '3か月リーグ',
+  entryDeadline: '2026/06/10 23:59',
+  startDate: '2026/06/11',
+  resultDate: '2026/09/11',
+  visibility: '限定公開',
+  description: '運営が設定した大会日程で開催中',
+};
 
 const STOCKS: Stock[] = [
   { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 18.7, contribution: 1.74, fit: { FW: 91, MF: 84, DF: 61, GK: 55 }, tags: ['世界ブランド', 'エンタメ', '成長'] },
@@ -42,6 +53,14 @@ const STOCKS: Stock[] = [
   { code: '9166', name: 'GENDA', market: 'グロース', change: 21.3, contribution: 1.41, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
 ];
 
+const SAMPLE_TEAMS = [
+  { rank: 1, name: '半導体ジャパン', returnPct: 18.42, status: '暫定首位' },
+  { rank: 2, name: 'ツヨシジャパン', returnPct: 15.68, status: '逆転圏内' },
+  { rank: 3, name: '高配当ジャパン', returnPct: 9.74, status: '堅守型' },
+  { rank: 4, name: 'グロース連合', returnPct: 7.31, status: '追走中' },
+  { rank: 5, name: '任天堂FC', returnPct: 5.92, status: '守備固め' },
+];
+
 function formatTeamName(input: string) {
   const trimmed = input.trim();
   if (!trimmed) return 'マイジャパン';
@@ -54,6 +73,7 @@ function clampScore(score: number) {
 
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
+  const [isLocked, setIsLocked] = useState(false);
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<SelectedStock[]>(() => STOCKS.slice(0, 11).map((stock, index) => ({
@@ -80,6 +100,12 @@ function App() {
     return counts;
   }, [selected]);
 
+  const isFormationComplete = selected.length === 11
+    && positionCounts.FW === 3
+    && positionCounts.MF === 3
+    && positionCounts.DF === 4
+    && positionCounts.GK === 1;
+
   const scores = useMemo(() => {
     const average = (position: Position) => {
       const members = selected.filter((stock) => stock.position === position);
@@ -101,15 +127,14 @@ function App() {
 
   const diagnosis = useMemo(() => {
     if (selected.length < 11) return { type: '編成中', text: '11銘柄を選抜すると、チーム診断が表示されます。' };
-    if (scores.attack >= 85 && scores.defense < 75) return { type: '超攻撃型チーム', text: '前線に成長期待の高い銘柄を集めた、得点力重視の布陣です。' };
+    if (scores.attack >= 85 && scores.defense < 75) return { type: '超攻撃型チーム', text: '前線に成長期待の高い銘柄を集めた、得点力重視の布陣です。決算跨ぎを攻める短期決戦向きです。' };
     if (scores.defense >= 85 && scores.attack < 75) return { type: '堅守安定型チーム', text: '守備陣と最後尾に安定感のある銘柄を置いた、失点を抑える布陣です。' };
     if (scores.balance >= 82) return { type: '攻撃型バランスチーム', text: '成長期待の高い銘柄を前線に置きつつ、中盤と守備にも安定感を残したバランス型の布陣です。' };
     return { type: '個性派ミックスチーム', text: '市場区分やポジション適性が入り混じった、独自色の強い布陣です。配置を変えると診断も変わります。' };
   }, [scores, selected.length]);
 
-  const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
-
   const toggleStock = (stock: Stock) => {
+    if (isLocked) return;
     if (selected.some((item) => item.code === stock.code)) {
       setSelected((current) => current.filter((item) => item.code !== stock.code));
       return;
@@ -118,6 +143,7 @@ function App() {
   };
 
   const setPosition = (code: string, position: Position) => {
+    if (isLocked) return;
     setSelected((current) => {
       const count = current.filter((stock) => stock.position === position && stock.code !== code).length;
       if (count >= POSITION_LIMITS[position]) return current;
@@ -134,52 +160,71 @@ function App() {
         </div>
         <nav className="sidebar-nav">
           <a className="active"><span>⌂</span>ダッシュボード</a>
+          <a><span>🏆</span>試合モード</a>
           <a><span>⚽</span>フォーメーション</a>
-          <a><span>👥</span>選手一覧</a>
-          <a><span>📊</span>成績・分析</a>
-          <a><span>⚔</span>対戦成績</a>
-          <a><span>📰</span>ニュース</a>
+          <a><span>👥</span>参加チーム</a>
+          <a><span>📊</span>結果発表</a>
           <a><span>⚙</span>設定</a>
         </nav>
         <div className="help-link">？ ヘルプ</div>
       </aside>
 
       <main className="main">
-        <header className="page-header">
+        <header className="page-header match-header">
           <div className="header-main">
+            <p className="match-kicker">{TOURNAMENT.name}</p>
             <h1>日本株代表イレブン 2026</h1>
             <div className="header-subline">
-              <span>📅 2026年6月11日開幕</span>
-              <span>⚔ TOPIX・日経平均と対戦中</span>
+              <span>🏆 {TOURNAMENT.duration}</span>
+              <span>📅 結果発表：{TOURNAMENT.resultDate}</span>
+              <span>📈 日次終値ベースで勝負</span>
             </div>
-            <div className="team-chip">{teamName}</div>
+            <div className="team-chip">{teamName}｜{isLocked ? 'チーム確定済み' : '編成中'}｜{TOURNAMENT.visibility}</div>
           </div>
           <div className="header-metrics">
-            <div className="metric-card"><span>本日の成績</span><strong>+1.24%</strong></div>
-            <div className="metric-card"><span>通算成績</span><strong>+15.68%</strong></div>
-            <div className="metric-card"><span>現在の順位</span><strong>🏆 1位 / 3</strong></div>
-            <div className="metric-card"><span>最終更新</span><strong>06/11 09:30</strong></div>
+            <div className="metric-card"><span>参加チーム</span><strong>8</strong></div>
+            <div className="metric-card"><span>暫定順位</span><strong>🏆 2位 / 8</strong></div>
+            <div className="metric-card"><span>首位との差</span><strong>-2.74%</strong></div>
+            <div className="metric-card"><span>ステータス</span><strong>{isLocked ? '試合待機' : '編成中'}</strong></div>
           </div>
         </header>
+
+        <section className="match-strip card">
+          <div>
+            <span>エントリー締切</span>
+            <strong>{TOURNAMENT.entryDeadline}</strong>
+          </div>
+          <div>
+            <span>試合開始日</span>
+            <strong>{TOURNAMENT.startDate}</strong>
+          </div>
+          <div>
+            <span>結果発表日</span>
+            <strong>{TOURNAMENT.resultDate}</strong>
+          </div>
+          <button className="lock-button" disabled={!isFormationComplete} onClick={() => setIsLocked((locked) => !locked)}>
+            {isLocked ? '確定を解除' : 'チームを確定'}
+          </button>
+        </section>
 
         <section className="dashboard-grid">
           <div className="left-panel">
             <div className="card side-card">
-              <h3>チームサマリー</h3>
+              <h3>試合サマリー</h3>
               <div className="summary-block">
-                <p className="label">チーム時価総額</p>
-                <p className="big-number">128,745<span>億円</span></p>
-                <p className="sub-positive">前日比 +1,576億円（+1.24%）</p>
+                <p className="label">試合名</p>
+                <p className="record compact-record">{TOURNAMENT.name}</p>
+                <p className="subtext">{TOURNAMENT.duration} / {TOURNAMENT.resultDate} 結果発表</p>
               </div>
               <div className="summary-block compact">
-                <p className="label">戦績（対TOPIX）</p>
-                <p className="record">15勝 2敗 1分</p>
-                <p className="subtext">勝率 83.3%</p>
+                <p className="label">参加チーム</p>
+                <p className="record">8チーム</p>
+                <p className="subtext">確定済み 5 / 編成中 3</p>
               </div>
               <div className="summary-block compact no-border">
-                <p className="label">最大失点率（対TOPIX）</p>
-                <p className="loss-rate">-4.32%</p>
-                <p className="subtext">（2026/03/11）</p>
+                <p className="label">あなたのチーム</p>
+                <p className="loss-rate positive-rank">暫定 2位</p>
+                <p className="subtext">首位との差 -2.74%</p>
               </div>
             </div>
 
@@ -189,7 +234,7 @@ function App() {
               <div className="formation-mini-pitch">
                 {Array.from({ length: 11 }).map((_, index) => <i key={index} />)}
               </div>
-              <button className="ghost-button">フォーメーション変更 ⚙</button>
+              <button className="ghost-button">ポジション確認 ⚙</button>
             </div>
           </div>
 
@@ -199,93 +244,83 @@ function App() {
                 <div className="pitch-markings" />
                 <div className="pitch-players">
                   <div className="pitch-row row-fw">
-                    {selected.filter((stock) => stock.position === 'FW').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
-                    ))}
+                    {selected.filter((stock) => stock.position === 'FW').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
                   </div>
                   <div className="pitch-row row-mf">
-                    {selected.filter((stock) => stock.position === 'MF').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
-                    ))}
+                    {selected.filter((stock) => stock.position === 'MF').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
                   </div>
                   <div className="pitch-row row-df">
-                    {selected.filter((stock) => stock.position === 'DF').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
-                    ))}
+                    {selected.filter((stock) => stock.position === 'DF').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
                   </div>
                   <div className="pitch-row row-gk">
-                    {selected.filter((stock) => stock.position === 'GK').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
-                    ))}
+                    {selected.filter((stock) => stock.position === 'GK').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
                   </div>
                 </div>
               </div>
               <div className="pitch-legend">
-                <span className="fw">FW</span>（フォワード）：3名
-                <span className="mf">MF</span>（ミッドフィールダー）：3名
-                <span className="df">DF</span>（ディフェンダー）：4名
-                <span className="gk">GK</span>（ゴールキーパー）：1名
+                <span className="fw">FW</span>成長期待
+                <span className="mf">MF</span>収益力・バランス
+                <span className="df">DF</span>安定性・下落耐性
+                <span className="gk">GK</span>最後の砦
               </div>
             </div>
           </div>
 
           <div className="right-panel">
-            <div className="card chart-card">
+            <div className="card chart-card match-progress-card">
               <div className="card-title-row">
-                <h3>パフォーマンス比較 <small>（騰落率）</small></h3>
+                <h3>試合進行 <small>（プロトタイプ）</small></h3>
                 <span>ⓘ</span>
               </div>
-              <div className="tabs-row">
-                <button className="tab active">1ヶ月</button>
-                <button className="tab">3ヶ月</button>
-                <button className="tab">6ヶ月</button>
-                <button className="tab">年初来</button>
-                <button className="tab">通算</button>
+              <div className="match-timeline">
+                <div className="timeline-step active"><b>1</b><span>編成</span></div>
+                <div className={`timeline-step ${isLocked ? 'active' : ''}`}><b>2</b><span>確定</span></div>
+                <div className="timeline-step"><b>3</b><span>試合</span></div>
+                <div className="timeline-step"><b>4</b><span>結果発表</span></div>
               </div>
-              <div className="chart-box">
-                <div className="chart-grid" />
-                <div className="chart-line blue" />
-                <div className="chart-line red" />
-                <div className="chart-line gray" />
-                <div className="chart-label blue">日本株代表イレブン<br /><strong>+15.68%</strong></div>
-                <div className="chart-label red">TOPIX<br /><strong>+6.21%</strong></div>
-                <div className="chart-label gray">日経平均<br /><strong>+5.43%</strong></div>
-                <div className="chart-axis">5/11　　5/18　　5/25　　6/1　　6/8　　6/11</div>
+              <div className="match-rule-box">
+                <strong>勝敗ルール</strong>
+                <p>開始日の終値と終了日の終値を比較し、11銘柄の平均騰落率で順位を決定します。</p>
               </div>
-              <p className="chart-footnote">※ 騰落率は2026/5/11を0%として表示</p>
+              <p className="chart-footnote">※ 現段階では画面プロトタイプです。実データ連携は未実装です。</p>
             </div>
 
             <div className="card ranking-card">
               <div className="card-title-row">
-                <h3>得点ランキング <small>（貢献度）</small></h3>
-                <a>詳細を見る ›</a>
+                <h3>参加チームランキング</h3>
+                <a>共有 ›</a>
               </div>
               <div className="ranking-table">
-                <div className="ranking-header"><span>順位</span><span>銘柄</span><span>貢献度</span></div>
-                {ranking.map((stock, index) => (
-                  <div className="ranking-row" key={stock.code}>
-                    <span className="rank-badge">{index + 1}</span>
-                    <div className="ranking-name"><strong>{stock.name}</strong><small>（{stock.code}）</small></div>
-                    <b>+{stock.contribution.toFixed(2)}%</b>
+                <div className="ranking-header"><span>順位</span><span>チーム</span><span>成績</span></div>
+                {SAMPLE_TEAMS.map((team) => (
+                  <div className={`ranking-row ${team.name === teamName ? 'my-team-row' : ''}`} key={team.rank}>
+                    <span className="rank-badge">{team.rank}</span>
+                    <div className="ranking-name"><strong>{team.name}</strong><small>{team.status}</small></div>
+                    <b>+{team.returnPct.toFixed(2)}%</b>
                   </div>
                 ))}
               </div>
-              <p className="ranking-footnote">※ 貢献度はポートフォリオ全体の騰落率に対する寄与度</p>
+              <p className="ranking-footnote">※ 参加チーム成績はサンプル表示です。</p>
             </div>
           </div>
         </section>
 
         <section className="editor-grid">
-          <div className="card editor-card">
-            <h3>チーム名</h3>
-            <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} placeholder="例：ツヨシ" />
-            <p className="helper-text">入力した名前は「○○ジャパン」として表示されます。</p>
+          <div className="card editor-card tournament-card">
+            <h3>開催中の大会</h3>
+            <div className="tournament-overview">
+              <div><span>大会名</span><strong>{TOURNAMENT.name}</strong></div>
+              <div><span>大会期間</span><strong>{TOURNAMENT.duration}</strong></div>
+              <div><span>公開設定</span><strong>{TOURNAMENT.visibility}</strong></div>
+            </div>
+            <p className="helper-text">大会日程は運営側で設定します。参加者は締切までに11銘柄を選抜し、チームを確定してください。</p>
           </div>
           <div className="card editor-card editor-wide">
-            <h3>銘柄フィルター</h3>
+            <h3>チーム編成</h3>
+            <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} disabled={isLocked} placeholder="例：ツヨシ" />
             <div className="filter-row">
               {(['全市場', 'プライム', 'スタンダード', 'グロース'] as MarketFilter[]).map((market) => (
-                <button key={market} className={marketFilter === market ? 'selected' : ''} onClick={() => setMarketFilter(market)}>{market}</button>
+                <button key={market} className={marketFilter === market ? 'selected' : ''} disabled={isLocked} onClick={() => setMarketFilter(market)}>{market}</button>
               ))}
             </div>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="銘柄名・証券コードで検索" />
@@ -314,9 +349,9 @@ function App() {
             {filteredStocks.map((stock) => {
               const chosen = selected.find((item) => item.code === stock.code);
               return (
-                <article className={`stock-item ${chosen ? 'chosen' : ''}`} key={stock.code}>
+                <article className={`stock-item ${chosen ? 'chosen' : ''} ${isLocked ? 'locked' : ''}`} key={stock.code}>
                   <div className="stock-item-head">
-                    <button onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? '上限' : '選抜'}</button>
+                    <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? '上限' : '選抜'}</button>
                     <div>
                       <strong>{stock.name}</strong>
                       <small>{stock.code} / {stock.market}</small>
@@ -326,7 +361,7 @@ function App() {
                   {chosen && (
                     <div className="position-buttons">
                       {POSITIONS.map((position) => (
-                        <button key={position} className={chosen.position === position ? 'selected' : ''} onClick={() => setPosition(stock.code, position)}>{position}</button>
+                        <button key={position} disabled={isLocked} className={chosen.position === position ? 'selected' : ''} onClick={() => setPosition(stock.code, position)}>{position}</button>
                       ))}
                     </div>
                   )}
@@ -337,8 +372,8 @@ function App() {
         </section>
 
         <footer className="page-footer">
-          <div>当アプリは情報提供を目的としたものであり、特定の金融商品の売買を推奨するものではありません。</div>
-          <div>データ提供：サンプル　更新時刻：2026/06/11 09:30</div>
+          <div>当アプリは金融エンタメを目的とした仮想ポートフォリオ対戦サービスです。特定の金融商品の売買を推奨するものではありません。</div>
+          <div>表示データ：サンプル　判定方式：日次終値ベース</div>
         </footer>
       </main>
     </div>
