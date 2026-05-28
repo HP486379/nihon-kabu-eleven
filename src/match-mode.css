@@ -117,89 +117,42 @@
   background: #f4f8ff;
 }
 
-.duration-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.duration-buttons button {
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: #edf4ff;
-  color: #1462d5;
-  font-weight: 800;
-}
-
-.duration-buttons button.selected {
-  background: #1462d5;
-  color: white;
-}
-
-.schedule-card {
+.tournament-card {
   min-width: 0;
 }
 
-.custom-schedule {
-  margin-top: 14px;
+.tournament-overview {
+  display: grid;
+  gap: 10px;
   padding: 12px;
-  border: 1px solid #dfe9f5;
   border-radius: 14px;
   background: #f8fbff;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  border: 1px solid #dfe9f5;
 }
 
-.custom-schedule-title {
-  grid-column: 1 / -1;
-  margin: 0;
+.tournament-overview div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8f0f8;
+}
+
+.tournament-overview div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.tournament-overview span {
+  color: #708099;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tournament-overview strong {
   color: #102b59;
   font-size: 13px;
-  font-weight: 900;
-}
-
-.custom-schedule label {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.custom-schedule label span,
-.visibility-toggle > span {
-  color: #708099;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.custom-schedule input {
-  padding: 8px 9px;
-  font-size: 12px;
-  border-radius: 10px;
-  background: white;
-}
-
-.visibility-toggle {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.visibility-toggle button {
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #edf4ff;
-  color: #1462d5;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.visibility-toggle button.selected {
-  background: #1462d5;
-  color: white;
+  text-align: right;
 }
 
 button:disabled,
@@ -254,42 +207,19 @@ input:disabled {
     font-size: 11px;
   }
 
-  .duration-buttons button {
-    padding: 6px 9px;
-    font-size: 11px;
-  }
-
-  .custom-schedule {
+  .tournament-overview {
     padding: 10px;
     gap: 8px;
   }
 
-  .custom-schedule-title {
-    font-size: 11px;
-  }
-
-  .custom-schedule label span,
-  .visibility-toggle > span {
-    font-size: 10px;
-  }
-
-  .custom-schedule input {
-    padding: 7px 8px;
-    font-size: 11px;
-  }
-
-  .visibility-toggle button {
-    padding: 6px 9px;
+  .tournament-overview span,
+  .tournament-overview strong {
     font-size: 11px;
   }
 }
 
 @media (max-width: 980px) {
   .match-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .custom-schedule {
     grid-template-columns: 1fr;
   }
 }
