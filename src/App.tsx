@@ -4,7 +4,8 @@ import './match-mode.css';
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
-type MatchDurationKey = '1day' | '1week' | '1month' | '3months' | '6months';
+type MatchDurationKey = '1day' | '1week' | '1month' | '3months' | '6months' | 'custom';
+type Visibility = 'public' | 'limited';
 
 type Stock = {
   code: string;
@@ -22,6 +23,8 @@ type MatchDuration = {
   key: MatchDurationKey;
   label: string;
   description: string;
+  entryDeadline: string;
+  startDate: string;
   resultDate: string;
 };
 
@@ -29,11 +32,12 @@ const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
 
 const MATCH_DURATIONS: MatchDuration[] = [
-  { key: '1day', label: '1日決戦', description: '翌営業日の終値で決着', resultDate: '2026/06/12' },
-  { key: '1week', label: '1週間カップ', description: '1週間後の終値で決着', resultDate: '2026/06/18' },
-  { key: '1month', label: '1か月リーグ', description: '1か月後の終値で決着', resultDate: '2026/07/11' },
-  { key: '3months', label: '3か月リーグ', description: '3か月後の終値で決着', resultDate: '2026/09/11' },
-  { key: '6months', label: '半年チャレンジ', description: '半年後の終値で決着', resultDate: '2026/12/11' },
+  { key: '1day', label: '1日決戦', description: '翌営業日の終値で決着', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-06-12' },
+  { key: '1week', label: '1週間カップ', description: '1週間後の終値で決着', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-06-18' },
+  { key: '1month', label: '1か月リーグ', description: '1か月後の終値で決着', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-07-11' },
+  { key: '3months', label: '3か月リーグ', description: '3か月後の終値で決着', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-09-11' },
+  { key: '6months', label: '半年チャレンジ', description: '半年後の終値で決着', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-12-11' },
+  { key: 'custom', label: 'カスタム日程', description: '主催者が日程を自由指定', entryDeadline: '2026-06-10T23:59', startDate: '2026-06-11', resultDate: '2026-09-11' },
 ];
 
 const STOCKS: Stock[] = [
@@ -77,10 +81,23 @@ function clampScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function formatDate(dateText: string) {
+  return dateText.replaceAll('-', '/');
+}
+
+function formatDeadline(deadline: string) {
+  const [date, time] = deadline.split('T');
+  return `${formatDate(date)} ${time ?? ''}`.trim();
+}
+
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [matchName, setMatchName] = useState('日本株代表カップ');
-  const [durationKey, setDurationKey] = useState<MatchDurationKey>('1week');
+  const [durationKey, setDurationKey] = useState<MatchDurationKey>('3months');
+  const [entryDeadline, setEntryDeadline] = useState('2026-06-10T23:59');
+  const [startDate, setStartDate] = useState('2026-06-11');
+  const [resultDate, setResultDate] = useState('2026-09-11');
+  const [visibility, setVisibility] = useState<Visibility>('limited');
   const [isLocked, setIsLocked] = useState(false);
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
@@ -90,7 +107,8 @@ function App() {
   })));
 
   const teamName = formatTeamName(teamNameInput);
-  const matchDuration = MATCH_DURATIONS.find((duration) => duration.key === durationKey) ?? MATCH_DURATIONS[1];
+  const matchDuration = MATCH_DURATIONS.find((duration) => duration.key === durationKey) ?? MATCH_DURATIONS[3];
+  const visibilityLabel = visibility === 'public' ? '公開大会' : '限定公開';
 
   const filteredStocks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -142,8 +160,6 @@ function App() {
     return { type: '個性派ミックスチーム', text: '市場区分やポジション適性が入り混じった、独自色の強い布陣です。配置を変えると診断も変わります。' };
   }, [scores, selected.length]);
 
-  const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
-
   const toggleStock = (stock: Stock) => {
     if (isLocked) return;
     if (selected.some((item) => item.code === stock.code)) {
@@ -160,6 +176,21 @@ function App() {
       if (count >= POSITION_LIMITS[position]) return current;
       return current.map((stock) => stock.code === code ? { ...stock, position } : stock);
     });
+  };
+
+  const selectDuration = (duration: MatchDuration) => {
+    if (isLocked) return;
+    setDurationKey(duration.key);
+    if (duration.key !== 'custom') {
+      setEntryDeadline(duration.entryDeadline);
+      setStartDate(duration.startDate);
+      setResultDate(duration.resultDate);
+    }
+  };
+
+  const setCustomSchedule = (setter: (value: string) => void, value: string) => {
+    setDurationKey('custom');
+    setter(value);
   };
 
   return (
@@ -187,10 +218,10 @@ function App() {
             <h1>日本株代表イレブン 2026</h1>
             <div className="header-subline">
               <span>🏆 {matchDuration.label}</span>
-              <span>📅 結果発表：{matchDuration.resultDate}</span>
+              <span>📅 結果発表：{formatDate(resultDate)}</span>
               <span>📈 日次終値ベースで勝負</span>
             </div>
-            <div className="team-chip">{teamName}｜{isLocked ? 'チーム確定済み' : '編成中'}</div>
+            <div className="team-chip">{teamName}｜{isLocked ? 'チーム確定済み' : '編成中'}｜{visibilityLabel}</div>
           </div>
           <div className="header-metrics">
             <div className="metric-card"><span>参加チーム</span><strong>8</strong></div>
@@ -211,7 +242,7 @@ function App() {
           </div>
           <div>
             <span>締切</span>
-            <strong>開始日前日 23:59</strong>
+            <strong>{formatDeadline(entryDeadline)}</strong>
           </div>
           <button className="lock-button" disabled={!isFormationComplete} onClick={() => setIsLocked((locked) => !locked)}>
             {isLocked ? '確定を解除' : 'チームを確定'}
@@ -225,7 +256,7 @@ function App() {
               <div className="summary-block">
                 <p className="label">試合名</p>
                 <p className="record compact-record">{matchName}</p>
-                <p className="subtext">{matchDuration.label} / {matchDuration.resultDate} 結果発表</p>
+                <p className="subtext">{matchDuration.label} / {formatDate(resultDate)} 結果発表</p>
               </div>
               <div className="summary-block compact">
                 <p className="label">参加チーム</p>
@@ -317,15 +348,35 @@ function App() {
         </section>
 
         <section className="editor-grid">
-          <div className="card editor-card">
-            <h3>試合設定</h3>
-            <input value={matchName} onChange={(event) => setMatchName(event.target.value)} disabled={isLocked} placeholder="例：日本株代表カップ" />
+          <div className="card editor-card schedule-card">
+            <h3>大会設定</h3>
+            <input value={matchName} onChange={(event) => setMatchName(event.target.value)} disabled={isLocked} placeholder="例：決算跨ぎカップ" />
             <div className="duration-buttons">
               {MATCH_DURATIONS.map((duration) => (
-                <button key={duration.key} className={duration.key === durationKey ? 'selected' : ''} disabled={isLocked} onClick={() => setDurationKey(duration.key)}>{duration.label}</button>
+                <button key={duration.key} className={duration.key === durationKey ? 'selected' : ''} disabled={isLocked} onClick={() => selectDuration(duration)}>{duration.label}</button>
               ))}
             </div>
-            <p className="helper-text">試合期間を決めて、終了日の終値で結果発表します。</p>
+            <div className="custom-schedule">
+              <p className="custom-schedule-title">カスタムスケジュール</p>
+              <label>
+                <span>エントリー締切</span>
+                <input type="datetime-local" value={entryDeadline} disabled={isLocked} onChange={(event) => setCustomSchedule(setEntryDeadline, event.target.value)} />
+              </label>
+              <label>
+                <span>試合開始日</span>
+                <input type="date" value={startDate} disabled={isLocked} onChange={(event) => setCustomSchedule(setStartDate, event.target.value)} />
+              </label>
+              <label>
+                <span>結果発表日</span>
+                <input type="date" value={resultDate} disabled={isLocked} onChange={(event) => setCustomSchedule(setResultDate, event.target.value)} />
+              </label>
+              <div className="visibility-toggle">
+                <span>公開設定</span>
+                <button className={visibility === 'public' ? 'selected' : ''} disabled={isLocked} onClick={() => setVisibility('public')}>公開</button>
+                <button className={visibility === 'limited' ? 'selected' : ''} disabled={isLocked} onClick={() => setVisibility('limited')}>限定公開</button>
+              </div>
+            </div>
+            <p className="helper-text">参加者は締切までにチームを確定し、試合開始日の終値と結果発表日の終値で勝負します。</p>
           </div>
           <div className="card editor-card editor-wide">
             <h3>チーム編成</h3>
