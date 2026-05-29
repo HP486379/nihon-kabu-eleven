@@ -1,3 +1,15 @@
+.formation-card {
+  overflow: hidden;
+}
+
+.formation-description {
+  margin: 6px 0 0;
+  color: #607490;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
 .formation-mini-pitch {
   height: 122px;
   margin-top: 12px;
@@ -22,25 +34,43 @@
   background: #e9f0f8;
 }
 
-.formation-mini-pitch i {
+.formation-mini-pitch i,
+.formation-mini-dot {
   width: 10px;
   height: 10px;
   transform: translate(-50%, -50%);
-  background: #174999;
   box-shadow: 0 0 0 3px rgba(23, 73, 153, .08);
+  z-index: 2;
 }
 
-.formation-mini-pitch i:nth-child(1) { left: 50%; top: 82%; }
-.formation-mini-pitch i:nth-child(2) { left: 23%; top: 64%; }
-.formation-mini-pitch i:nth-child(3) { left: 41%; top: 64%; }
-.formation-mini-pitch i:nth-child(4) { left: 59%; top: 64%; }
-.formation-mini-pitch i:nth-child(5) { left: 77%; top: 64%; }
-.formation-mini-pitch i:nth-child(6) { left: 30%; top: 43%; }
-.formation-mini-pitch i:nth-child(7) { left: 50%; top: 43%; }
-.formation-mini-pitch i:nth-child(8) { left: 70%; top: 43%; }
-.formation-mini-pitch i:nth-child(9) { left: 30%; top: 22%; }
-.formation-mini-pitch i:nth-child(10) { left: 50%; top: 22%; display: block; }
-.formation-mini-pitch i:nth-child(11) { left: 70%; top: 22%; display: block; }
+.formation-mini-dot.dot-fw { background: #f05f59; }
+.formation-mini-dot.dot-mf { background: #37ae59; }
+.formation-mini-dot.dot-df { background: #3082ef; }
+.formation-mini-dot.dot-gk { background: #efb325; }
+
+.formation-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.formation-buttons button {
+  min-width: 0;
+  padding: 7px 6px;
+  border-radius: 10px;
+  background: #edf4ff;
+  color: #1462d5;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.formation-buttons button.selected {
+  background: #1462d5;
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(20, 98, 213, .2);
+}
 
 .chart-card {
   overflow: hidden;
@@ -141,7 +171,21 @@
 
 @media (min-width: 1321px) {
   .formation-mini-pitch {
-    height: 116px;
+    height: 112px;
+  }
+
+  .formation-description {
+    font-size: 10px;
+  }
+
+  .formation-buttons {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .formation-buttons button {
+    padding: 6px;
+    font-size: 10px;
   }
 
   .chart-box {
