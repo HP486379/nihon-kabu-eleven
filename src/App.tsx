@@ -33,6 +33,17 @@ type MarketQuote = {
   error?: string;
 };
 
+type PriceCandle = {
+  t: number;
+  close: number;
+};
+
+type HistoryResponse = {
+  candles?: PriceCandle[];
+  source?: string;
+  error?: string;
+};
+
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
 const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
@@ -86,11 +97,30 @@ function normalizeQuoteCode(quote: MarketQuote) {
   return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
 }
 
+function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
+  const closes = (candles || [])
+    .map((candle) => Number(candle.close))
+    .filter((value) => Number.isFinite(value));
+  if (closes.length < 2) return '';
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const xStep = width / Math.max(1, closes.length - 1);
+
+  return closes.map((close, index) => {
+    const x = index * xStep;
+    const y = height - ((close - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
   const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
+  const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SelectedStock[]>(() => STOCKS.slice(0, 11).map((stock, index) => ({
@@ -133,6 +163,37 @@ function App() {
     };
 
     loadQuotes();
+    return () => controller.abort();
+  }, [selectedCodesKey]);
+
+  useEffect(() => {
+    if (!selectedCodesKey) {
+      setHistoryMap({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const codes = selectedCodesKey.split(',').filter(Boolean);
+
+    const loadHistories = async () => {
+      const pairs = await Promise.all(codes.map(async (code): Promise<[string, PriceCandle[]]> => {
+        try {
+          const response = await fetch(`${MARKET_API_BASE}/api/history/${encodeURIComponent(code)}?range=3mo&interval=1d`, {
+            signal: controller.signal,
+          });
+          if (!response.ok) return [code, []];
+          const payload = await response.json() as HistoryResponse;
+          return [code, payload.candles || []];
+        } catch (_error) {
+          if (controller.signal.aborted) return [code, []];
+          return [code, []];
+        }
+      }));
+      if (controller.signal.aborted) return;
+      setHistoryMap(Object.fromEntries(pairs));
+    };
+
+    loadHistories();
     return () => controller.abort();
   }, [selectedCodesKey]);
 
@@ -188,7 +249,11 @@ function App() {
   const actualTeamReturn = availableReturns.length
     ? availableReturns.reduce((sum, value) => sum + value, 0) / availableReturns.length
     : null;
-  const latestQuote = marketDataRows.map(({ quote }) => quote?.tsSource || quote?.tsServer).filter(Boolean).sort().at(-1);
+  const latestQuote = marketDataRows
+    .map(({ quote }) => quote?.tsSource || quote?.tsServer)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .slice(-1)[0];
 
   const toggleStock = (stock: Stock) => {
     if (selected.some((item) => item.code === stock.code)) {
@@ -281,22 +346,22 @@ function App() {
                 <div className="pitch-players">
                   <div className="pitch-row row-fw">
                     {selected.filter((stock) => stock.position === 'FW').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
                     ))}
                   </div>
                   <div className="pitch-row row-mf">
                     {selected.filter((stock) => stock.position === 'MF').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
                     ))}
                   </div>
                   <div className="pitch-row row-df">
                     {selected.filter((stock) => stock.position === 'DF').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
                     ))}
                   </div>
                   <div className="pitch-row row-gk">
                     {selected.filter((stock) => stock.position === 'GK').map((stock) => (
-                      <PlayerCard key={stock.code} stock={stock} />
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
                     ))}
                   </div>
                 </div>
@@ -456,15 +521,21 @@ function App() {
   );
 }
 
-function PlayerCard({ stock }: { stock: SelectedStock }) {
+function PlayerCard({ stock, quote, candles }: { stock: SelectedStock; quote?: MarketQuote; candles?: PriceCandle[] }) {
   const position = stock.position ?? 'FW';
+  const returnPct = typeof quote?.periodReturnPct === 'number' ? quote.periodReturnPct : stock.change;
+  const trendClass = returnPct >= 0 ? 'trend-up' : 'trend-down';
+  const points = buildSparklinePoints(candles);
+
   return (
     <article className={`player-card position-${position.toLowerCase()}`}>
       <div className="position-pill">{position}</div>
       <strong>{stock.name}</strong>
       <small>{stock.code}</small>
-      <div className="player-change">+{stock.change.toFixed(1)}%</div>
-      <div className={`sparkline spark-${position.toLowerCase()}`} />
+      <div className={`player-change ${trendClass}`}>{formatPct(returnPct)}</div>
+      <svg className={`sparkline spark-${position.toLowerCase()} ${trendClass}`} viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
+        {points ? <polyline points={points} /> : <line x1="0" y1="22" x2="112" y2="14" />}
+      </svg>
     </article>
   );
 }
