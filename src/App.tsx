@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
@@ -16,8 +16,26 @@ type Stock = {
 
 type SelectedStock = Stock & { position?: Position };
 
+type MarketQuote = {
+  requestedSymbol?: string;
+  symbol?: string;
+  currency?: string;
+  regularMarketPrice?: number | null;
+  lastClose?: number | null;
+  changePct?: number | null;
+  periodReturnPct?: number | null;
+  volume?: number | null;
+  tsSource?: string | null;
+  tsServer?: string;
+  source?: string;
+  delayed?: boolean;
+  points?: number;
+  error?: string;
+};
+
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
+const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
 const STOCKS: Stock[] = [
   { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 18.7, contribution: 1.74, fit: { FW: 91, MF: 84, DF: 61, GK: 55 }, tags: ['世界ブランド', 'エンタメ', '成長'] },
@@ -52,16 +70,71 @@ function clampScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function formatPct(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '取得待ち';
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatPrice(value?: number | null, currency = 'JPY') {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat('ja-JP', { style: 'currency', currency, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }).format(value);
+}
+
+function normalizeQuoteCode(quote: MarketQuote) {
+  const raw = quote.requestedSymbol || quote.symbol || '';
+  return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+}
+
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
+  const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
+  const [quoteStatus, setQuoteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SelectedStock[]>(() => STOCKS.slice(0, 11).map((stock, index) => ({
     ...stock,
     position: index < 3 ? 'FW' : index < 6 ? 'MF' : index < 10 ? 'DF' : 'GK',
   })));
 
   const teamName = formatTeamName(teamNameInput);
+  const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
+
+  useEffect(() => {
+    if (!selectedCodesKey) {
+      setQuoteMap({});
+      setQuoteStatus('idle');
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadQuotes = async () => {
+      try {
+        setQuoteStatus('loading');
+        setQuoteError(null);
+        const response = await fetch(`${MARKET_API_BASE}/api/quotes?symbols=${encodeURIComponent(selectedCodesKey)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`market proxy ${response.status}`);
+        const payload = await response.json() as { results?: MarketQuote[] };
+        const nextMap: Record<string, MarketQuote> = {};
+        (payload.results || []).forEach((quote) => {
+          const code = normalizeQuoteCode(quote);
+          if (code) nextMap[code] = quote;
+        });
+        setQuoteMap(nextMap);
+        setQuoteStatus('success');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setQuoteStatus('error');
+        setQuoteError(error instanceof Error ? error.message : String(error));
+      }
+    };
+
+    loadQuotes();
+    return () => controller.abort();
+  }, [selectedCodesKey]);
 
   const filteredStocks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -108,6 +181,14 @@ function App() {
   }, [scores, selected.length]);
 
   const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
+  const marketDataRows = selected.map((stock) => ({ stock, quote: quoteMap[stock.code] }));
+  const availableReturns = marketDataRows
+    .map(({ quote }) => quote?.periodReturnPct)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const actualTeamReturn = availableReturns.length
+    ? availableReturns.reduce((sum, value) => sum + value, 0) / availableReturns.length
+    : null;
+  const latestQuote = marketDataRows.map(({ quote }) => quote?.tsSource || quote?.tsServer).filter(Boolean).sort().at(-1);
 
   const toggleStock = (stock: Stock) => {
     if (selected.some((item) => item.code === stock.code)) {
@@ -156,9 +237,9 @@ function App() {
           </div>
           <div className="header-metrics">
             <div className="metric-card"><span>本日の成績</span><strong>+1.24%</strong></div>
-            <div className="metric-card"><span>通算成績</span><strong>+15.68%</strong></div>
+            <div className="metric-card"><span>実データ参考値</span><strong>{formatPct(actualTeamReturn)}</strong></div>
             <div className="metric-card"><span>現在の順位</span><strong>🏆 1位 / 3</strong></div>
-            <div className="metric-card"><span>最終更新</span><strong>06/11 09:30</strong></div>
+            <div className="metric-card"><span>最終更新</span><strong>{latestQuote ? new Date(latestQuote).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未取得'}</strong></div>
           </div>
         </header>
 
@@ -305,6 +386,36 @@ function App() {
           </div>
         </section>
 
+        <section className="card market-data-card">
+          <div className="card-title-row">
+            <div>
+              <h3>実データ確認 <small>（Yahoo Finance 遅延データ）</small></h3>
+              <p className="helper-text">ピッチは汚さず、取得結果だけをここで確認します。大会成績への接続は次段階です。</p>
+            </div>
+            <span className={`market-status status-${quoteStatus}`}>{quoteStatus === 'loading' ? '取得中' : quoteStatus === 'success' ? '取得済み' : quoteStatus === 'error' ? '取得エラー' : '未取得'}</span>
+          </div>
+          {quoteError && <div className="market-error">バックエンド未起動、または取得失敗：{quoteError}</div>}
+          <div className="market-summary-row">
+            <div><span>取得銘柄</span><strong>{availableReturns.length} / {selected.length}</strong></div>
+            <div><span>3か月参考騰落率</span><strong>{formatPct(actualTeamReturn)}</strong></div>
+            <div><span>API</span><strong>{MARKET_API_BASE}</strong></div>
+          </div>
+          <div className="market-table-wrap">
+            <div className="market-table">
+              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>3か月参考</span><span>取得元</span></div>
+              {marketDataRows.map(({ stock, quote }) => (
+                <div className="market-table-row" key={stock.code}>
+                  <span><strong>{stock.name}</strong><small>{stock.code}</small></span>
+                  <span>{formatPrice(quote?.regularMarketPrice ?? quote?.lastClose, quote?.currency || 'JPY')}</span>
+                  <span className={(quote?.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.changePct)}</span>
+                  <span className={(quote?.periodReturnPct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.periodReturnPct)}</span>
+                  <span>{quote?.source || quote?.error || '-'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="card stock-list-card">
           <div className="card-title-row">
             <h3>銘柄リスト</h3>
@@ -338,7 +449,7 @@ function App() {
 
         <footer className="page-footer">
           <div>当アプリは情報提供を目的としたものであり、特定の金融商品の売買を推奨するものではありません。</div>
-          <div>データ提供：サンプル　更新時刻：2026/06/11 09:30</div>
+          <div>データ提供：Yahoo Finance 遅延データ / サンプル表示併用</div>
         </footer>
       </main>
     </div>
