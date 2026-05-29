@@ -4,6 +4,7 @@ import App from './App';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
+import './dashboard-polish.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
