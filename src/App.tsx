@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
+type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2';
 
 type Stock = {
   code: string;
@@ -44,9 +45,31 @@ type HistoryResponse = {
   error?: string;
 };
 
+type Formation = {
+  key: FormationKey;
+  label: string;
+  counts: Record<Position, number>;
+  description: string;
+};
+
+type MiniPitchDot = {
+  position: Position;
+  left: number;
+  top: number;
+};
+
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
-const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
 const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+
+const FORMATIONS: Formation[] = [
+  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, description: '成長期待を前線に並べる標準型' },
+  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, description: '中盤を厚くするバランス型' },
+  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
+  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
+  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, description: '守備と下落耐性を重視する堅守型' },
+];
+
+const DEFAULT_FORMATION = FORMATIONS[0];
 
 const STOCKS: Stock[] = [
   { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 18.7, contribution: 1.74, fit: { FW: 91, MF: 84, DF: 61, GK: 55 }, tags: ['世界ブランド', 'エンタメ', '成長'] },
@@ -115,20 +138,58 @@ function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, h
   }).join(' ');
 }
 
+function getFormationByKey(key: FormationKey) {
+  return FORMATIONS.find((formation) => formation.key === key) || DEFAULT_FORMATION;
+}
+
+function assignFormationPositions(stocks: SelectedStock[], formation: Formation): SelectedStock[] {
+  const expandedPositions = POSITIONS.flatMap((position) => Array.from({ length: formation.counts[position] }, () => position));
+  return stocks.map((stock, index) => ({
+    ...stock,
+    position: expandedPositions[index] || stock.position || 'MF',
+  }));
+}
+
+function getNextOpenPosition(stocks: SelectedStock[], formation: Formation) {
+  const counts = stocks.reduce<Record<Position, number>>((acc, stock) => {
+    if (stock.position) acc[stock.position] += 1;
+    return acc;
+  }, { FW: 0, MF: 0, DF: 0, GK: 0 });
+
+  return POSITIONS.find((position) => counts[position] < formation.counts[position]) || 'MF';
+}
+
+function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
+  const tops: Record<Position, number> = { FW: 22, MF: 43, DF: 64, GK: 82 };
+  const lanes: Record<number, number[]> = {
+    1: [50],
+    2: [38, 62],
+    3: [30, 50, 70],
+    4: [23, 41, 59, 77],
+    5: [18, 34, 50, 66, 82],
+  };
+
+  return POSITIONS.flatMap((position) => {
+    const count = formation.counts[position];
+    const lefts = lanes[count] || lanes[3];
+    return lefts.map((left) => ({ position, left, top: tops[position] }));
+  });
+}
+
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
+  const [formationKey, setFormationKey] = useState<FormationKey>(DEFAULT_FORMATION.key);
   const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
   const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<SelectedStock[]>(() => STOCKS.slice(0, 11).map((stock, index) => ({
-    ...stock,
-    position: index < 3 ? 'FW' : index < 6 ? 'MF' : index < 10 ? 'DF' : 'GK',
-  })));
+  const [selected, setSelected] = useState<SelectedStock[]>(() => assignFormationPositions(STOCKS.slice(0, 11), DEFAULT_FORMATION));
 
   const teamName = formatTeamName(teamNameInput);
+  const currentFormation = useMemo(() => getFormationByKey(formationKey), [formationKey]);
+  const formationDots = useMemo(() => getMiniPitchDots(currentFormation), [currentFormation]);
   const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
 
   useEffect(() => {
@@ -255,18 +316,26 @@ function App() {
     .sort()
     .slice(-1)[0];
 
+  const handleFormationChange = (nextKey: FormationKey) => {
+    const nextFormation = getFormationByKey(nextKey);
+    setFormationKey(nextKey);
+    setSelected((current) => assignFormationPositions(current, nextFormation));
+  };
+
   const toggleStock = (stock: Stock) => {
     if (selected.some((item) => item.code === stock.code)) {
       setSelected((current) => current.filter((item) => item.code !== stock.code));
       return;
     }
-    if (selected.length < 11) setSelected((current) => [...current, { ...stock }]);
+    if (selected.length < 11) {
+      setSelected((current) => [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }]);
+    }
   };
 
   const setPosition = (code: string, position: Position) => {
     setSelected((current) => {
       const count = current.filter((stock) => stock.position === position && stock.code !== code).length;
-      if (count >= POSITION_LIMITS[position]) return current;
+      if (count >= currentFormation.counts[position]) return current;
       return current.map((stock) => stock.code === code ? { ...stock, position } : stock);
     });
   };
@@ -329,13 +398,31 @@ function App() {
               </div>
             </div>
 
-            <div className="card side-card">
+            <div className="card side-card formation-card">
               <h3>フォーメーション</h3>
-              <div className="formation-number">4-3-3</div>
+              <div className="formation-number">{currentFormation.label}</div>
+              <p className="formation-description">{currentFormation.description}</p>
               <div className="formation-mini-pitch">
-                {Array.from({ length: 11 }).map((_, index) => <i key={index} />)}
+                {formationDots.map((dot, index) => (
+                  <i
+                    key={`${dot.position}-${index}`}
+                    className={`formation-mini-dot dot-${dot.position.toLowerCase()}`}
+                    style={{ left: `${dot.left}%`, top: `${dot.top}%` }}
+                    title={dot.position}
+                  />
+                ))}
               </div>
-              <button className="ghost-button">フォーメーション変更 ⚙</button>
+              <div className="formation-buttons" aria-label="フォーメーション選択">
+                {FORMATIONS.map((formation) => (
+                  <button
+                    key={formation.key}
+                    className={formation.key === currentFormation.key ? 'selected' : ''}
+                    onClick={() => handleFormationChange(formation.key)}
+                  >
+                    {formation.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -367,10 +454,10 @@ function App() {
                 </div>
               </div>
               <div className="pitch-legend">
-                <span className="fw">FW</span>（フォワード）：3名
-                <span className="mf">MF</span>（ミッドフィールダー）：3名
-                <span className="df">DF</span>（ディフェンダー）：4名
-                <span className="gk">GK</span>（ゴールキーパー）：1名
+                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名
+                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名
+                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名
+                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名
               </div>
             </div>
           </div>
@@ -484,7 +571,7 @@ function App() {
         <section className="card stock-list-card">
           <div className="card-title-row">
             <h3>銘柄リスト</h3>
-            <div className="position-status">FW {positionCounts.FW}/3　MF {positionCounts.MF}/3　DF {positionCounts.DF}/4　GK {positionCounts.GK}/1</div>
+            <div className="position-status">FW {positionCounts.FW}/{currentFormation.counts.FW}　MF {positionCounts.MF}/{currentFormation.counts.MF}　DF {positionCounts.DF}/{currentFormation.counts.DF}　GK {positionCounts.GK}/{currentFormation.counts.GK}</div>
           </div>
           <div className="stock-grid">
             {filteredStocks.map((stock) => {
