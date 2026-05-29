@@ -237,7 +237,7 @@ function App() {
           </div>
           <div className="header-metrics">
             <div className="metric-card"><span>本日の成績</span><strong>+1.24%</strong></div>
-            <div className="metric-card"><span>実データ参考値</span><strong>{formatPct(actualTeamReturn)}</strong></div>
+            <div className="metric-card"><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
             <div className="metric-card"><span>現在の順位</span><strong>🏆 1位 / 3</strong></div>
             <div className="metric-card"><span>最終更新</span><strong>{latestQuote ? new Date(latestQuote).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未取得'}</strong></div>
           </div>
@@ -313,7 +313,7 @@ function App() {
           <div className="right-panel">
             <div className="card chart-card">
               <div className="card-title-row">
-                <h3>パフォーマンス比較 <small>（騰落率）</small></h3>
+                <h3>パフォーマンス比較 <small>（リターン）</small></h3>
                 <span>ⓘ</span>
               </div>
               <div className="tabs-row">
@@ -333,7 +333,7 @@ function App() {
                 <div className="chart-label gray">日経平均<br /><strong>+5.43%</strong></div>
                 <div className="chart-axis">5/11　　5/18　　5/25　　6/1　　6/8　　6/11</div>
               </div>
-              <p className="chart-footnote">※ 騰落率は2026/5/11を0%として表示</p>
+              <p className="chart-footnote">※ リターンは2026/5/11を0%として表示</p>
             </div>
 
             <div className="card ranking-card">
@@ -351,7 +351,7 @@ function App() {
                   </div>
                 ))}
               </div>
-              <p className="ranking-footnote">※ 貢献度はポートフォリオ全体の騰落率に対する寄与度</p>
+              <p className="ranking-footnote">※ 貢献度はチームリターンに対する寄与度</p>
             </div>
           </div>
         </section>
@@ -390,19 +390,19 @@ function App() {
           <div className="card-title-row">
             <div>
               <h3>実データ確認 <small>（Yahoo Finance 遅延データ）</small></h3>
-              <p className="helper-text">ピッチは汚さず、取得結果だけをここで確認します。大会成績への接続は次段階です。</p>
+              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンを等ウェイト平均した参考値です。配当・手数料・税金は含みません。</p>
             </div>
             <span className={`market-status status-${quoteStatus}`}>{quoteStatus === 'loading' ? '取得中' : quoteStatus === 'success' ? '取得済み' : quoteStatus === 'error' ? '取得エラー' : '未取得'}</span>
           </div>
           {quoteError && <div className="market-error">バックエンド未起動、または取得失敗：{quoteError}</div>}
           <div className="market-summary-row">
             <div><span>取得銘柄</span><strong>{availableReturns.length} / {selected.length}</strong></div>
-            <div><span>3か月参考騰落率</span><strong>{formatPct(actualTeamReturn)}</strong></div>
+            <div><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
             <div><span>API</span><strong>{MARKET_API_BASE}</strong></div>
           </div>
           <div className="market-table-wrap">
             <div className="market-table">
-              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>3か月参考</span><span>取得元</span></div>
+              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>取得元</span></div>
               {marketDataRows.map(({ stock, quote }) => (
                 <div className="market-table-row" key={stock.code}>
                   <span><strong>{stock.name}</strong><small>{stock.code}</small></span>
