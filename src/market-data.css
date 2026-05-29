@@ -1,3 +1,57 @@
+.player-card .sparkline {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: calc(100% - 28px);
+  height: 38px;
+  overflow: visible;
+  background: transparent;
+}
+
+.player-card .sparkline::before {
+  content: none;
+}
+
+.player-card .sparkline polyline,
+.player-card .sparkline line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-card .sparkline.trend-up {
+  color: currentColor;
+}
+
+.player-card .sparkline.trend-down {
+  color: #d94b45;
+}
+
+.player-card .player-change.trend-down {
+  color: #d94b45;
+}
+
+.position-fw .sparkline.trend-up,
+.position-fw .player-change.trend-up {
+  color: #f05f59;
+}
+
+.position-mf .sparkline.trend-up,
+.position-mf .player-change.trend-up {
+  color: #37ae59;
+}
+
+.position-df .sparkline.trend-up,
+.position-df .player-change.trend-up,
+.position-gk .sparkline.trend-up,
+.position-gk .player-change.trend-up {
+  color: #3082ef;
+}
+
 .market-data-card {
   padding: 18px;
 }
