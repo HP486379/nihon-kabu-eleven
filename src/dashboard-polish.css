@@ -43,6 +43,11 @@
   z-index: 2;
 }
 
+.formation-mini-pitch i.formation-mini-dot {
+  display: block !important;
+  position: absolute;
+}
+
 .formation-mini-dot.dot-fw { background: #f05f59; }
 .formation-mini-dot.dot-mf { background: #37ae59; }
 .formation-mini-dot.dot-df { background: #3082ef; }
