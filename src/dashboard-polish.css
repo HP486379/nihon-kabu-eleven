@@ -57,13 +57,14 @@
 
 .formation-buttons button {
   min-width: 0;
-  padding: 7px 6px;
+  padding: 7px 4px;
   border-radius: 10px;
   background: #edf4ff;
   color: #1462d5;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .formation-buttons button.selected {
@@ -179,13 +180,13 @@
   }
 
   .formation-buttons {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
   }
 
   .formation-buttons button {
-    padding: 6px;
-    font-size: 10px;
+    padding: 6px 3px;
+    font-size: 9px;
   }
 
   .chart-box {
