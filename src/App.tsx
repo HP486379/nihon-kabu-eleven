@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
-type FormationKey = '4-3-3' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2';
+type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2';
 
 type Stock = {
   code: string;
@@ -63,6 +63,7 @@ const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: 
 
 const FORMATIONS: Formation[] = [
   { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, description: '成長期待を前線に並べる標準型' },
+  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, description: '絶対的エースを中盤で支える1トップ型' },
   { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, description: '中盤を厚くするバランス型' },
   { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
   { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
