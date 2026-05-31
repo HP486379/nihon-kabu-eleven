@@ -413,7 +413,7 @@ function App() {
   const handleCustomStockSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isLocked) return;
-    const code = normalizeStockCodeInput(customStockInput);
+    const code = normalizeStockCodeInput(customStockInput || query);
     if (!code) return;
     const existingStock = allStocks.find((stock) => stock.code === code);
     const stock = existingStock || createCustomStock(code);
@@ -422,6 +422,8 @@ function App() {
       setCustomStocks((current) => current.some((item) => item.code === code) ? current : [...current, stock]);
     }
 
+    setMarketFilter(stock.market);
+    setQuery(code);
     setSelected((current) => {
       if (current.some((item) => item.code === code) || current.length >= 11) return current;
       return [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }];
@@ -639,10 +641,10 @@ function App() {
             </div>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="銘柄名・証券コードで検索" />
             <form className="filter-row custom-stock-row" onSubmit={handleCustomStockSubmit}>
-              <input value={customStockInput} onChange={(event) => setCustomStockInput(event.target.value)} disabled={isLocked} placeholder="任意銘柄コードを追加（例：7951）" />
-              <button type="submit" disabled={isLocked || !normalizeStockCodeInput(customStockInput)}>{selected.length >= 11 ? '候補追加' : '追加して選抜'}</button>
+              <input value={customStockInput} onChange={(event) => setCustomStockInput(event.target.value)} disabled={isLocked} placeholder="任意銘柄コードを追加（空欄なら上の検索コードを使用）" />
+              <button type="submit" disabled={isLocked || !normalizeStockCodeInput(customStockInput || query)}>{selected.length >= 11 ? '候補追加' : '追加して選抜'}</button>
             </form>
-            <p className="helper-text">任意銘柄は日本株コードを入力すると候補に追加できます。11銘柄未満なら自動でピッチに配置します。</p>
+            <p className="helper-text">検索欄にコードを入れた状態でも候補追加できます。11銘柄が埋まっている場合は、候補に追加して銘柄リストに表示します。</p>
             <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース} / 任意追加 {marketSummary.任意追加}</p>
           </div>
           <div className="card editor-card">
