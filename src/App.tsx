@@ -49,6 +49,7 @@ type Formation = {
   key: FormationKey;
   label: string;
   counts: Record<Position, number>;
+  weights: Record<Position, number>;
   description: string;
 };
 
@@ -62,14 +63,14 @@ const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
 const FORMATIONS: Formation[] = [
-  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, description: '成長期待を前線に並べる標準型' },
-  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, description: '絶対的エースを中盤で支える1トップ型' },
-  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, description: '中盤を厚くするバランス型' },
-  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
-  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
-  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, description: '守備と下落耐性を重視する堅守型' },
-  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
-  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
+  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, weights: { FW: 0.35, MF: 0.30, DF: 0.25, GK: 0.10 }, description: '成長期待を前線に並べる標準的な攻撃型' },
+  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 }, description: '絶対的エースを中盤で支える1トップ＋中盤支配型' },
+  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, weights: { FW: 0.30, MF: 0.35, DF: 0.25, GK: 0.10 }, description: '中盤を厚くするバランス型' },
+  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 }, description: '収益力と分散を重視する中盤重視型' },
+  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, weights: { FW: 0.38, MF: 0.32, DF: 0.20, GK: 0.10 }, description: '攻撃力を残しつつ中盤も厚い超攻撃型' },
+  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, weights: { FW: 0.22, MF: 0.28, DF: 0.40, GK: 0.10 }, description: '守備と下落耐性を重視する守備重視型' },
+  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, weights: { FW: 0.28, MF: 0.42, DF: 0.20, GK: 0.10 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
+  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, weights: { FW: 0.20, MF: 0.30, DF: 0.40, GK: 0.10 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
 ];
 
 const DEFAULT_FORMATION = FORMATIONS[0];
@@ -131,6 +132,10 @@ function formatPct(value?: number | null) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+function formatWeight(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
 function formatPrice(value?: number | null, currency = 'JPY') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('ja-JP', { style: 'currency', currency, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }).format(value);
@@ -178,6 +183,12 @@ function getNextOpenPosition(stocks: SelectedStock[], formation: Formation) {
   }, { FW: 0, MF: 0, DF: 0, GK: 0 });
 
   return POSITIONS.find((position) => counts[position] < formation.counts[position]) || 'MF';
+}
+
+function getPositionMemberWeight(formation: Formation, position: Position) {
+  const count = formation.counts[position];
+  if (!count) return 0;
+  return formation.weights[position] / count;
 }
 
 function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
@@ -301,10 +312,10 @@ function App() {
   }, [selected]);
 
   const isFormationComplete = selected.length === 11
-    && positionCounts.FW === 3
-    && positionCounts.MF === 3
-    && positionCounts.DF === 4
-    && positionCounts.GK === 1;
+    && positionCounts.FW === currentFormation.counts.FW
+    && positionCounts.MF === currentFormation.counts.MF
+    && positionCounts.DF === currentFormation.counts.DF
+    && positionCounts.GK === currentFormation.counts.GK;
 
   const scores = useMemo(() => {
     const average = (position: Position) => {
@@ -333,13 +344,24 @@ function App() {
     return { type: '個性派ミックスチーム', text: '市場区分やポジション適性が入り混じった、独自色の強い布陣です。配置を変えると診断も変わります。' };
   }, [scores, selected.length]);
 
-  const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
-  const marketDataRows = selected.map((stock) => ({ stock, quote: quoteMap[stock.code] }));
-  const availableReturns = marketDataRows
-    .map(({ quote }) => quote?.periodReturnPct)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-  const actualTeamReturn = availableReturns.length
-    ? availableReturns.reduce((sum, value) => sum + value, 0) / availableReturns.length
+  const marketDataRows = useMemo(() => selected.map((stock) => {
+    const position = stock.position || 'MF';
+    const quote = quoteMap[stock.code];
+    const returnPct = quote?.periodReturnPct;
+    const memberWeight = getPositionMemberWeight(currentFormation, position);
+    const hasReturn = typeof returnPct === 'number' && Number.isFinite(returnPct);
+    return {
+      stock,
+      quote,
+      memberWeight,
+      weightedContribution: hasReturn ? returnPct * memberWeight : null,
+    };
+  }), [currentFormation, quoteMap, selected]);
+
+  const availableReturns = marketDataRows.filter((row) => row.weightedContribution !== null);
+  const availableWeight = availableReturns.reduce((sum, row) => sum + row.memberWeight, 0);
+  const actualTeamReturn = availableWeight > 0
+    ? availableReturns.reduce((sum, row) => sum + (row.weightedContribution || 0), 0) / availableWeight
     : null;
   const latestQuote = marketDataRows
     .map(({ quote }) => quote?.tsSource || quote?.tsServer)
@@ -348,6 +370,7 @@ function App() {
     .slice(-1)[0];
 
   const handleFormationChange = (nextKey: FormationKey) => {
+    if (isLocked) return;
     const nextFormation = getFormationByKey(nextKey);
     setFormationKey(nextKey);
     setSelected((current) => assignFormationPositions(current, nextFormation));
@@ -469,6 +492,7 @@ function App() {
                   <button
                     key={formation.key}
                     className={formation.key === currentFormation.key ? 'selected' : ''}
+                    disabled={isLocked}
                     onClick={() => handleFormationChange(formation.key)}
                   >
                     {formation.label}
@@ -506,10 +530,10 @@ function App() {
                 </div>
               </div>
               <div className="pitch-legend">
-                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名
-                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名
-                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名
-                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名
+                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名 / {Math.round(currentFormation.weights.FW * 100)}%
+                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名 / {Math.round(currentFormation.weights.MF * 100)}%
+                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名 / {Math.round(currentFormation.weights.DF * 100)}%
+                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名 / {Math.round(currentFormation.weights.GK * 100)}%
               </div>
             </div>
           </div>
@@ -528,7 +552,7 @@ function App() {
               </div>
               <div className="match-rule-box">
                 <strong>勝敗ルール</strong>
-                <p>開始日の終値と終了日の終値を比較し、11銘柄の平均騰落率で順位を決定します。</p>
+                <p>開始日の終値と終了日の終値を比較し、フォーメーション別のポジション比重を反映したチームリターンで順位を決定します。</p>
               </div>
               <p className="chart-footnote">※ リターンは2026/5/11を0%として表示</p>
             </div>
@@ -592,26 +616,26 @@ function App() {
           <div className="card-title-row">
             <div>
               <h3>実データ確認 <small>（Yahoo Finance 遅延データ）</small></h3>
-              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンを等ウェイト平均した参考値です。配当・手数料・税金は含みません。</p>
+              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンにフォーメーション別ポジション比重を掛けた参考値です。配当・手数料・税金は含みません。</p>
             </div>
             <span className={`market-status status-${quoteStatus}`}>{quoteStatus === 'loading' ? '取得中' : quoteStatus === 'success' ? '取得済み' : quoteStatus === 'error' ? '取得エラー' : '未取得'}</span>
           </div>
           {quoteError && <div className="market-error">バックエンド未起動、または取得失敗：{quoteError}</div>}
           <div className="market-summary-row">
             <div><span>取得銘柄</span><strong>{availableReturns.length} / {selected.length}</strong></div>
+            <div><span>有効ウェイト</span><strong>{formatWeight(availableWeight)}</strong></div>
             <div><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
-            <div><span>API</span><strong>{MARKET_API_BASE}</strong></div>
           </div>
           <div className="market-table-wrap">
             <div className="market-table">
-              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>取得元</span></div>
-              {marketDataRows.map(({ stock, quote }) => (
+              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>比重</span></div>
+              {marketDataRows.map(({ stock, quote, memberWeight }) => (
                 <div className="market-table-row" key={stock.code}>
-                  <span><strong>{stock.name}</strong><small>{stock.code}</small></span>
+                  <span><strong>{stock.name}</strong><small>{stock.code} / {stock.position}</small></span>
                   <span>{formatPrice(quote?.regularMarketPrice ?? quote?.lastClose, quote?.currency || 'JPY')}</span>
                   <span className={(quote?.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.changePct)}</span>
                   <span className={(quote?.periodReturnPct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.periodReturnPct)}</span>
-                  <span>{quote?.source || quote?.error || '-'}</span>
+                  <span>{formatWeight(memberWeight)}</span>
                 </div>
               ))}
             </div>
