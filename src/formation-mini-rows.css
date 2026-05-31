@@ -1,0 +1,24 @@
+.formation-mini-pitch {
+  position: relative;
+}
+
+.formation-mini-pitch i.formation-mini-dot,
+.formation-mini-pitch .formation-mini-dot {
+  position: absolute !important;
+  display: block !important;
+  width: 11px !important;
+  height: 11px !important;
+  border-radius: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 3 !important;
+}
+
+.formation-mini-pitch .dot-fw { background: #f05f59 !important; }
+.formation-mini-pitch .dot-mf { background: #37ae59 !important; }
+.formation-mini-pitch .dot-df { background: #3082ef !important; }
+.formation-mini-pitch .dot-gk { background: #efb325 !important; }
+
+.formation-mini-pitch i.formation-mini-dot:nth-child(10),
+.formation-mini-pitch i.formation-mini-dot:nth-child(11) {
+  display: block !important;
+}
