@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
-import './match-mode.css';
+import { useEffect, useMemo, useState } from 'react';
 
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
+type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
 
 type Stock = {
   code: string;
@@ -17,8 +17,62 @@ type Stock = {
 
 type SelectedStock = Stock & { position?: Position };
 
+type MarketQuote = {
+  requestedSymbol?: string;
+  symbol?: string;
+  currency?: string;
+  regularMarketPrice?: number | null;
+  lastClose?: number | null;
+  changePct?: number | null;
+  periodReturnPct?: number | null;
+  volume?: number | null;
+  tsSource?: string | null;
+  tsServer?: string;
+  source?: string;
+  delayed?: boolean;
+  points?: number;
+  error?: string;
+};
+
+type PriceCandle = {
+  t: number;
+  close: number;
+};
+
+type HistoryResponse = {
+  candles?: PriceCandle[];
+  source?: string;
+  error?: string;
+};
+
+type Formation = {
+  key: FormationKey;
+  label: string;
+  counts: Record<Position, number>;
+  description: string;
+};
+
+type MiniPitchDot = {
+  position: Position;
+  left: number;
+  top: number;
+};
+
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
-const POSITION_LIMITS: Record<Position, number> = { FW: 3, MF: 3, DF: 4, GK: 1 };
+const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+
+const FORMATIONS: Formation[] = [
+  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, description: '成長期待を前線に並べる標準型' },
+  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, description: '絶対的エースを中盤で支える1トップ型' },
+  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, description: '中盤を厚くするバランス型' },
+  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
+  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
+  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, description: '守備と下落耐性を重視する堅守型' },
+  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
+  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
+];
+
+const DEFAULT_FORMATION = FORMATIONS[0];
 
 const TOURNAMENT = {
   name: '日本株代表カップ',
@@ -71,17 +125,163 @@ function clampScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function formatPct(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '取得待ち';
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatPrice(value?: number | null, currency = 'JPY') {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat('ja-JP', { style: 'currency', currency, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }).format(value);
+}
+
+function normalizeQuoteCode(quote: MarketQuote) {
+  const raw = quote.requestedSymbol || quote.symbol || '';
+  return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+}
+
+function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
+  const closes = (candles || [])
+    .map((candle) => Number(candle.close))
+    .filter((value) => Number.isFinite(value));
+  if (closes.length < 2) return '';
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const xStep = width / Math.max(1, closes.length - 1);
+
+  return closes.map((close, index) => {
+    const x = index * xStep;
+    const y = height - ((close - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+function getFormationByKey(key: FormationKey) {
+  return FORMATIONS.find((formation) => formation.key === key) || DEFAULT_FORMATION;
+}
+
+function assignFormationPositions(stocks: SelectedStock[], formation: Formation): SelectedStock[] {
+  const expandedPositions = POSITIONS.flatMap((position) => Array.from({ length: formation.counts[position] }, () => position));
+  return stocks.map((stock, index) => ({
+    ...stock,
+    position: expandedPositions[index] || stock.position || 'MF',
+  }));
+}
+
+function getNextOpenPosition(stocks: SelectedStock[], formation: Formation) {
+  const counts = stocks.reduce<Record<Position, number>>((acc, stock) => {
+    if (stock.position) acc[stock.position] += 1;
+    return acc;
+  }, { FW: 0, MF: 0, DF: 0, GK: 0 });
+
+  return POSITIONS.find((position) => counts[position] < formation.counts[position]) || 'MF';
+}
+
+function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
+  const tops: Record<Position, number> = { FW: 22, MF: 43, DF: 64, GK: 82 };
+  const lanes: Record<number, number[]> = {
+    1: [50],
+    2: [38, 62],
+    3: [30, 50, 70],
+    4: [23, 41, 59, 77],
+    5: [18, 34, 50, 66, 82],
+    6: [14, 28, 42, 58, 72, 86],
+  };
+
+  return POSITIONS.flatMap((position) => {
+    const count = formation.counts[position];
+    const lefts = lanes[count] || lanes[3];
+    return lefts.map((left) => ({ position, left, top: tops[position] }));
+  });
+}
+
+export { FORMATIONS, getFormationByKey, assignFormationPositions, getNextOpenPosition, getMiniPitchDots };
+
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [isLocked, setIsLocked] = useState(false);
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<SelectedStock[]>(() => STOCKS.slice(0, 11).map((stock, index) => ({
-    ...stock,
-    position: index < 3 ? 'FW' : index < 6 ? 'MF' : index < 10 ? 'DF' : 'GK',
-  })));
+  const [formationKey, setFormationKey] = useState<FormationKey>(DEFAULT_FORMATION.key);
+  const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
+  const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
+  const [quoteStatus, setQuoteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SelectedStock[]>(() => assignFormationPositions(STOCKS.slice(0, 11), DEFAULT_FORMATION));
 
   const teamName = formatTeamName(teamNameInput);
+  const currentFormation = useMemo(() => getFormationByKey(formationKey), [formationKey]);
+  const formationDots = useMemo(() => getMiniPitchDots(currentFormation), [currentFormation]);
+  const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
+
+  useEffect(() => {
+    if (!selectedCodesKey) {
+      setQuoteMap({});
+      setQuoteStatus('idle');
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadQuotes = async () => {
+      try {
+        setQuoteStatus('loading');
+        setQuoteError(null);
+        const response = await fetch(`${MARKET_API_BASE}/api/quotes?symbols=${encodeURIComponent(selectedCodesKey)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`market proxy ${response.status}`);
+        const payload = await response.json() as { results?: MarketQuote[] };
+        const nextMap: Record<string, MarketQuote> = {};
+        (payload.results || []).forEach((quote) => {
+          const code = normalizeQuoteCode(quote);
+          if (code) nextMap[code] = quote;
+        });
+        setQuoteMap(nextMap);
+        setQuoteStatus('success');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setQuoteStatus('error');
+        setQuoteError(error instanceof Error ? error.message : String(error));
+      }
+    };
+
+    loadQuotes();
+    return () => controller.abort();
+  }, [selectedCodesKey]);
+
+  useEffect(() => {
+    if (!selectedCodesKey) {
+      setHistoryMap({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const codes = selectedCodesKey.split(',').filter(Boolean);
+
+    const loadHistories = async () => {
+      const pairs = await Promise.all(codes.map(async (code): Promise<[string, PriceCandle[]]> => {
+        try {
+          const response = await fetch(`${MARKET_API_BASE}/api/history/${encodeURIComponent(code)}?range=3mo&interval=1d`, {
+            signal: controller.signal,
+          });
+          if (!response.ok) return [code, []];
+          const payload = await response.json() as HistoryResponse;
+          return [code, payload.candles || []];
+        } catch (_error) {
+          if (controller.signal.aborted) return [code, []];
+          return [code, []];
+        }
+      }));
+      if (controller.signal.aborted) return;
+      setHistoryMap(Object.fromEntries(pairs));
+    };
+
+    loadHistories();
+    return () => controller.abort();
+  }, [selectedCodesKey]);
 
   const filteredStocks = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -133,20 +333,42 @@ function App() {
     return { type: '個性派ミックスチーム', text: '市場区分やポジション適性が入り混じった、独自色の強い布陣です。配置を変えると診断も変わります。' };
   }, [scores, selected.length]);
 
+  const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
+  const marketDataRows = selected.map((stock) => ({ stock, quote: quoteMap[stock.code] }));
+  const availableReturns = marketDataRows
+    .map(({ quote }) => quote?.periodReturnPct)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const actualTeamReturn = availableReturns.length
+    ? availableReturns.reduce((sum, value) => sum + value, 0) / availableReturns.length
+    : null;
+  const latestQuote = marketDataRows
+    .map(({ quote }) => quote?.tsSource || quote?.tsServer)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .slice(-1)[0];
+
+  const handleFormationChange = (nextKey: FormationKey) => {
+    const nextFormation = getFormationByKey(nextKey);
+    setFormationKey(nextKey);
+    setSelected((current) => assignFormationPositions(current, nextFormation));
+  };
+
   const toggleStock = (stock: Stock) => {
     if (isLocked) return;
     if (selected.some((item) => item.code === stock.code)) {
       setSelected((current) => current.filter((item) => item.code !== stock.code));
       return;
     }
-    if (selected.length < 11) setSelected((current) => [...current, { ...stock }]);
+    if (selected.length < 11) {
+      setSelected((current) => [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }]);
+    }
   };
 
   const setPosition = (code: string, position: Position) => {
     if (isLocked) return;
     setSelected((current) => {
       const count = current.filter((stock) => stock.position === position && stock.code !== code).length;
-      if (count >= POSITION_LIMITS[position]) return current;
+      if (count >= currentFormation.counts[position]) return current;
       return current.map((stock) => stock.code === code ? { ...stock, position } : stock);
     });
   };
@@ -182,10 +404,10 @@ function App() {
             <div className="team-chip">{teamName}｜{isLocked ? 'チーム確定済み' : '編成中'}｜{TOURNAMENT.visibility}</div>
           </div>
           <div className="header-metrics">
-            <div className="metric-card"><span>参加チーム</span><strong>8</strong></div>
-            <div className="metric-card"><span>暫定順位</span><strong>🏆 2位 / 8</strong></div>
-            <div className="metric-card"><span>首位との差</span><strong>-2.74%</strong></div>
-            <div className="metric-card"><span>ステータス</span><strong>{isLocked ? '試合待機' : '編成中'}</strong></div>
+            <div className="metric-card"><span>本日の成績</span><strong>+1.24%</strong></div>
+            <div className="metric-card"><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
+            <div className="metric-card"><span>現在の順位</span><strong>🏆 1位 / 3</strong></div>
+            <div className="metric-card"><span>最終更新</span><strong>{latestQuote ? new Date(latestQuote).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未取得'}</strong></div>
           </div>
         </header>
 
@@ -228,13 +450,31 @@ function App() {
               </div>
             </div>
 
-            <div className="card side-card">
+            <div className="card side-card formation-card">
               <h3>フォーメーション</h3>
-              <div className="formation-number">4-3-3</div>
+              <div className="formation-number">{currentFormation.label}</div>
+              <p className="formation-description">{currentFormation.description}</p>
               <div className="formation-mini-pitch">
-                {Array.from({ length: 11 }).map((_, index) => <i key={index} />)}
+                {formationDots.map((dot, index) => (
+                  <i
+                    key={`${dot.position}-${index}`}
+                    className={`formation-mini-dot dot-${dot.position.toLowerCase()}`}
+                    style={{ left: `${dot.left}%`, top: `${dot.top}%` }}
+                    title={dot.position}
+                  />
+                ))}
               </div>
-              <button className="ghost-button">ポジション確認 ⚙</button>
+              <div className="formation-buttons" aria-label="フォーメーション選択">
+                {FORMATIONS.map((formation) => (
+                  <button
+                    key={formation.key}
+                    className={formation.key === currentFormation.key ? 'selected' : ''}
+                    onClick={() => handleFormationChange(formation.key)}
+                  >
+                    {formation.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -244,24 +484,32 @@ function App() {
                 <div className="pitch-markings" />
                 <div className="pitch-players">
                   <div className="pitch-row row-fw">
-                    {selected.filter((stock) => stock.position === 'FW').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
+                    {selected.filter((stock) => stock.position === 'FW').map((stock) => (
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
+                    ))}
                   </div>
                   <div className="pitch-row row-mf">
-                    {selected.filter((stock) => stock.position === 'MF').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
+                    {selected.filter((stock) => stock.position === 'MF').map((stock) => (
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
+                    ))}
                   </div>
                   <div className="pitch-row row-df">
-                    {selected.filter((stock) => stock.position === 'DF').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
+                    {selected.filter((stock) => stock.position === 'DF').map((stock) => (
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
+                    ))}
                   </div>
                   <div className="pitch-row row-gk">
-                    {selected.filter((stock) => stock.position === 'GK').map((stock) => <PlayerCard key={stock.code} stock={stock} />)}
+                    {selected.filter((stock) => stock.position === 'GK').map((stock) => (
+                      <PlayerCard key={stock.code} stock={stock} quote={quoteMap[stock.code]} candles={historyMap[stock.code]} />
+                    ))}
                   </div>
                 </div>
               </div>
               <div className="pitch-legend">
-                <span className="fw">FW</span>成長期待
-                <span className="mf">MF</span>収益力・バランス
-                <span className="df">DF</span>安定性・下落耐性
-                <span className="gk">GK</span>最後の砦
+                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名
+                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名
+                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名
+                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名
               </div>
             </div>
           </div>
@@ -269,7 +517,7 @@ function App() {
           <div className="right-panel">
             <div className="card chart-card match-progress-card">
               <div className="card-title-row">
-                <h3>試合進行 <small>（プロトタイプ）</small></h3>
+                <h3>パフォーマンス比較 <small>（リターン）</small></h3>
                 <span>ⓘ</span>
               </div>
               <div className="match-timeline">
@@ -282,7 +530,7 @@ function App() {
                 <strong>勝敗ルール</strong>
                 <p>開始日の終値と終了日の終値を比較し、11銘柄の平均騰落率で順位を決定します。</p>
               </div>
-              <p className="chart-footnote">※ 現段階では画面プロトタイプです。実データ連携は未実装です。</p>
+              <p className="chart-footnote">※ リターンは2026/5/11を0%として表示</p>
             </div>
 
             <div className="card ranking-card">
@@ -300,7 +548,7 @@ function App() {
                   </div>
                 ))}
               </div>
-              <p className="ranking-footnote">※ 参加チーム成績はサンプル表示です。</p>
+              <p className="ranking-footnote">※ 貢献度はチームリターンに対する寄与度</p>
             </div>
           </div>
         </section>
@@ -340,10 +588,40 @@ function App() {
           </div>
         </section>
 
+        <section className="card market-data-card">
+          <div className="card-title-row">
+            <div>
+              <h3>実データ確認 <small>（Yahoo Finance 遅延データ）</small></h3>
+              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンを等ウェイト平均した参考値です。配当・手数料・税金は含みません。</p>
+            </div>
+            <span className={`market-status status-${quoteStatus}`}>{quoteStatus === 'loading' ? '取得中' : quoteStatus === 'success' ? '取得済み' : quoteStatus === 'error' ? '取得エラー' : '未取得'}</span>
+          </div>
+          {quoteError && <div className="market-error">バックエンド未起動、または取得失敗：{quoteError}</div>}
+          <div className="market-summary-row">
+            <div><span>取得銘柄</span><strong>{availableReturns.length} / {selected.length}</strong></div>
+            <div><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
+            <div><span>API</span><strong>{MARKET_API_BASE}</strong></div>
+          </div>
+          <div className="market-table-wrap">
+            <div className="market-table">
+              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>取得元</span></div>
+              {marketDataRows.map(({ stock, quote }) => (
+                <div className="market-table-row" key={stock.code}>
+                  <span><strong>{stock.name}</strong><small>{stock.code}</small></span>
+                  <span>{formatPrice(quote?.regularMarketPrice ?? quote?.lastClose, quote?.currency || 'JPY')}</span>
+                  <span className={(quote?.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.changePct)}</span>
+                  <span className={(quote?.periodReturnPct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.periodReturnPct)}</span>
+                  <span>{quote?.source || quote?.error || '-'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="card stock-list-card">
           <div className="card-title-row">
             <h3>銘柄リスト</h3>
-            <div className="position-status">FW {positionCounts.FW}/3　MF {positionCounts.MF}/3　DF {positionCounts.DF}/4　GK {positionCounts.GK}/1</div>
+            <div className="position-status">FW {positionCounts.FW}/{currentFormation.counts.FW}　MF {positionCounts.MF}/{currentFormation.counts.MF}　DF {positionCounts.DF}/{currentFormation.counts.DF}　GK {positionCounts.GK}/{currentFormation.counts.GK}</div>
           </div>
           <div className="stock-grid">
             {filteredStocks.map((stock) => {
@@ -372,23 +650,29 @@ function App() {
         </section>
 
         <footer className="page-footer">
-          <div>当アプリは金融エンタメを目的とした仮想ポートフォリオ対戦サービスです。特定の金融商品の売買を推奨するものではありません。</div>
-          <div>表示データ：サンプル　判定方式：日次終値ベース</div>
+          <div>当アプリは情報提供を目的としたものであり、特定の金融商品の売買を推奨するものではありません。</div>
+          <div>データ提供：Yahoo Finance 遅延データ / サンプル表示併用</div>
         </footer>
       </main>
     </div>
   );
 }
 
-function PlayerCard({ stock }: { stock: SelectedStock }) {
+function PlayerCard({ stock, quote, candles }: { stock: SelectedStock; quote?: MarketQuote; candles?: PriceCandle[] }) {
   const position = stock.position ?? 'FW';
+  const returnPct = typeof quote?.periodReturnPct === 'number' ? quote.periodReturnPct : stock.change;
+  const trendClass = returnPct >= 0 ? 'trend-up' : 'trend-down';
+  const points = buildSparklinePoints(candles);
+
   return (
     <article className={`player-card position-${position.toLowerCase()}`}>
       <div className="position-pill">{position}</div>
       <strong>{stock.name}</strong>
       <small>{stock.code}</small>
-      <div className="player-change">+{stock.change.toFixed(1)}%</div>
-      <div className={`sparkline spark-${position.toLowerCase()}`} />
+      <div className={`player-change ${trendClass}`}>{formatPct(returnPct)}</div>
+      <svg className={`sparkline spark-${position.toLowerCase()} ${trendClass}`} viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
+        {points ? <polyline points={points} /> : <line x1="0" y1="22" x2="112" y2="14" />}
+      </svg>
     </article>
   );
 }
