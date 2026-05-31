@@ -644,7 +644,7 @@ function App() {
               <input value={customStockInput} onChange={(event) => setCustomStockInput(event.target.value)} disabled={isLocked} placeholder="任意銘柄コードを追加（空欄なら上の検索コードを使用）" />
               <button type="submit" disabled={isLocked || !normalizeStockCodeInput(customStockInput || query)}>{selected.length >= 11 ? '候補追加' : '追加して選抜'}</button>
             </form>
-            <p className="helper-text">検索欄にコードを入れた状態でも候補追加できます。11銘柄が埋まっている場合は、候補に追加して銘柄リストに表示します。</p>
+            <p className="helper-text">検索欄にコードを入れた状態でも候補追加できます。11銘柄が埋まっている場合は、実データ確認の各行にある「外す」で枠を空けてから選抜してください。</p>
             <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース} / 任意追加 {marketSummary.任意追加}</p>
           </div>
           <div className="card editor-card">
@@ -680,7 +680,11 @@ function App() {
               <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>比重</span></div>
               {marketDataRows.map(({ stock, quote, memberWeight }) => (
                 <div className="market-table-row" key={stock.code}>
-                  <span><strong>{stock.name}</strong><small>{stock.code} / {stock.position}</small></span>
+                  <span>
+                    <strong>{stock.name}</strong>
+                    <small>{stock.code} / {stock.position}</small>
+                    <button type="button" disabled={isLocked} onClick={() => toggleStock(stock)}>外す</button>
+                  </span>
                   <span>{formatPrice(quote?.regularMarketPrice ?? quote?.lastClose, quote?.currency || 'JPY')}</span>
                   <span className={(quote?.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.changePct)}</span>
                   <span className={(quote?.periodReturnPct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.periodReturnPct)}</span>
