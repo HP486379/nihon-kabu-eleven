@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 type Market = 'プライム' | 'スタンダード' | 'グロース';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
-type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2';
+type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
 
 type Stock = {
   code: string;
@@ -68,6 +68,8 @@ const FORMATIONS: Formation[] = [
   { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
   { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
   { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, description: '守備と下落耐性を重視する堅守型' },
+  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
+  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
 ];
 
 const DEFAULT_FORMATION = FORMATIONS[0];
@@ -168,6 +170,7 @@ function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
     3: [30, 50, 70],
     4: [23, 41, 59, 77],
     5: [18, 34, 50, 66, 82],
+    6: [14, 28, 42, 58, 72, 86],
   };
 
   return POSITIONS.flatMap((position) => {
@@ -176,6 +179,8 @@ function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
     return lefts.map((left) => ({ position, left, top: tops[position] }));
   });
 }
+
+export { FORMATIONS, getFormationByKey, assignFormationPositions, getNextOpenPosition, getMiniPitchDots };
 
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
