@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-type Market = 'プライム' | 'スタンダード' | 'グロース';
+type Market = 'プライム' | 'スタンダード' | 'グロース' | '任意追加';
 type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
@@ -74,6 +74,7 @@ const FORMATIONS: Formation[] = [
 ];
 
 const DEFAULT_FORMATION = FORMATIONS[0];
+const DEFAULT_CUSTOM_FIT: Record<Position, number> = { FW: 70, MF: 70, DF: 70, GK: 70 };
 
 const TOURNAMENT = {
   name: '日本株代表カップ',
@@ -83,6 +84,7 @@ const TOURNAMENT = {
   resultDate: '2026/09/11',
   visibility: '限定公開',
   description: '運営が設定した大会日程で開催中',
+  judgeRule: 'ポジション加重リターン',
 };
 
 const STOCKS: Stock[] = [
@@ -144,6 +146,24 @@ function formatPrice(value?: number | null, currency = 'JPY') {
 function normalizeQuoteCode(quote: MarketQuote) {
   const raw = quote.requestedSymbol || quote.symbol || '';
   return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+}
+
+function normalizeStockCodeInput(input: string) {
+  const raw = input.trim().toUpperCase();
+  if (!raw) return '';
+  return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/g, '');
+}
+
+function createCustomStock(code: string): Stock {
+  return {
+    code,
+    name: `${code}（任意銘柄）`,
+    market: '任意追加',
+    change: 0,
+    contribution: 0,
+    fit: DEFAULT_CUSTOM_FIT,
+    tags: ['任意追加', '実データ取得', 'ユーザー選択'],
+  };
 }
 
 function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
@@ -216,6 +236,8 @@ function App() {
   const [isLocked, setIsLocked] = useState(false);
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
+  const [customStockInput, setCustomStockInput] = useState('');
+  const [customStocks, setCustomStocks] = useState<Stock[]>([]);
   const [formationKey, setFormationKey] = useState<FormationKey>(DEFAULT_FORMATION.key);
   const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
   const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
@@ -226,6 +248,7 @@ function App() {
   const teamName = formatTeamName(teamNameInput);
   const currentFormation = useMemo(() => getFormationByKey(formationKey), [formationKey]);
   const formationDots = useMemo(() => getMiniPitchDots(currentFormation), [currentFormation]);
+  const allStocks = useMemo(() => [...STOCKS, ...customStocks], [customStocks]);
   const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
 
   useEffect(() => {
@@ -296,9 +319,9 @@ function App() {
 
   const filteredStocks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return STOCKS.filter((stock) => (marketFilter === '全市場' || stock.market === marketFilter)
+    return allStocks.filter((stock) => (marketFilter === '全市場' || stock.market === marketFilter)
       && (!q || stock.name.toLowerCase().includes(q) || stock.code.includes(q)));
-  }, [marketFilter, query]);
+  }, [allStocks, marketFilter, query]);
 
   const positionCounts = useMemo(() => selected.reduce<Record<Position, number>>((acc, stock) => {
     if (stock.position) acc[stock.position] += 1;
@@ -306,7 +329,7 @@ function App() {
   }, { FW: 0, MF: 0, DF: 0, GK: 0 }), [selected]);
 
   const marketSummary = useMemo(() => {
-    const counts: Record<Market, number> = { プライム: 0, スタンダード: 0, グロース: 0 };
+    const counts: Record<Market, number> = { プライム: 0, スタンダード: 0, グロース: 0, 任意追加: 0 };
     selected.forEach((stock) => counts[stock.market] += 1);
     return counts;
   }, [selected]);
@@ -387,6 +410,25 @@ function App() {
     }
   };
 
+  const handleCustomStockSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isLocked) return;
+    const code = normalizeStockCodeInput(customStockInput);
+    if (!code) return;
+    const existingStock = allStocks.find((stock) => stock.code === code);
+    const stock = existingStock || createCustomStock(code);
+
+    if (!existingStock) {
+      setCustomStocks((current) => current.some((item) => item.code === code) ? current : [...current, stock]);
+    }
+
+    setSelected((current) => {
+      if (current.some((item) => item.code === code) || current.length >= 11) return current;
+      return [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }];
+    });
+    setCustomStockInput('');
+  };
+
   const setPosition = (code: string, position: Position) => {
     if (isLocked) return;
     setSelected((current) => {
@@ -436,15 +478,15 @@ function App() {
 
         <section className="match-strip card">
           <div>
-            <span>エントリー締切</span>
-            <strong>{TOURNAMENT.entryDeadline}</strong>
+            <span>試合期間</span>
+            <strong>{TOURNAMENT.duration}の終値で決着</strong>
           </div>
           <div>
-            <span>試合開始日</span>
-            <strong>{TOURNAMENT.startDate}</strong>
+            <span>判定方式</span>
+            <strong>{TOURNAMENT.judgeRule}</strong>
           </div>
           <div>
-            <span>結果発表日</span>
+            <span>締切</span>
             <strong>{TOURNAMENT.resultDate}</strong>
           </div>
           <button className="lock-button" disabled={!isFormationComplete} onClick={() => setIsLocked((locked) => !locked)}>
@@ -591,12 +633,17 @@ function App() {
             <h3>チーム編成</h3>
             <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} disabled={isLocked} placeholder="例：ツヨシ" />
             <div className="filter-row">
-              {(['全市場', 'プライム', 'スタンダード', 'グロース'] as MarketFilter[]).map((market) => (
+              {(['全市場', 'プライム', 'スタンダード', 'グロース', '任意追加'] as MarketFilter[]).map((market) => (
                 <button key={market} className={marketFilter === market ? 'selected' : ''} disabled={isLocked} onClick={() => setMarketFilter(market)}>{market}</button>
               ))}
             </div>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="銘柄名・証券コードで検索" />
-            <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース}</p>
+            <form className="filter-row custom-stock-row" onSubmit={handleCustomStockSubmit}>
+              <input value={customStockInput} onChange={(event) => setCustomStockInput(event.target.value)} disabled={isLocked} placeholder="任意銘柄コードを追加（例：7951）" />
+              <button type="submit" disabled={isLocked || !normalizeStockCodeInput(customStockInput)}>{selected.length >= 11 ? '候補追加' : '追加して選抜'}</button>
+            </form>
+            <p className="helper-text">任意銘柄は日本株コードを入力すると候補に追加できます。11銘柄未満なら自動でピッチに配置します。</p>
+            <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース} / 任意追加 {marketSummary.任意追加}</p>
           </div>
           <div className="card editor-card">
             <h3>チーム診断</h3>
