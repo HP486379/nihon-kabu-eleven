@@ -34,6 +34,10 @@ function normalizeSymbol(symbol) {
   return `${upper}.T`;
 }
 
+function toBareCode(symbol) {
+  return String(symbol || '').replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
+}
+
 function sanitizeSymbols(rawSymbols) {
   const values = String(rawSymbols || '')
     .split(',')
@@ -58,38 +62,69 @@ async function yahooChart(symbol, params = { interval: '1d', range: '3mo' }) {
   return res.json();
 }
 
+async function yahooSearch(queryText, count = 10) {
+  const query = String(queryText || '').trim();
+  if (!query) return [];
+
+  const cacheKey = `search:${query}:${count}`;
+  const cached = getCache(cacheKey, 24 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  const params = new URLSearchParams({
+    q: query,
+    quotesCount: String(count),
+    newsCount: '0',
+    listsCount: '0',
+    lang: 'ja-JP',
+    region: 'JP',
+  }).toString();
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?${params}`;
+  const res = await fetch(url, { headers: DEFAULT_HEADERS });
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+  const results = quotes
+    .filter((quote) => String(quote.symbol || '').toUpperCase().endsWith('.T'))
+    .map((quote) => {
+      const symbol = String(quote.symbol || '').toUpperCase();
+      const code = toBareCode(symbol);
+      const shortName = quote.shortname || quote.shortName || null;
+      const longName = quote.longname || quote.longName || null;
+      const displayName = longName || shortName || code;
+      return {
+        code,
+        symbol,
+        shortName,
+        longName,
+        displayName,
+        exchange: quote.exchange || quote.exchDisp || null,
+        quoteType: quote.quoteType || null,
+      };
+    })
+    .filter((item) => item.code);
+
+  setCache(cacheKey, results);
+  return results;
+}
+
 async function yahooSearchName(symbol) {
   const normalized = normalizeSymbol(symbol);
   const cacheKey = `name:${normalized}`;
   const cached = getCache(cacheKey, 24 * 60 * 60 * 1000);
   if (cached) return cached;
 
-  const bareCode = String(normalized || '').replace(/\.T$/i, '').toUpperCase();
-  const query = new URLSearchParams({
-    q: normalized,
-    quotesCount: '6',
-    newsCount: '0',
-    listsCount: '0',
-    lang: 'ja-JP',
-    region: 'JP',
-  }).toString();
-  const url = `https://query2.finance.yahoo.com/v1/finance/search?${query}`;
-  const res = await fetch(url, { headers: DEFAULT_HEADERS });
+  const results = await yahooSearch(normalized, 6);
+  const bareCode = toBareCode(normalized);
+  const match = results.find((item) => item.symbol === normalized)
+    || results.find((item) => item.code === bareCode)
+    || results[0];
 
-  if (!res.ok) {
-    return {};
-  }
-
-  const data = await res.json();
-  const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
-  const match = quotes.find((quote) => String(quote.symbol || '').toUpperCase() === normalized)
-    || quotes.find((quote) => String(quote.symbol || '').replace(/\.T$/i, '').toUpperCase() === bareCode)
-    || quotes[0];
-
-  const shortName = match?.shortname || match?.shortName || null;
-  const longName = match?.longname || match?.longName || null;
-  const displayName = longName || shortName || null;
-  const payload = { shortName, longName, displayName };
+  const payload = match ? {
+    shortName: match.shortName,
+    longName: match.longName,
+    displayName: match.displayName,
+  } : {};
   setCache(cacheKey, payload);
   return payload;
 }
@@ -192,6 +227,18 @@ async function fetchQuote(rawSymbol) {
   setCache(cacheKey, payload);
   return payload;
 }
+
+app.get('/api/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.json({ results: [], tsServer: new Date().toISOString() });
+    const results = await yahooSearch(q, 10);
+    res.json({ results, tsServer: new Date().toISOString() });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: String(err), results: [] });
+  }
+});
 
 app.get('/api/quote/:symbol', async (req, res) => {
   try {
