@@ -26,6 +26,12 @@
   box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.03);
 }
 
+.pitch-row.drop-swapped-row {
+  outline: 2px dashed rgba(255, 214, 102, 0.95);
+  outline-offset: 6px;
+  background: rgba(255, 214, 102, 0.16);
+}
+
 .pitch-row.drop-rejected-row {
   outline: 2px dashed rgba(255, 90, 90, 0.95);
   outline-offset: 6px;
