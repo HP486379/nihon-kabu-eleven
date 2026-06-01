@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 type Market = 'プライム' | 'スタンダード' | 'グロース' | '任意追加';
-type MarketFilter = '全市場' | Market;
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
 
@@ -35,6 +34,16 @@ type MarketQuote = {
   delayed?: boolean;
   points?: number;
   error?: string;
+};
+
+type SearchResult = {
+  code: string;
+  symbol?: string;
+  shortName?: string | null;
+  longName?: string | null;
+  displayName?: string | null;
+  exchange?: string | null;
+  quoteType?: string | null;
 };
 
 type PriceCandle = {
@@ -157,16 +166,20 @@ function normalizeStockCodeInput(input: string) {
   return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/g, '');
 }
 
-function createCustomStock(code: string): Stock {
+function createCustomStock(code: string, name?: string | null): Stock {
   return {
     code,
-    name: code,
+    name: name || code,
     market: '任意追加',
     change: 0,
     contribution: 0,
     fit: DEFAULT_CUSTOM_FIT,
     tags: ['実データ取得', 'ユーザー選択'],
   };
+}
+
+function createStockFromSearchResult(result: SearchResult): Stock {
+  return createCustomStock(result.code, result.displayName || result.longName || result.shortName || result.code);
 }
 
 function getStockDisplayName(stock: Stock, quote?: MarketQuote) {
@@ -242,10 +255,11 @@ export { FORMATIONS, getFormationByKey, assignFormationPositions, getNextOpenPos
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [isLocked, setIsLocked] = useState(false);
-  const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
-  const [customStockInput, setCustomStockInput] = useState('');
   const [customStocks, setCustomStocks] = useState<Stock[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [formationKey, setFormationKey] = useState<FormationKey>(DEFAULT_FORMATION.key);
   const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
   const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
@@ -258,6 +272,7 @@ function App() {
   const formationDots = useMemo(() => getMiniPitchDots(currentFormation), [currentFormation]);
   const allStocks = useMemo(() => [...STOCKS, ...customStocks], [customStocks]);
   const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
+  const trimmedQuery = query.trim();
 
   useEffect(() => {
     if (!selectedCodesKey) {
@@ -325,11 +340,63 @@ function App() {
     return () => controller.abort();
   }, [selectedCodesKey]);
 
+  useEffect(() => {
+    if (!trimmedQuery) {
+      setSearchResults([]);
+      setSearchStatus('idle');
+      setSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setSearchStatus('loading');
+        setSearchError(null);
+        const response = await fetch(`${MARKET_API_BASE}/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`search ${response.status}`);
+        const payload = await response.json() as { results?: SearchResult[] };
+        setSearchResults(payload.results || []);
+        setSearchStatus('success');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setSearchResults([]);
+        setSearchStatus('error');
+        setSearchError(error instanceof Error ? error.message : String(error));
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [trimmedQuery]);
+
   const filteredStocks = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return allStocks.filter((stock) => (marketFilter === '全市場' || stock.market === marketFilter)
-      && (!q || stock.name.toLowerCase().includes(q) || stock.code.includes(q)));
-  }, [allStocks, marketFilter, query]);
+    const q = trimmedQuery.toLowerCase();
+    if (!q) return allStocks;
+
+    const localMatches = allStocks.filter((stock) => stock.name.toLowerCase().includes(q) || stock.code.includes(q));
+    const remoteMatches = searchResults.map((result) => {
+      const existing = allStocks.find((stock) => stock.code === result.code);
+      return existing || createStockFromSearchResult(result);
+    });
+
+    const merged: Stock[] = [];
+    [...localMatches, ...remoteMatches].forEach((stock) => {
+      if (!stock.code || merged.some((item) => item.code === stock.code)) return;
+      merged.push(stock);
+    });
+
+    const inputCode = normalizeStockCodeInput(trimmedQuery);
+    if (inputCode && !merged.some((stock) => stock.code === inputCode)) {
+      merged.push(createCustomStock(inputCode));
+    }
+
+    return merged;
+  }, [allStocks, searchResults, trimmedQuery]);
 
   const positionCounts = useMemo(() => selected.reduce<Record<Position, number>>((acc, stock) => {
     if (stock.position) acc[stock.position] += 1;
@@ -400,6 +467,11 @@ function App() {
     .sort()
     .slice(-1)[0];
 
+  const ensureCustomCandidate = (stock: Stock) => {
+    if (stock.market !== '任意追加') return;
+    setCustomStocks((current) => current.some((item) => item.code === stock.code) ? current : [...current, stock]);
+  };
+
   const handleFormationChange = (nextKey: FormationKey) => {
     if (isLocked) return;
     const nextFormation = getFormationByKey(nextKey);
@@ -413,30 +485,27 @@ function App() {
       setSelected((current) => current.filter((item) => item.code !== stock.code));
       return;
     }
+
+    ensureCustomCandidate(stock);
     if (selected.length < 11) {
       setSelected((current) => [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }]);
     }
   };
 
-  const handleCustomStockSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isLocked) return;
-    const code = normalizeStockCodeInput(customStockInput || query);
-    if (!code) return;
-    const existingStock = allStocks.find((stock) => stock.code === code);
-    const stock = existingStock || createCustomStock(code);
+    if (isLocked || !trimmedQuery) return;
 
-    if (!existingStock) {
-      setCustomStocks((current) => current.some((item) => item.code === code) ? current : [...current, stock]);
-    }
+    const firstStock = filteredStocks[0];
+    const inputCode = normalizeStockCodeInput(trimmedQuery);
+    const stock = firstStock || (inputCode ? createCustomStock(inputCode) : null);
+    if (!stock) return;
 
-    setMarketFilter(stock.market);
-    setQuery(code);
+    ensureCustomCandidate(stock);
     setSelected((current) => {
-      if (current.some((item) => item.code === code) || current.length >= 11) return current;
+      if (current.some((item) => item.code === stock.code) || current.length >= 11) return current;
       return [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }];
     });
-    setCustomStockInput('');
   };
 
   const setPosition = (code: string, position: Position) => {
@@ -642,17 +711,13 @@ function App() {
           <div className="card editor-card editor-wide">
             <h3>チーム編成</h3>
             <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} disabled={isLocked} placeholder="例：ツヨシ" />
-            <div className="filter-row">
-              {(['全市場', 'プライム', 'スタンダード', 'グロース', '任意追加'] as MarketFilter[]).map((market) => (
-                <button key={market} className={marketFilter === market ? 'selected' : ''} disabled={isLocked} onClick={() => setMarketFilter(market)}>{market}</button>
-              ))}
-            </div>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="銘柄名・証券コードで検索" />
-            <form className="filter-row custom-stock-row" onSubmit={handleCustomStockSubmit}>
-              <input value={customStockInput} onChange={(event) => setCustomStockInput(event.target.value)} disabled={isLocked} placeholder="任意銘柄コードを追加（空欄なら上の検索コードを使用）" />
-              <button type="submit" disabled={isLocked || !normalizeStockCodeInput(customStockInput || query)}>{selected.length >= 11 ? '候補追加' : '追加して選抜'}</button>
+            <form className="filter-row custom-stock-row" onSubmit={handleSearchSubmit}>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} disabled={isLocked} placeholder="銘柄名・証券コードで検索して追加（例：ヤマハ / 7951）" />
+              <button type="submit" disabled={isLocked || !trimmedQuery}>{selected.length >= 11 ? '候補追加' : '検索して追加'}</button>
             </form>
-            <p className="helper-text">検索欄にコードを入れた状態でも候補追加できます。11銘柄が埋まっている場合は、実データ確認の各行にある「外す」で枠を空けてから選抜してください。</p>
+            <p className="helper-text">
+              {searchStatus === 'loading' ? '検索中です。' : searchStatus === 'error' ? `検索に失敗しました：${searchError}` : trimmedQuery ? `検索候補：${filteredStocks.length}件` : '銘柄名または証券コードで検索し、下の銘柄リストから選抜してください。'}
+            </p>
             <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース} / 任意追加 {marketSummary.任意追加}</p>
           </div>
           <div className="card editor-card">
@@ -705,7 +770,7 @@ function App() {
 
         <section className="card stock-list-card">
           <div className="card-title-row">
-            <h3>銘柄リスト</h3>
+            <h3>{trimmedQuery ? '検索結果・銘柄リスト' : '銘柄リスト'}</h3>
             <div className="position-status">FW {positionCounts.FW}/{currentFormation.counts.FW}　MF {positionCounts.MF}/{currentFormation.counts.MF}　DF {positionCounts.DF}/{currentFormation.counts.DF}　GK {positionCounts.GK}/{currentFormation.counts.GK}</div>
           </div>
           <div className="stock-grid">
@@ -715,7 +780,7 @@ function App() {
               return (
                 <article className={`stock-item ${chosen ? 'chosen' : ''} ${isLocked ? 'locked' : ''}`} key={stock.code}>
                   <div className="stock-item-head">
-                    <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? '上限' : '選抜'}</button>
+                    <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? (stock.market === '任意追加' ? '候補追加' : '上限') : '選抜'}</button>
                     <div>
                       <strong>{getStockDisplayName(stock, quote)}</strong>
                       <small>{stock.code} / {stock.market}</small>
