@@ -100,26 +100,39 @@ const TOURNAMENT = {
 };
 
 const STOCKS: Stock[] = [
-  { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 18.7, contribution: 1.74, fit: { FW: 91, MF: 84, DF: 61, GK: 55 }, tags: ['世界ブランド', 'エンタメ', '成長'] },
-  { code: '7203', name: 'トヨタ自動車', market: 'プライム', change: 14.6, contribution: 2.18, fit: { FW: 78, MF: 90, DF: 82, GK: 71 }, tags: ['大型株', '輸出', '主軸'] },
-  { code: '8035', name: '東京エレクトロン', market: 'プライム', change: 23.1, contribution: 3.21, fit: { FW: 96, MF: 80, DF: 48, GK: 42 }, tags: ['半導体', '攻撃力', 'テーマ'] },
-  { code: '4063', name: '信越化学工業', market: 'プライム', change: 11.2, contribution: 1.12, fit: { FW: 70, MF: 91, DF: 86, GK: 84 }, tags: ['素材', '高収益', '安定'] },
-  { code: '8306', name: '三菱UFJフィナンシャル・グループ', market: 'プライム', change: 10.3, contribution: 1.03, fit: { FW: 61, MF: 88, DF: 84, GK: 72 }, tags: ['金融', '中盤', '配当'] },
-  { code: '6861', name: 'キーエンス', market: 'プライム', change: 19.4, contribution: 1.87, fit: { FW: 88, MF: 94, DF: 72, GK: 80 }, tags: ['高収益', '司令塔', '品質'] },
-  { code: '7974', name: '任天堂', market: 'プライム', change: 15.3, contribution: 1.32, fit: { FW: 84, MF: 82, DF: 76, GK: 73 }, tags: ['IP', 'ゲーム', 'ブランド'] },
-  { code: '6367', name: 'ダイキン工業', market: 'プライム', change: 8.9, contribution: 0.89, fit: { FW: 64, MF: 79, DF: 88, GK: 76 }, tags: ['空調', '世界展開', '守備'] },
-  { code: '6301', name: 'コマツ', market: 'プライム', change: 9.7, contribution: 0.97, fit: { FW: 66, MF: 78, DF: 85, GK: 70 }, tags: ['建機', '景気敏感', '基盤'] },
-  { code: '6098', name: 'リクルートホールディングス', market: 'プライム', change: 12.0, contribution: 1.20, fit: { FW: 83, MF: 87, DF: 67, GK: 60 }, tags: ['人材', 'DX', '攻守'] },
-  { code: '7741', name: 'HOYA', market: 'プライム', change: 7.6, contribution: 0.76, fit: { FW: 72, MF: 86, DF: 90, GK: 94 }, tags: ['高収益', '医療', '最後の砦'] },
-  { code: '9432', name: 'NTT', market: 'プライム', change: 4.2, contribution: 0.56, fit: { FW: 45, MF: 78, DF: 92, GK: 88 }, tags: ['通信', '安定', '守備'] },
-  { code: '9433', name: 'KDDI', market: 'プライム', change: 5.3, contribution: 0.63, fit: { FW: 48, MF: 76, DF: 90, GK: 86 }, tags: ['通信', '配当', '安定'] },
-  { code: '9984', name: 'ソフトバンクグループ', market: 'プライム', change: 19.9, contribution: 2.02, fit: { FW: 95, MF: 66, DF: 38, GK: 31 }, tags: ['AI', '投資会社', '攻撃'] },
-  { code: '6857', name: 'アドバンテスト', market: 'プライム', change: 24.5, contribution: 2.30, fit: { FW: 97, MF: 74, DF: 41, GK: 35 }, tags: ['半導体', '攻撃', 'テーマ'] },
-  { code: '2782', name: 'セリア', market: 'スタンダード', change: 3.8, contribution: 0.50, fit: { FW: 50, MF: 68, DF: 80, GK: 72 }, tags: ['小売', '安定', '生活'] },
-  { code: '4816', name: '東映アニメーション', market: 'スタンダード', change: 15.4, contribution: 1.25, fit: { FW: 87, MF: 75, DF: 58, GK: 50 }, tags: ['IP', 'アニメ', '成長'] },
-  { code: '4478', name: 'フリー', market: 'グロース', change: 17.6, contribution: 1.14, fit: { FW: 89, MF: 67, DF: 35, GK: 30 }, tags: ['SaaS', 'グロース', '攻撃'] },
-  { code: '7342', name: 'ウェルスナビ', market: 'グロース', change: 9.8, contribution: 0.75, fit: { FW: 80, MF: 62, DF: 34, GK: 28 }, tags: ['FinTech', 'グロース', '攻撃'] },
-  { code: '9166', name: 'GENDA', market: 'グロース', change: 21.3, contribution: 1.41, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
+  { code: '285A', name: 'キオクシアホールディングス', market: 'プライム', change: 10.1, contribution: 2.63, fit: { FW: 98, MF: 76, DF: 42, GK: 34 }, tags: ['半導体メモリ', 'IPO', '高ボラ'] },
+  { code: '9984', name: 'ソフトバンクグループ', market: 'プライム', change: 14.0, contribution: 2.20, fit: { FW: 97, MF: 68, DF: 36, GK: 30 }, tags: ['AI', '投資会社', '攻撃'] },
+  { code: '6981', name: '村田製作所', market: 'プライム', change: 8.9, contribution: 1.45, fit: { FW: 82, MF: 89, DF: 70, GK: 66 }, tags: ['電子部品', 'スマホ', '中盤'] },
+  { code: '6976', name: '太陽誘電', market: 'プライム', change: 8.4, contribution: 1.32, fit: { FW: 85, MF: 78, DF: 55, GK: 48 }, tags: ['電子部品', '景気敏感', '攻撃'] },
+  { code: '5803', name: 'フジクラ', market: 'プライム', change: -2.0, contribution: 1.08, fit: { FW: 91, MF: 76, DF: 54, GK: 48 }, tags: ['電線', 'データセンター', 'テーマ'] },
+  { code: '4062', name: 'イビデン', market: 'プライム', change: -5.2, contribution: 0.96, fit: { FW: 88, MF: 74, DF: 50, GK: 44 }, tags: ['半導体基板', 'AIサーバー', '攻撃'] },
+  { code: '5801', name: '古河電気工業', market: 'プライム', change: 0.1, contribution: 0.88, fit: { FW: 80, MF: 78, DF: 66, GK: 58 }, tags: ['電線', 'インフラ', 'テーマ'] },
+  { code: '6857', name: 'アドバンテスト', market: 'プライム', change: -1.9, contribution: 1.48, fit: { FW: 97, MF: 74, DF: 41, GK: 35 }, tags: ['半導体検査', 'AI', '攻撃'] },
+  { code: '8035', name: '東京エレクトロン', market: 'プライム', change: 1.2, contribution: 1.42, fit: { FW: 96, MF: 80, DF: 48, GK: 42 }, tags: ['半導体製造装置', '大型株', '攻撃'] },
+  { code: '6762', name: 'TDK', market: 'プライム', change: -0.1, contribution: 0.88, fit: { FW: 78, MF: 88, DF: 72, GK: 68 }, tags: ['電子部品', '電池', 'バランス'] },
+  { code: '7203', name: 'トヨタ自動車', market: 'プライム', change: -4.5, contribution: 1.05, fit: { FW: 74, MF: 90, DF: 82, GK: 73 }, tags: ['自動車', '大型株', '主軸'] },
+  { code: '7011', name: '三菱重工業', market: 'プライム', change: -4.5, contribution: 1.12, fit: { FW: 82, MF: 84, DF: 78, GK: 66 }, tags: ['防衛', '重工', 'テーマ'] },
+  { code: '8306', name: '三菱UFJフィナンシャル・グループ', market: 'プライム', change: 0.8, contribution: 0.96, fit: { FW: 61, MF: 88, DF: 84, GK: 72 }, tags: ['銀行', '金利', '配当'] },
+  { code: '5802', name: '住友電気工業', market: 'プライム', change: 4.7, contribution: 0.94, fit: { FW: 70, MF: 83, DF: 78, GK: 68 }, tags: ['電線', '自動車部品', '守備'] },
+  { code: '5706', name: '三井金属鉱業', market: 'プライム', change: 4.3, contribution: 0.88, fit: { FW: 76, MF: 78, DF: 70, GK: 62 }, tags: ['非鉄金属', '素材', 'テーマ'] },
+  { code: '3436', name: 'SUMCO', market: 'プライム', change: 9.5, contribution: 1.04, fit: { FW: 86, MF: 72, DF: 46, GK: 40 }, tags: ['シリコンウエハ', '半導体', '景気敏感'] },
+  { code: '6920', name: 'レーザーテック', market: 'プライム', change: -4.4, contribution: 1.02, fit: { FW: 96, MF: 66, DF: 35, GK: 30 }, tags: ['半導体検査', '高ボラ', '攻撃'] },
+  { code: '6098', name: 'リクルートホールディングス', market: 'プライム', change: 3.1, contribution: 0.92, fit: { FW: 83, MF: 87, DF: 67, GK: 60 }, tags: ['人材', 'DX', '中盤'] },
+  { code: '6146', name: 'ディスコ', market: 'プライム', change: -2.0, contribution: 1.00, fit: { FW: 94, MF: 78, DF: 46, GK: 42 }, tags: ['半導体装置', '高収益', '攻撃'] },
+  { code: '4063', name: '信越化学工業', market: 'プライム', change: 0.5, contribution: 0.86, fit: { FW: 70, MF: 91, DF: 86, GK: 84 }, tags: ['素材', '高収益', '安定'] },
+  { code: '9983', name: 'ファーストリテイリング', market: 'プライム', change: -2.2, contribution: 0.82, fit: { FW: 76, MF: 84, DF: 70, GK: 64 }, tags: ['小売', 'グローバル', '大型株'] },
+  { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 2.9, contribution: 0.92, fit: { FW: 89, MF: 84, DF: 63, GK: 55 }, tags: ['エンタメ', '半導体', 'ブランド'] },
+  { code: '6501', name: '日立製作所', market: 'プライム', change: -0.8, contribution: 0.90, fit: { FW: 78, MF: 88, DF: 82, GK: 72 }, tags: ['インフラ', 'DX', 'バランス'] },
+  { code: '8316', name: '三井住友フィナンシャルグループ', market: 'プライム', change: 0.7, contribution: 0.82, fit: { FW: 58, MF: 86, DF: 86, GK: 74 }, tags: ['銀行', '金利', '守備'] },
+  { code: '9432', name: 'NTT', market: 'プライム', change: 0.2, contribution: 0.56, fit: { FW: 45, MF: 78, DF: 92, GK: 88 }, tags: ['通信', '安定', '守備'] },
+  { code: '9433', name: 'KDDI', market: 'プライム', change: 0.4, contribution: 0.63, fit: { FW: 48, MF: 76, DF: 90, GK: 86 }, tags: ['通信', '配当', '安定'] },
+  { code: '7741', name: 'HOYA', market: 'プライム', change: 0.8, contribution: 0.76, fit: { FW: 72, MF: 86, DF: 90, GK: 94 }, tags: ['高収益', '医療', 'GK候補'] },
+  { code: '7974', name: '任天堂', market: 'プライム', change: 1.1, contribution: 0.74, fit: { FW: 84, MF: 82, DF: 76, GK: 73 }, tags: ['IP', 'ゲーム', 'ブランド'] },
+  { code: '6367', name: 'ダイキン工業', market: 'プライム', change: 0.7, contribution: 0.70, fit: { FW: 64, MF: 79, DF: 88, GK: 76 }, tags: ['空調', '世界展開', '守備'] },
+  { code: '2782', name: 'セリア', market: 'スタンダード', change: 0.3, contribution: 0.50, fit: { FW: 50, MF: 68, DF: 80, GK: 72 }, tags: ['小売', '生活防衛', '安定'] },
+  { code: '4816', name: '東映アニメーション', market: 'スタンダード', change: 1.5, contribution: 0.64, fit: { FW: 87, MF: 75, DF: 58, GK: 50 }, tags: ['IP', 'アニメ', '成長'] },
+  { code: '4478', name: 'フリー', market: 'グロース', change: 1.8, contribution: 0.58, fit: { FW: 89, MF: 67, DF: 35, GK: 30 }, tags: ['SaaS', 'グロース', '攻撃'] },
+  { code: '9166', name: 'GENDA', market: 'グロース', change: 2.1, contribution: 0.62, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
 ];
 
 const SAMPLE_TEAMS = [
@@ -770,7 +783,7 @@ function App() {
 
         <section className="card stock-list-card">
           <div className="card-title-row">
-            <h3>{trimmedQuery ? '検索結果・銘柄リスト' : '銘柄リスト'}</h3>
+            <h3>{trimmedQuery ? '検索結果・銘柄リスト' : '日本株代表候補リスト'}</h3>
             <div className="position-status">FW {positionCounts.FW}/{currentFormation.counts.FW}　MF {positionCounts.MF}/{currentFormation.counts.MF}　DF {positionCounts.DF}/{currentFormation.counts.DF}　GK {positionCounts.GK}/{currentFormation.counts.GK}</div>
           </div>
           <div className="stock-grid">
