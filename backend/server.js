@@ -8,292 +8,222 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
 const CACHE = new Map();
-const DEFAULT_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (compatible; Nihon-Kabu-Eleven/0.1)',
+const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+const FALLBACK_SEARCH = [
+  ['7951', 'ヤマハ', ['YAMAHA', 'やまは']],
+  ['7272', 'ヤマハ発動機', ['ヤマハ発', 'YAMAHA MOTOR']],
+  ['6758', 'ソニーグループ', ['ソニー', 'SONY']],
+  ['7203', 'トヨタ自動車', ['トヨタ', 'TOYOTA']],
+  ['7974', '任天堂', ['NINTENDO']],
+  ['8035', '東京エレクトロン', ['東エレク']],
+  ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
+];
+
+const nowIso = () => new Date().toISOString();
+const norm = (value) => String(value || '').normalize('NFKC').replace(/[\s・･\-－_＿()（）.,，。]/g, '').toUpperCase();
+const bareCode = (symbol) => String(symbol || '').replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
+const symbolOf = (value) => {
+  const upper = String(value || '').trim().toUpperCase();
+  if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
+  return `${upper}.T`;
 };
 
 function getCache(key, ttlMs) {
-  const entry = CACHE.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > ttlMs) {
+  const hit = CACHE.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > ttlMs) {
     CACHE.delete(key);
     return null;
   }
-  return entry.data;
+  return hit.data;
 }
 
 function setCache(key, data) {
   CACHE.set(key, { ts: Date.now(), data });
 }
 
-function normalizeSymbol(symbol) {
-  if (!symbol) return symbol;
-  const upper = String(symbol).trim().toUpperCase();
-  if (!upper) return upper;
-  if (upper.startsWith('^') || upper.includes('.')) return upper;
-  return `${upper}.T`;
+function fallbackSearch(query) {
+  const q = norm(query);
+  if (!q) return [];
+  return FALLBACK_SEARCH
+    .filter(([code, name, aliases]) => [code, name, ...aliases].some((value) => norm(value).includes(q)))
+    .map(([code, name]) => ({
+      code,
+      symbol: `${code}.T`,
+      shortName: name,
+      longName: name,
+      displayName: name,
+      exchange: 'TYO',
+      quoteType: 'EQUITY',
+      source: 'fallback',
+    }));
 }
 
-function toBareCode(symbol) {
-  return String(symbol || '').replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
+function mergeByCode(...groups) {
+  const merged = [];
+  groups.flat().forEach((item) => {
+    if (!item?.code || merged.some((existing) => existing.code === item.code)) return;
+    merged.push(item);
+  });
+  return merged;
 }
 
-function sanitizeSymbols(rawSymbols) {
-  const values = String(rawSymbols || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 30);
-  return [...new Set(values)];
-}
-
-async function yahooChart(symbol, params = { interval: '1d', range: '3mo' }) {
-  const prepared = Object.entries(params).reduce((acc, [key, value]) => {
-    if (value == null) return acc;
-    acc[key] = value;
-    return acc;
-  }, {});
-  const query = new URLSearchParams(prepared).toString();
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${query}`;
-  const res = await fetch(url, { headers: DEFAULT_HEADERS });
-  if (!res.ok) {
-    throw new Error(`Yahoo chart fetch failed: ${res.status}`);
-  }
-  return res.json();
-}
-
-async function yahooSearch(queryText, count = 10) {
-  const query = String(queryText || '').trim();
-  if (!query) return [];
-
-  const cacheKey = `search:${query}:${count}`;
-  const cached = getCache(cacheKey, 24 * 60 * 60 * 1000);
+async function yahooSearch(query, count = 10) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  const key = `search:${q}:${count}`;
+  const cached = getCache(key, 24 * 60 * 60 * 1000);
   if (cached) return cached;
 
-  const params = new URLSearchParams({
-    q: query,
-    quotesCount: String(count),
-    newsCount: '0',
-    listsCount: '0',
-    lang: 'ja-JP',
-    region: 'JP',
-  }).toString();
-  const url = `https://query2.finance.yahoo.com/v1/finance/search?${params}`;
-  const res = await fetch(url, { headers: DEFAULT_HEADERS });
-  if (!res.ok) return [];
+  const fallback = fallbackSearch(q);
+  const params = new URLSearchParams({ q, quotesCount: String(count), newsCount: '0', listsCount: '0', lang: 'ja-JP', region: 'JP' });
+  const res = await fetch(`https://query2.finance.yahoo.com/v1/finance/search?${params}`, { headers: HEADERS });
+  if (!res.ok) {
+    setCache(key, fallback);
+    return fallback;
+  }
 
   const data = await res.json();
-  const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
-  const results = quotes
+  const yahoo = (Array.isArray(data?.quotes) ? data.quotes : [])
     .filter((quote) => String(quote.symbol || '').toUpperCase().endsWith('.T'))
     .map((quote) => {
       const symbol = String(quote.symbol || '').toUpperCase();
-      const code = toBareCode(symbol);
+      const code = bareCode(symbol);
       const shortName = quote.shortname || quote.shortName || null;
       const longName = quote.longname || quote.longName || null;
-      const displayName = longName || shortName || code;
-      return {
-        code,
-        symbol,
-        shortName,
-        longName,
-        displayName,
-        exchange: quote.exchange || quote.exchDisp || null,
-        quoteType: quote.quoteType || null,
-      };
+      return { code, symbol, shortName, longName, displayName: longName || shortName || code, exchange: quote.exchange || null, quoteType: quote.quoteType || null, source: 'yahoo' };
     })
     .filter((item) => item.code);
 
-  setCache(cacheKey, results);
-  return results;
+  const result = mergeByCode(fallback, yahoo).slice(0, count);
+  setCache(key, result);
+  return result;
 }
 
-async function yahooSearchName(symbol) {
-  const normalized = normalizeSymbol(symbol);
-  const cacheKey = `name:${normalized}`;
-  const cached = getCache(cacheKey, 24 * 60 * 60 * 1000);
-  if (cached) return cached;
-
-  const results = await yahooSearch(normalized, 6);
-  const bareCode = toBareCode(normalized);
-  const match = results.find((item) => item.symbol === normalized)
-    || results.find((item) => item.code === bareCode)
-    || results[0];
-
-  const payload = match ? {
-    shortName: match.shortName,
-    longName: match.longName,
-    displayName: match.displayName,
-  } : {};
-  setCache(cacheKey, payload);
-  return payload;
+async function yahooChart(symbol, params) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${query}`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Yahoo chart fetch failed: ${res.status}`);
+  return res.json();
 }
 
-function parseQuoteFromYahoo(inputSymbol, resp) {
-  const result = resp?.chart?.result?.[0];
+function quoteFromChart(inputSymbol, data) {
+  const result = data?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
   const quote = result?.indicators?.quote?.[0] || {};
   const closes = quote.close || [];
   const volumes = quote.volume || [];
-  const validPoints = [];
+  const points = [];
 
-  for (let i = 0; i < closes.length; i += 1) {
-    const close = closes[i];
-    if (typeof close !== 'number' || !Number.isFinite(close)) continue;
-    validPoints.push({
-      close,
-      volume: volumes[i] ?? null,
-      timestamp: timestamps[i] ? new Date(timestamps[i] * 1000).toISOString() : null,
-    });
-  }
+  closes.forEach((close, index) => {
+    if (typeof close !== 'number' || !Number.isFinite(close)) return;
+    points.push({ close, volume: volumes[index] ?? null, timestamp: timestamps[index] ? new Date(timestamps[index] * 1000).toISOString() : null });
+  });
 
-  const last = validPoints.at(-1) ?? null;
-  const previous = validPoints.length >= 2 ? validPoints.at(-2) : null;
-  const first = validPoints.at(0) ?? null;
-  const change = last && previous ? last.close - previous.close : null;
-  const changePct = last && previous && previous.close !== 0 ? (last.close / previous.close - 1) * 100 : null;
-  const periodReturnPct = last && first && first.close !== 0 ? (last.close / first.close - 1) * 100 : null;
-
+  const last = points.at(-1) ?? null;
+  const previous = points.length >= 2 ? points.at(-2) : null;
+  const first = points.at(0) ?? null;
   return {
     requestedSymbol: inputSymbol,
     symbol: result?.meta?.symbol || inputSymbol,
-    exchangeName: result?.meta?.exchangeName || null,
     currency: result?.meta?.currency || 'JPY',
     regularMarketPrice: result?.meta?.regularMarketPrice ?? last?.close ?? null,
     previousClose: result?.meta?.previousClose ?? previous?.close ?? null,
     lastClose: last?.close ?? null,
-    change,
-    changePct,
-    periodReturnPct,
+    change: last && previous ? last.close - previous.close : null,
+    changePct: last && previous && previous.close !== 0 ? (last.close / previous.close - 1) * 100 : null,
+    periodReturnPct: last && first && first.close !== 0 ? (last.close / first.close - 1) * 100 : null,
     volume: last?.volume ?? null,
     tsSource: last?.timestamp,
-    tsServer: new Date().toISOString(),
+    tsServer: nowIso(),
     source: 'yahoo-chart',
     delayed: true,
-    points: validPoints.length,
+    points: points.length,
   };
 }
 
-function parseOhlcFromYahoo(inputSymbol, interval, range, resp) {
-  const result = resp?.chart?.result?.[0];
+function candlesFromChart(inputSymbol, interval, range, data) {
+  const result = data?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
   const quote = result?.indicators?.quote?.[0] || {};
-  const candles = [];
+  const candles = timestamps.map((timestamp, index) => ({
+    t: timestamp * 1000,
+    open: quote.open?.[index],
+    high: quote.high?.[index],
+    low: quote.low?.[index],
+    close: quote.close?.[index],
+    volume: quote.volume?.[index] ?? 0,
+  })).filter((candle) => [candle.open, candle.high, candle.low, candle.close].every((value) => typeof value === 'number' && Number.isFinite(value)));
 
-  for (let i = 0; i < timestamps.length; i += 1) {
-    const open = quote.open?.[i];
-    const high = quote.high?.[i];
-    const low = quote.low?.[i];
-    const close = quote.close?.[i];
-    const volume = quote.volume?.[i];
-    if ([open, high, low, close].some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
-      continue;
-    }
-    candles.push({
-      t: timestamps[i] * 1000,
-      open,
-      high,
-      low,
-      close,
-      volume: volume ?? 0,
-    });
-  }
-
-  return {
-    requestedSymbol: inputSymbol,
-    symbol: result?.meta?.symbol || inputSymbol,
-    interval,
-    range,
-    candles,
-    source: 'yahoo-chart',
-    delayed: true,
-    tsServer: new Date().toISOString(),
-  };
+  return { requestedSymbol: inputSymbol, symbol: result?.meta?.symbol || inputSymbol, interval, range, candles, source: 'yahoo-chart', delayed: true, tsServer: nowIso() };
 }
 
 async function fetchQuote(rawSymbol) {
-  const symbol = normalizeSymbol(rawSymbol);
-  const cacheKey = `quote:${symbol}`;
-  const cached = getCache(cacheKey, 30_000);
+  const symbol = symbolOf(rawSymbol);
+  const key = `quote:${symbol}`;
+  const cached = getCache(key, 30_000);
   if (cached) return { ...cached, source: 'cache' };
-  const [data, nameData] = await Promise.all([
-    yahooChart(symbol, { interval: '1d', range: '3mo' }),
-    yahooSearchName(symbol).catch(() => ({})),
-  ]);
-  const payload = {
-    ...parseQuoteFromYahoo(symbol, data),
-    ...nameData,
-  };
-  setCache(cacheKey, payload);
+
+  const data = await yahooChart(symbol, { interval: '1d', range: '3mo' });
+  const quote = quoteFromChart(symbol, data);
+  const code = bareCode(symbol);
+  const fallbackName = fallbackSearch(code).find((item) => item.code === code);
+  const payload = fallbackName ? { ...quote, shortName: fallbackName.displayName, longName: fallbackName.displayName, displayName: fallbackName.displayName } : quote;
+  setCache(key, payload);
   return payload;
 }
 
 app.get('/api/search', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
-    if (!q) return res.json({ results: [], tsServer: new Date().toISOString() });
-    const results = await yahooSearch(q, 10);
-    res.json({ results, tsServer: new Date().toISOString() });
+    const results = q ? await yahooSearch(q, 10) : [];
+    res.json({ results, tsServer: nowIso() });
   } catch (err) {
-    console.error(err);
-    res.status(502).json({ error: String(err), results: [] });
+    const results = fallbackSearch(req.query.q).slice(0, 10);
+    res.status(results.length ? 200 : 502).json({ error: String(err), results });
   }
 });
 
 app.get('/api/quote/:symbol', async (req, res) => {
   try {
-    const payload = await fetchQuote(req.params.symbol);
-    res.json(payload);
+    res.json(await fetchQuote(req.params.symbol));
   } catch (err) {
-    console.error(err);
     res.status(502).json({ error: String(err), symbol: req.params.symbol });
   }
 });
 
 app.get('/api/quotes', async (req, res) => {
-  const symbols = sanitizeSymbols(req.query.symbols);
-  if (!symbols.length) {
-    return res.status(400).json({ error: 'symbols query is required' });
-  }
-
-  const results = await Promise.all(symbols.map(async (rawSymbol) => {
+  const symbols = String(req.query.symbols || '').split(',').map((value) => value.trim()).filter(Boolean).slice(0, 30);
+  if (!symbols.length) return res.status(400).json({ error: 'symbols query is required' });
+  const results = await Promise.all([...new Set(symbols)].map(async (symbol) => {
     try {
-      return await fetchQuote(rawSymbol);
+      return await fetchQuote(symbol);
     } catch (err) {
-      return {
-        requestedSymbol: rawSymbol,
-        symbol: normalizeSymbol(rawSymbol),
-        error: String(err),
-        source: 'error',
-        tsServer: new Date().toISOString(),
-      };
+      return { requestedSymbol: symbol, symbol: symbolOf(symbol), error: String(err), source: 'error', tsServer: nowIso() };
     }
   }));
-
-  res.json({ results, tsServer: new Date().toISOString() });
+  res.json({ results, tsServer: nowIso() });
 });
 
 app.get('/api/history/:symbol', async (req, res) => {
   try {
-    const symbol = normalizeSymbol(req.params.symbol);
+    const symbol = symbolOf(req.params.symbol);
     const interval = String(req.query.interval || '1d');
     const range = String(req.query.range || '3mo');
-    const cacheKey = `history:${symbol}:${interval}:${range}`;
-    const cached = getCache(cacheKey, 60_000);
+    const key = `history:${symbol}:${interval}:${range}`;
+    const cached = getCache(key, 60_000);
     if (cached) return res.json({ ...cached, source: 'cache' });
-
     const data = await yahooChart(symbol, { interval, range });
-    const payload = parseOhlcFromYahoo(symbol, interval, range, data);
-    setCache(cacheKey, payload);
+    const payload = candlesFromChart(symbol, interval, range, data);
+    setCache(key, payload);
     res.json(payload);
   } catch (err) {
-    console.error(err);
     res.status(502).json({ error: String(err), symbol: req.params.symbol });
   }
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'nihon-kabu-eleven-market-proxy', tsServer: new Date().toISOString() });
+  res.json({ ok: true, service: 'nihon-kabu-eleven-market-proxy', tsServer: nowIso() });
 });
 
 app.listen(PORT, () => {
