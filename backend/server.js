@@ -58,6 +58,42 @@ async function yahooChart(symbol, params = { interval: '1d', range: '3mo' }) {
   return res.json();
 }
 
+async function yahooSearchName(symbol) {
+  const normalized = normalizeSymbol(symbol);
+  const cacheKey = `name:${normalized}`;
+  const cached = getCache(cacheKey, 24 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  const bareCode = String(normalized || '').replace(/\.T$/i, '').toUpperCase();
+  const query = new URLSearchParams({
+    q: normalized,
+    quotesCount: '6',
+    newsCount: '0',
+    listsCount: '0',
+    lang: 'ja-JP',
+    region: 'JP',
+  }).toString();
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?${query}`;
+  const res = await fetch(url, { headers: DEFAULT_HEADERS });
+
+  if (!res.ok) {
+    return {};
+  }
+
+  const data = await res.json();
+  const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+  const match = quotes.find((quote) => String(quote.symbol || '').toUpperCase() === normalized)
+    || quotes.find((quote) => String(quote.symbol || '').replace(/\.T$/i, '').toUpperCase() === bareCode)
+    || quotes[0];
+
+  const shortName = match?.shortname || match?.shortName || null;
+  const longName = match?.longname || match?.longName || null;
+  const displayName = longName || shortName || null;
+  const payload = { shortName, longName, displayName };
+  setCache(cacheKey, payload);
+  return payload;
+}
+
 function parseQuoteFromYahoo(inputSymbol, resp) {
   const result = resp?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
@@ -145,8 +181,14 @@ async function fetchQuote(rawSymbol) {
   const cacheKey = `quote:${symbol}`;
   const cached = getCache(cacheKey, 30_000);
   if (cached) return { ...cached, source: 'cache' };
-  const data = await yahooChart(symbol, { interval: '1d', range: '3mo' });
-  const payload = parseQuoteFromYahoo(symbol, data);
+  const [data, nameData] = await Promise.all([
+    yahooChart(symbol, { interval: '1d', range: '3mo' }),
+    yahooSearchName(symbol).catch(() => ({})),
+  ]);
+  const payload = {
+    ...parseQuoteFromYahoo(symbol, data),
+    ...nameData,
+  };
   setCache(cacheKey, payload);
   return payload;
 }
