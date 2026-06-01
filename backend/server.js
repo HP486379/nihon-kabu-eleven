@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
+import * as XLSX from 'xlsx';
 
 const app = express();
 app.use(cors());
@@ -9,83 +10,27 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const CACHE = new Map();
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+const JPX_LISTED_ISSUES_URL = 'https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls';
+
 const FALLBACK_SEARCH = [
-  ['1301', '極洋', ['きょくよう']],
-  ['1605', 'INPEX', ['インペックス', '国際石油開発帝石']],
-  ['1925', '大和ハウス工業', ['大和ハウス']],
-  ['1928', '積水ハウス', []],
-  ['2502', 'アサヒグループホールディングス', ['アサヒ', 'アサヒGHD']],
-  ['2503', 'キリンホールディングス', ['キリン']],
-  ['2802', '味の素', []],
-  ['2914', '日本たばこ産業', ['JT']],
-  ['3382', 'セブン＆アイ・ホールディングス', ['セブンアイ', 'セブン&アイ']],
-  ['3436', 'SUMCO', ['サムコ']],
-  ['4062', 'イビデン', ['IBIDEN']],
-  ['4063', '信越化学工業', ['信越化学', '信越化', 'SHIN-ETSU']],
-  ['4502', '武田薬品工業', ['武田薬品', '武田']],
-  ['4568', '第一三共', []],
-  ['4755', '楽天グループ', ['楽天']],
-  ['4816', '東映アニメーション', ['東映アニメ']],
-  ['5401', '日本製鉄', ['日鉄', '新日鉄住金']],
-  ['5706', '三井金属鉱業', ['三井金属']],
-  ['5801', '古河電気工業', ['古河電工', '古河電気', 'FURUKAWA']],
-  ['5802', '住友電気工業', ['住友電工', 'SUMITOMO ELECTRIC']],
-  ['5803', 'フジクラ', ['FUJIKURA']],
-  ['6098', 'リクルートホールディングス', ['リクルート', 'RECRUIT']],
-  ['6146', 'ディスコ', ['DISCO']],
-  ['6301', 'コマツ', ['小松製作所']],
-  ['6367', 'ダイキン工業', ['ダイキン', 'DAIKIN']],
-  ['6501', '日立製作所', ['日立', 'HITACHI']],
-  ['6503', '三菱電機', ['三菱電']],
-  ['6758', 'ソニーグループ', ['ソニー', 'SONY']],
-  ['6762', 'TDK', ['ティーディーケー']],
-  ['6857', 'アドバンテスト', ['ADVANTEST']],
-  ['6861', 'キーエンス', ['KEYENCE']],
-  ['6920', 'レーザーテック', ['LASERTEC']],
-  ['6954', 'ファナック', ['FANUC']],
-  ['6971', '京セラ', ['KYOCERA']],
-  ['6976', '太陽誘電', ['TAIYO YUDEN']],
-  ['6981', '村田製作所', ['村田', 'ムラタ', 'MURATA']],
-  ['7011', '三菱重工業', ['三菱重工', 'MHI']],
-  ['7012', '川崎重工業', ['川崎重工']],
-  ['7013', 'IHI', ['アイエイチアイ']],
-  ['7203', 'トヨタ自動車', ['トヨタ', 'TOYOTA']],
-  ['7267', 'ホンダ', ['本田技研工業', 'HONDA']],
-  ['7272', 'ヤマハ発動機', ['ヤマハ発', 'YAMAHA MOTOR']],
-  ['7741', 'HOYA', ['ホヤ']],
-  ['7751', 'キヤノン', ['キャノン', 'CANON']],
-  ['7974', '任天堂', ['NINTENDO']],
-  ['8001', '伊藤忠商事', ['伊藤忠']],
-  ['8031', '三井物産', ['三井物']],
-  ['8035', '東京エレクトロン', ['東エレク', 'TEL']],
-  ['8058', '三菱商事', ['三菱商']],
-  ['8306', '三菱UFJフィナンシャル・グループ', ['三菱UFJ', 'MUFG']],
-  ['8316', '三井住友フィナンシャルグループ', ['三井住友FG', 'SMFG']],
-  ['8411', 'みずほフィナンシャルグループ', ['みずほFG', 'みずほ']],
-  ['9432', 'NTT', ['日本電信電話']],
-  ['9433', 'KDDI', ['ケーディーディーアイ']],
-  ['9501', '東京電力ホールディングス', ['東京電力', '東電', 'TEPCO']],
-  ['9502', '中部電力', ['中電', 'CHUBU ELECTRIC']],
-  ['9503', '関西電力', ['関電', 'KANSAI ELECTRIC']],
-  ['9504', '中国電力', ['中国電', 'CHUGOKU ELECTRIC']],
-  ['9505', '北陸電力', ['北陸電', 'HOKURIKU ELECTRIC']],
-  ['9506', '東北電力', ['東北電', 'TOHOKU ELECTRIC']],
-  ['9507', '四国電力', ['四国電', 'SHIKOKU ELECTRIC']],
-  ['9508', '九州電力', ['九電', 'KYUSHU ELECTRIC']],
-  ['9509', '北海道電力', ['北電', 'HOKKAIDO ELECTRIC']],
-  ['9511', '沖縄電力', ['沖電', 'OKINAWA ELECTRIC']],
-  ['9531', '東京ガス', ['東ガス']],
-  ['9532', '大阪ガス', ['大ガス']],
-  ['9983', 'ファーストリテイリング', ['ファストリ', 'ユニクロ', 'UNIQLO']],
-  ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
-  ['285A', 'キオクシアホールディングス', ['キオクシア', 'KIOXIA']],
-  ['4478', 'フリー', ['freee']],
-  ['9166', 'GENDA', ['ジェンダ']],
   ['7951', 'ヤマハ', ['YAMAHA', 'やまは', 'ヤマハ株式会社']],
+  ['7272', 'ヤマハ発動機', ['ヤマハ発', 'YAMAHA MOTOR']],
+  ['9506', '東北電力', ['東北電', 'TOHOKU ELECTRIC']],
+  ['9501', '東京電力ホールディングス', ['東京電力', '東電', 'TEPCO']],
+  ['9502', '中部電力', ['中電']],
+  ['9503', '関西電力', ['関電']],
+  ['6758', 'ソニーグループ', ['ソニー', 'SONY']],
+  ['7203', 'トヨタ自動車', ['トヨタ', 'TOYOTA']],
+  ['7974', '任天堂', ['NINTENDO']],
+  ['8035', '東京エレクトロン', ['東エレク', 'TEL']],
+  ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
 ];
 
 const nowIso = () => new Date().toISOString();
-const norm = (value) => String(value || '').normalize('NFKC').replace(/[\s・･\-－_＿()（）.,，。]/g, '').toUpperCase();
+const normalizeText = (value) => String(value || '')
+  .normalize('NFKC')
+  .replace(/[\s・･\-－_＿()（）\[\]［］.,，。]/g, '')
+  .toUpperCase();
 const bareCode = (symbol) => String(symbol || '').replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
 const symbolOf = (value) => {
   const upper = String(value || '').trim().toUpperCase();
@@ -107,11 +52,20 @@ function setCache(key, data) {
   CACHE.set(key, { ts: Date.now(), data });
 }
 
+function mergeByCode(...groups) {
+  const merged = [];
+  groups.flat().forEach((item) => {
+    if (!item?.code || merged.some((existing) => existing.code === item.code)) return;
+    merged.push(item);
+  });
+  return merged;
+}
+
 function fallbackSearch(query) {
-  const q = norm(query);
+  const q = normalizeText(query);
   if (!q) return [];
   return FALLBACK_SEARCH
-    .filter(([code, name, aliases]) => [code, name, ...aliases].some((value) => norm(value).includes(q)))
+    .filter(([code, name, aliases]) => [code, name, ...aliases].some((value) => normalizeText(value).includes(q)))
     .map(([code, name]) => ({
       code,
       symbol: `${code}.T`,
@@ -124,13 +78,74 @@ function fallbackSearch(query) {
     }));
 }
 
-function mergeByCode(...groups) {
-  const merged = [];
-  groups.flat().forEach((item) => {
-    if (!item?.code || merged.some((existing) => existing.code === item.code)) return;
-    merged.push(item);
+function pick(row, candidates) {
+  const keys = Object.keys(row);
+  const key = candidates.find((candidate) => keys.includes(candidate))
+    || keys.find((candidate) => candidates.some((expected) => normalizeText(candidate).includes(normalizeText(expected))));
+  return key ? row[key] : null;
+}
+
+function normalizeJpxRow(row) {
+  const rawCode = pick(row, ['コード', 'Code', 'Local Code', 'LocalCode']);
+  const rawName = pick(row, ['銘柄名', '名称', 'Name', 'Issue Name', 'IssueName']);
+  if (!rawCode || !rawName) return null;
+
+  const code = String(rawCode).trim().replace(/\.0$/, '').toUpperCase();
+  const name = String(rawName).trim();
+  if (!code || !name) return null;
+
+  const market = String(pick(row, ['市場・商品区分', '市場区分', 'Market Segment', 'MarketSegment']) || '').trim();
+  const sector = String(pick(row, ['33業種区分', '33業種区分名', 'Sector33', '33 Sector']) || '').trim();
+  const scaleCategory = String(pick(row, ['規模区分', 'Scale Category']) || '').trim();
+
+  return {
+    code,
+    symbol: `${code}.T`,
+    shortName: name,
+    longName: name,
+    displayName: name,
+    exchange: 'TYO',
+    quoteType: 'EQUITY',
+    market,
+    sector,
+    scaleCategory,
+    source: 'jpx-listed-issues',
+  };
+}
+
+async function loadJpxListedIssues() {
+  const cached = getCache('jpx-listed-issues', 12 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  const res = await fetch(JPX_LISTED_ISSUES_URL, { headers: HEADERS });
+  if (!res.ok) throw new Error(`JPX listed issues fetch failed: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const issues = rows.map(normalizeJpxRow).filter(Boolean);
+
+  setCache('jpx-listed-issues', issues);
+  return issues;
+}
+
+async function jpxSearch(query, count = 20) {
+  const q = normalizeText(query);
+  if (!q) return [];
+
+  const issues = await loadJpxListedIssues();
+  const exact = [];
+  const startsWith = [];
+  const includes = [];
+
+  issues.forEach((issue) => {
+    const fields = [issue.code, issue.displayName, issue.shortName, issue.longName, issue.market, issue.sector].map(normalizeText);
+    if (fields.some((field) => field === q)) exact.push(issue);
+    else if (fields.some((field) => field.startsWith(q))) startsWith.push(issue);
+    else if (fields.some((field) => field.includes(q))) includes.push(issue);
   });
-  return merged;
+
+  return mergeByCode(exact, startsWith, includes).slice(0, count);
 }
 
 async function yahooSearch(query, count = 10) {
@@ -141,26 +156,44 @@ async function yahooSearch(query, count = 10) {
   if (cached) return cached;
 
   const fallback = fallbackSearch(q);
-  const params = new URLSearchParams({ q, quotesCount: String(count), newsCount: '0', listsCount: '0', lang: 'ja-JP', region: 'JP' });
-  const res = await fetch(`https://query2.finance.yahoo.com/v1/finance/search?${params}`, { headers: HEADERS });
-  if (!res.ok) {
-    setCache(key, fallback);
-    return fallback;
+  let jpx = [];
+  try {
+    jpx = await jpxSearch(q, count * 2);
+  } catch (err) {
+    console.warn('JPX search fallback failed:', err);
   }
 
-  const data = await res.json();
-  const yahoo = (Array.isArray(data?.quotes) ? data.quotes : [])
-    .filter((quote) => String(quote.symbol || '').toUpperCase().endsWith('.T'))
-    .map((quote) => {
-      const symbol = String(quote.symbol || '').toUpperCase();
-      const code = bareCode(symbol);
-      const shortName = quote.shortname || quote.shortName || null;
-      const longName = quote.longname || quote.longName || null;
-      return { code, symbol, shortName, longName, displayName: longName || shortName || code, exchange: quote.exchange || null, quoteType: quote.quoteType || null, source: 'yahoo' };
-    })
-    .filter((item) => item.code);
+  let yahoo = [];
+  try {
+    const params = new URLSearchParams({ q, quotesCount: String(count), newsCount: '0', listsCount: '0', lang: 'ja-JP', region: 'JP' });
+    const res = await fetch(`https://query2.finance.yahoo.com/v1/finance/search?${params}`, { headers: HEADERS });
+    if (res.ok) {
+      const data = await res.json();
+      yahoo = (Array.isArray(data?.quotes) ? data.quotes : [])
+        .filter((quote) => String(quote.symbol || '').toUpperCase().endsWith('.T'))
+        .map((quote) => {
+          const symbol = String(quote.symbol || '').toUpperCase();
+          const code = bareCode(symbol);
+          const shortName = quote.shortname || quote.shortName || null;
+          const longName = quote.longname || quote.longName || null;
+          return {
+            code,
+            symbol,
+            shortName,
+            longName,
+            displayName: longName || shortName || code,
+            exchange: quote.exchange || null,
+            quoteType: quote.quoteType || null,
+            source: 'yahoo-search',
+          };
+        })
+        .filter((item) => item.code);
+    }
+  } catch (err) {
+    console.warn('Yahoo search failed:', err);
+  }
 
-  const result = mergeByCode(fallback, yahoo).slice(0, count);
+  const result = mergeByCode(fallback, jpx, yahoo).slice(0, count);
   setCache(key, result);
   return result;
 }
@@ -223,6 +256,17 @@ function candlesFromChart(inputSymbol, interval, range, data) {
   return { requestedSymbol: inputSymbol, symbol: result?.meta?.symbol || inputSymbol, interval, range, candles, source: 'yahoo-chart', delayed: true, tsServer: nowIso() };
 }
 
+async function searchNameByCode(code) {
+  const fallback = fallbackSearch(code).find((item) => item.code === code);
+  if (fallback) return fallback;
+  try {
+    const issues = await loadJpxListedIssues();
+    return issues.find((issue) => issue.code === code) || null;
+  } catch (_err) {
+    return null;
+  }
+}
+
 async function fetchQuote(rawSymbol) {
   const symbol = symbolOf(rawSymbol);
   const key = `quote:${symbol}`;
@@ -232,8 +276,8 @@ async function fetchQuote(rawSymbol) {
   const data = await yahooChart(symbol, { interval: '1d', range: '3mo' });
   const quote = quoteFromChart(symbol, data);
   const code = bareCode(symbol);
-  const fallbackName = fallbackSearch(code).find((item) => item.code === code);
-  const payload = fallbackName ? { ...quote, shortName: fallbackName.displayName, longName: fallbackName.displayName, displayName: fallbackName.displayName } : quote;
+  const name = await searchNameByCode(code);
+  const payload = name ? { ...quote, shortName: name.displayName, longName: name.displayName, displayName: name.displayName } : quote;
   setCache(key, payload);
   return payload;
 }
