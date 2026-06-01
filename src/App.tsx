@@ -20,6 +20,9 @@ type SelectedStock = Stock & { position?: Position };
 type MarketQuote = {
   requestedSymbol?: string;
   symbol?: string;
+  shortName?: string | null;
+  longName?: string | null;
+  displayName?: string | null;
   currency?: string;
   regularMarketPrice?: number | null;
   lastClose?: number | null;
@@ -157,13 +160,18 @@ function normalizeStockCodeInput(input: string) {
 function createCustomStock(code: string): Stock {
   return {
     code,
-    name: `${code}（任意銘柄）`,
+    name: code,
     market: '任意追加',
     change: 0,
     contribution: 0,
     fit: DEFAULT_CUSTOM_FIT,
-    tags: ['任意追加', '実データ取得', 'ユーザー選択'],
+    tags: ['実データ取得', 'ユーザー選択'],
   };
+}
+
+function getStockDisplayName(stock: Stock, quote?: MarketQuote) {
+  const name = quote?.displayName || quote?.longName || quote?.shortName || stock.name;
+  return name.replace(/\s*\(任意銘柄\)\s*$/g, '');
 }
 
 function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
@@ -681,7 +689,7 @@ function App() {
               {marketDataRows.map(({ stock, quote, memberWeight }) => (
                 <div className="market-table-row" key={stock.code}>
                   <span>
-                    <strong>{stock.name}</strong>
+                    <strong>{getStockDisplayName(stock, quote)}</strong>
                     <small>{stock.code} / {stock.position}</small>
                     <button type="button" disabled={isLocked} onClick={() => toggleStock(stock)}>外す</button>
                   </span>
@@ -703,21 +711,36 @@ function App() {
           <div className="stock-grid">
             {filteredStocks.map((stock) => {
               const chosen = selected.find((item) => item.code === stock.code);
+              const quote = quoteMap[stock.code];
               return (
                 <article className={`stock-item ${chosen ? 'chosen' : ''} ${isLocked ? 'locked' : ''}`} key={stock.code}>
                   <div className="stock-item-head">
                     <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? '上限' : '選抜'}</button>
                     <div>
-                      <strong>{stock.name}</strong>
+                      <strong>{getStockDisplayName(stock, quote)}</strong>
                       <small>{stock.code} / {stock.market}</small>
                     </div>
                   </div>
                   <p>{stock.tags.join('・')}</p>
                   {chosen && (
                     <div className="position-buttons">
-                      {POSITIONS.map((position) => (
-                        <button key={position} disabled={isLocked} className={chosen.position === position ? 'selected' : ''} onClick={() => setPosition(stock.code, position)}>{position}</button>
-                      ))}
+                      {POSITIONS.map((position) => {
+                        const isSelectedPosition = chosen.position === position;
+                        const isFullPosition = positionCounts[position] >= currentFormation.counts[position] && !isSelectedPosition;
+                        return (
+                          <button
+                            key={position}
+                            type="button"
+                            disabled={isLocked || isFullPosition}
+                            aria-pressed={isSelectedPosition}
+                            className={isSelectedPosition ? 'selected active-position' : 'position-option'}
+                            onClick={() => setPosition(stock.code, position)}
+                            title={isFullPosition ? `${position}は上限です` : `${position}に配置`}
+                          >
+                            {position}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </article>
@@ -744,7 +767,7 @@ function PlayerCard({ stock, quote, candles }: { stock: SelectedStock; quote?: M
   return (
     <article className={`player-card position-${position.toLowerCase()}`}>
       <div className="position-pill">{position}</div>
-      <strong>{stock.name}</strong>
+      <strong>{getStockDisplayName(stock, quote)}</strong>
       <small>{stock.code}</small>
       <div className={`player-change ${trendClass}`}>{formatPct(returnPct)}</div>
       <svg className={`sparkline spark-${position.toLowerCase()} ${trendClass}`} viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
