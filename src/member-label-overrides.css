@@ -1,0 +1,59 @@
+.market-table-header span:first-child,
+.stock-list-card .card-title-row h3 {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: #18315b;
+  letter-spacing: -0.03em;
+}
+
+.entry-complete-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-color: #cfe4ff;
+  background: linear-gradient(90deg, #eef6ff 0%, #ffffff 100%);
+  animation: entry-complete-pop .32s ease-out;
+}
+
+.entry-complete-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #1462d5;
+  color: #ffffff;
+  font-size: 20px;
+  box-shadow: 0 10px 20px rgba(20, 98, 213, .22);
+}
+
+.entry-complete-body {
+  display: grid;
+  gap: 3px;
+}
+
+.entry-complete-title {
+  color: #102b59;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.entry-complete-message {
+  color: #526985;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@keyframes entry-complete-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

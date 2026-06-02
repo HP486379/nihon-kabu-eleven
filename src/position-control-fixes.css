@@ -1,0 +1,21 @@
+.position-buttons button {
+  background: #edf4ff;
+  color: #1462d5;
+}
+
+.position-buttons button.selected,
+.position-buttons button.active-position,
+.position-buttons button[aria-pressed="true"] {
+  background: #1462d5;
+  color: #fff;
+}
+
+.position-buttons button:not(.selected):not(.active-position):not([aria-pressed="true"]) {
+  background: #edf4ff;
+  color: #1462d5;
+}
+
+.position-buttons button:disabled:not(.selected):not(.active-position):not([aria-pressed="true"]) {
+  background: #f4f7fc;
+  color: #9aa9bd;
+}

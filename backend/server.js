@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
+import * as XLSX from 'xlsx';
 
 const app = express();
 app.use(cors());
@@ -8,203 +9,330 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
 const CACHE = new Map();
-const DEFAULT_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (compatible; Nihon-Kabu-Eleven/0.1)',
+const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+const JPX_LISTED_ISSUES_URL = 'https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls';
+
+const FALLBACK_SEARCH = [
+  ['7951', 'ヤマハ', ['YAMAHA', 'やまは', 'ヤマハ株式会社']],
+  ['7272', 'ヤマハ発動機', ['ヤマハ発', 'YAMAHA MOTOR']],
+  ['9506', '東北電力', ['東北電', 'TOHOKU ELECTRIC']],
+  ['9501', '東京電力ホールディングス', ['東京電力', '東電', 'TEPCO']],
+  ['9502', '中部電力', ['中電']],
+  ['9503', '関西電力', ['関電']],
+  ['6758', 'ソニーグループ', ['ソニー', 'SONY']],
+  ['7203', 'トヨタ自動車', ['トヨタ', 'TOYOTA']],
+  ['7974', '任天堂', ['NINTENDO']],
+  ['8035', '東京エレクトロン', ['東エレク', 'TEL']],
+  ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
+];
+
+const nowIso = () => new Date().toISOString();
+const normalizeText = (value) => String(value || '')
+  .normalize('NFKC')
+  .replace(/[\s・･\-－_＿()（）\[\]［］.,，。]/g, '')
+  .toUpperCase();
+const bareCode = (symbol) => String(symbol || '').replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
+const symbolOf = (value) => {
+  const upper = String(value || '').trim().toUpperCase();
+  if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
+  return `${upper}.T`;
 };
 
 function getCache(key, ttlMs) {
-  const entry = CACHE.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > ttlMs) {
+  const hit = CACHE.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > ttlMs) {
     CACHE.delete(key);
     return null;
   }
-  return entry.data;
+  return hit.data;
 }
 
 function setCache(key, data) {
   CACHE.set(key, { ts: Date.now(), data });
 }
 
-function normalizeSymbol(symbol) {
-  if (!symbol) return symbol;
-  const upper = String(symbol).trim().toUpperCase();
-  if (!upper) return upper;
-  if (upper.startsWith('^') || upper.includes('.')) return upper;
-  return `${upper}.T`;
+function mergeByCode(...groups) {
+  const merged = [];
+  groups.flat().forEach((item) => {
+    if (!item?.code || merged.some((existing) => existing.code === item.code)) return;
+    merged.push(item);
+  });
+  return merged;
 }
 
-function sanitizeSymbols(rawSymbols) {
-  const values = String(rawSymbols || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 30);
-  return [...new Set(values)];
+function fallbackSearch(query) {
+  const q = normalizeText(query);
+  if (!q) return [];
+  return FALLBACK_SEARCH
+    .filter(([code, name, aliases]) => [code, name, ...aliases].some((value) => normalizeText(value).includes(q)))
+    .map(([code, name]) => ({
+      code,
+      symbol: `${code}.T`,
+      shortName: name,
+      longName: name,
+      displayName: name,
+      exchange: 'TYO',
+      quoteType: 'EQUITY',
+      source: 'fallback',
+    }));
 }
 
-async function yahooChart(symbol, params = { interval: '1d', range: '3mo' }) {
-  const prepared = Object.entries(params).reduce((acc, [key, value]) => {
-    if (value == null) return acc;
-    acc[key] = value;
-    return acc;
-  }, {});
-  const query = new URLSearchParams(prepared).toString();
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${query}`;
-  const res = await fetch(url, { headers: DEFAULT_HEADERS });
-  if (!res.ok) {
-    throw new Error(`Yahoo chart fetch failed: ${res.status}`);
+function pick(row, candidates) {
+  const keys = Object.keys(row);
+  const key = candidates.find((candidate) => keys.includes(candidate))
+    || keys.find((candidate) => candidates.some((expected) => normalizeText(candidate).includes(normalizeText(expected))));
+  return key ? row[key] : null;
+}
+
+function normalizeJpxRow(row) {
+  const rawCode = pick(row, ['コード', 'Code', 'Local Code', 'LocalCode']);
+  const rawName = pick(row, ['銘柄名', '名称', 'Name', 'Issue Name', 'IssueName']);
+  if (!rawCode || !rawName) return null;
+
+  const code = String(rawCode).trim().replace(/\.0$/, '').toUpperCase();
+  const name = String(rawName).trim();
+  if (!code || !name) return null;
+
+  const market = String(pick(row, ['市場・商品区分', '市場区分', 'Market Segment', 'MarketSegment']) || '').trim();
+  const sector = String(pick(row, ['33業種区分', '33業種区分名', 'Sector33', '33 Sector']) || '').trim();
+  const scaleCategory = String(pick(row, ['規模区分', 'Scale Category']) || '').trim();
+
+  return {
+    code,
+    symbol: `${code}.T`,
+    shortName: name,
+    longName: name,
+    displayName: name,
+    exchange: 'TYO',
+    quoteType: 'EQUITY',
+    market,
+    sector,
+    scaleCategory,
+    source: 'jpx-listed-issues',
+  };
+}
+
+async function loadJpxListedIssues() {
+  const cached = getCache('jpx-listed-issues', 12 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  const res = await fetch(JPX_LISTED_ISSUES_URL, { headers: HEADERS });
+  if (!res.ok) throw new Error(`JPX listed issues fetch failed: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const issues = rows.map(normalizeJpxRow).filter(Boolean);
+
+  setCache('jpx-listed-issues', issues);
+  return issues;
+}
+
+async function jpxSearch(query, count = 20) {
+  const q = normalizeText(query);
+  if (!q) return [];
+
+  const issues = await loadJpxListedIssues();
+  const exact = [];
+  const startsWith = [];
+  const includes = [];
+
+  issues.forEach((issue) => {
+    const fields = [issue.code, issue.displayName, issue.shortName, issue.longName, issue.market, issue.sector].map(normalizeText);
+    if (fields.some((field) => field === q)) exact.push(issue);
+    else if (fields.some((field) => field.startsWith(q))) startsWith.push(issue);
+    else if (fields.some((field) => field.includes(q))) includes.push(issue);
+  });
+
+  return mergeByCode(exact, startsWith, includes).slice(0, count);
+}
+
+async function yahooSearch(query, count = 10) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  const key = `search:${q}:${count}`;
+  const cached = getCache(key, 24 * 60 * 60 * 1000);
+  if (cached) return cached;
+
+  const fallback = fallbackSearch(q);
+  let jpx = [];
+  try {
+    jpx = await jpxSearch(q, count * 2);
+  } catch (err) {
+    console.warn('JPX search fallback failed:', err);
   }
+
+  let yahoo = [];
+  try {
+    const params = new URLSearchParams({ q, quotesCount: String(count), newsCount: '0', listsCount: '0', lang: 'ja-JP', region: 'JP' });
+    const res = await fetch(`https://query2.finance.yahoo.com/v1/finance/search?${params}`, { headers: HEADERS });
+    if (res.ok) {
+      const data = await res.json();
+      yahoo = (Array.isArray(data?.quotes) ? data.quotes : [])
+        .filter((quote) => String(quote.symbol || '').toUpperCase().endsWith('.T'))
+        .map((quote) => {
+          const symbol = String(quote.symbol || '').toUpperCase();
+          const code = bareCode(symbol);
+          const shortName = quote.shortname || quote.shortName || null;
+          const longName = quote.longname || quote.longName || null;
+          return {
+            code,
+            symbol,
+            shortName,
+            longName,
+            displayName: longName || shortName || code,
+            exchange: quote.exchange || null,
+            quoteType: quote.quoteType || null,
+            source: 'yahoo-search',
+          };
+        })
+        .filter((item) => item.code);
+    }
+  } catch (err) {
+    console.warn('Yahoo search failed:', err);
+  }
+
+  const result = mergeByCode(fallback, jpx, yahoo).slice(0, count);
+  setCache(key, result);
+  return result;
+}
+
+async function yahooChart(symbol, params) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${query}`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Yahoo chart fetch failed: ${res.status}`);
   return res.json();
 }
 
-function parseQuoteFromYahoo(inputSymbol, resp) {
-  const result = resp?.chart?.result?.[0];
+function quoteFromChart(inputSymbol, data) {
+  const result = data?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
   const quote = result?.indicators?.quote?.[0] || {};
   const closes = quote.close || [];
   const volumes = quote.volume || [];
-  const validPoints = [];
+  const points = [];
 
-  for (let i = 0; i < closes.length; i += 1) {
-    const close = closes[i];
-    if (typeof close !== 'number' || !Number.isFinite(close)) continue;
-    validPoints.push({
-      close,
-      volume: volumes[i] ?? null,
-      timestamp: timestamps[i] ? new Date(timestamps[i] * 1000).toISOString() : null,
-    });
-  }
+  closes.forEach((close, index) => {
+    if (typeof close !== 'number' || !Number.isFinite(close)) return;
+    points.push({ close, volume: volumes[index] ?? null, timestamp: timestamps[index] ? new Date(timestamps[index] * 1000).toISOString() : null });
+  });
 
-  const last = validPoints.at(-1) ?? null;
-  const previous = validPoints.length >= 2 ? validPoints.at(-2) : null;
-  const first = validPoints.at(0) ?? null;
-  const change = last && previous ? last.close - previous.close : null;
-  const changePct = last && previous && previous.close !== 0 ? (last.close / previous.close - 1) * 100 : null;
-  const periodReturnPct = last && first && first.close !== 0 ? (last.close / first.close - 1) * 100 : null;
-
+  const last = points.at(-1) ?? null;
+  const previous = points.length >= 2 ? points.at(-2) : null;
+  const first = points.at(0) ?? null;
   return {
     requestedSymbol: inputSymbol,
     symbol: result?.meta?.symbol || inputSymbol,
-    exchangeName: result?.meta?.exchangeName || null,
     currency: result?.meta?.currency || 'JPY',
     regularMarketPrice: result?.meta?.regularMarketPrice ?? last?.close ?? null,
     previousClose: result?.meta?.previousClose ?? previous?.close ?? null,
     lastClose: last?.close ?? null,
-    change,
-    changePct,
-    periodReturnPct,
+    change: last && previous ? last.close - previous.close : null,
+    changePct: last && previous && previous.close !== 0 ? (last.close / previous.close - 1) * 100 : null,
+    periodReturnPct: last && first && first.close !== 0 ? (last.close / first.close - 1) * 100 : null,
     volume: last?.volume ?? null,
     tsSource: last?.timestamp,
-    tsServer: new Date().toISOString(),
+    tsServer: nowIso(),
     source: 'yahoo-chart',
     delayed: true,
-    points: validPoints.length,
+    points: points.length,
   };
 }
 
-function parseOhlcFromYahoo(inputSymbol, interval, range, resp) {
-  const result = resp?.chart?.result?.[0];
+function candlesFromChart(inputSymbol, interval, range, data) {
+  const result = data?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
   const quote = result?.indicators?.quote?.[0] || {};
-  const candles = [];
+  const candles = timestamps.map((timestamp, index) => ({
+    t: timestamp * 1000,
+    open: quote.open?.[index],
+    high: quote.high?.[index],
+    low: quote.low?.[index],
+    close: quote.close?.[index],
+    volume: quote.volume?.[index] ?? 0,
+  })).filter((candle) => [candle.open, candle.high, candle.low, candle.close].every((value) => typeof value === 'number' && Number.isFinite(value)));
 
-  for (let i = 0; i < timestamps.length; i += 1) {
-    const open = quote.open?.[i];
-    const high = quote.high?.[i];
-    const low = quote.low?.[i];
-    const close = quote.close?.[i];
-    const volume = quote.volume?.[i];
-    if ([open, high, low, close].some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
-      continue;
-    }
-    candles.push({
-      t: timestamps[i] * 1000,
-      open,
-      high,
-      low,
-      close,
-      volume: volume ?? 0,
-    });
+  return { requestedSymbol: inputSymbol, symbol: result?.meta?.symbol || inputSymbol, interval, range, candles, source: 'yahoo-chart', delayed: true, tsServer: nowIso() };
+}
+
+async function searchNameByCode(code) {
+  const fallback = fallbackSearch(code).find((item) => item.code === code);
+  if (fallback) return fallback;
+  try {
+    const issues = await loadJpxListedIssues();
+    return issues.find((issue) => issue.code === code) || null;
+  } catch (_err) {
+    return null;
   }
-
-  return {
-    requestedSymbol: inputSymbol,
-    symbol: result?.meta?.symbol || inputSymbol,
-    interval,
-    range,
-    candles,
-    source: 'yahoo-chart',
-    delayed: true,
-    tsServer: new Date().toISOString(),
-  };
 }
 
 async function fetchQuote(rawSymbol) {
-  const symbol = normalizeSymbol(rawSymbol);
-  const cacheKey = `quote:${symbol}`;
-  const cached = getCache(cacheKey, 30_000);
+  const symbol = symbolOf(rawSymbol);
+  const key = `quote:${symbol}`;
+  const cached = getCache(key, 30_000);
   if (cached) return { ...cached, source: 'cache' };
+
   const data = await yahooChart(symbol, { interval: '1d', range: '3mo' });
-  const payload = parseQuoteFromYahoo(symbol, data);
-  setCache(cacheKey, payload);
+  const quote = quoteFromChart(symbol, data);
+  const code = bareCode(symbol);
+  const name = await searchNameByCode(code);
+  const payload = name ? { ...quote, shortName: name.displayName, longName: name.displayName, displayName: name.displayName } : quote;
+  setCache(key, payload);
   return payload;
 }
 
+app.get('/api/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const results = q ? await yahooSearch(q, 10) : [];
+    res.json({ results, tsServer: nowIso() });
+  } catch (err) {
+    const results = fallbackSearch(req.query.q).slice(0, 10);
+    res.status(results.length ? 200 : 502).json({ error: String(err), results });
+  }
+});
+
 app.get('/api/quote/:symbol', async (req, res) => {
   try {
-    const payload = await fetchQuote(req.params.symbol);
-    res.json(payload);
+    res.json(await fetchQuote(req.params.symbol));
   } catch (err) {
-    console.error(err);
     res.status(502).json({ error: String(err), symbol: req.params.symbol });
   }
 });
 
 app.get('/api/quotes', async (req, res) => {
-  const symbols = sanitizeSymbols(req.query.symbols);
-  if (!symbols.length) {
-    return res.status(400).json({ error: 'symbols query is required' });
-  }
-
-  const results = await Promise.all(symbols.map(async (rawSymbol) => {
+  const symbols = String(req.query.symbols || '').split(',').map((value) => value.trim()).filter(Boolean).slice(0, 30);
+  if (!symbols.length) return res.status(400).json({ error: 'symbols query is required' });
+  const results = await Promise.all([...new Set(symbols)].map(async (symbol) => {
     try {
-      return await fetchQuote(rawSymbol);
+      return await fetchQuote(symbol);
     } catch (err) {
-      return {
-        requestedSymbol: rawSymbol,
-        symbol: normalizeSymbol(rawSymbol),
-        error: String(err),
-        source: 'error',
-        tsServer: new Date().toISOString(),
-      };
+      return { requestedSymbol: symbol, symbol: symbolOf(symbol), error: String(err), source: 'error', tsServer: nowIso() };
     }
   }));
-
-  res.json({ results, tsServer: new Date().toISOString() });
+  res.json({ results, tsServer: nowIso() });
 });
 
 app.get('/api/history/:symbol', async (req, res) => {
   try {
-    const symbol = normalizeSymbol(req.params.symbol);
+    const symbol = symbolOf(req.params.symbol);
     const interval = String(req.query.interval || '1d');
     const range = String(req.query.range || '3mo');
-    const cacheKey = `history:${symbol}:${interval}:${range}`;
-    const cached = getCache(cacheKey, 60_000);
+    const key = `history:${symbol}:${interval}:${range}`;
+    const cached = getCache(key, 60_000);
     if (cached) return res.json({ ...cached, source: 'cache' });
-
     const data = await yahooChart(symbol, { interval, range });
-    const payload = parseOhlcFromYahoo(symbol, interval, range, data);
-    setCache(cacheKey, payload);
+    const payload = candlesFromChart(symbol, interval, range, data);
+    setCache(key, payload);
     res.json(payload);
   } catch (err) {
-    console.error(err);
     res.status(502).json({ error: String(err), symbol: req.params.symbol });
   }
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'nihon-kabu-eleven-market-proxy', tsServer: new Date().toISOString() });
+  res.json({ ok: true, service: 'nihon-kabu-eleven-market-proxy', tsServer: nowIso() });
 });
 
 app.listen(PORT, () => {

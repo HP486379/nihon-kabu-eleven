@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-type Market = 'プライム' | 'スタンダード' | 'グロース';
-type MarketFilter = '全市場' | Market;
+type Market = 'プライム' | 'スタンダード' | 'グロース' | '任意追加';
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
 
@@ -20,6 +19,9 @@ type SelectedStock = Stock & { position?: Position };
 type MarketQuote = {
   requestedSymbol?: string;
   symbol?: string;
+  shortName?: string | null;
+  longName?: string | null;
+  displayName?: string | null;
   currency?: string;
   regularMarketPrice?: number | null;
   lastClose?: number | null;
@@ -32,6 +34,16 @@ type MarketQuote = {
   delayed?: boolean;
   points?: number;
   error?: string;
+};
+
+type SearchResult = {
+  code: string;
+  symbol?: string;
+  shortName?: string | null;
+  longName?: string | null;
+  displayName?: string | null;
+  exchange?: string | null;
+  quoteType?: string | null;
 };
 
 type PriceCandle = {
@@ -49,6 +61,7 @@ type Formation = {
   key: FormationKey;
   label: string;
   counts: Record<Position, number>;
+  weights: Record<Position, number>;
   description: string;
 };
 
@@ -62,17 +75,18 @@ const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
 const FORMATIONS: Formation[] = [
-  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, description: '成長期待を前線に並べる標準型' },
-  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, description: '絶対的エースを中盤で支える1トップ型' },
-  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, description: '中盤を厚くするバランス型' },
-  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, description: '収益力と分散を重視する中盤型' },
-  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, description: '攻撃力を残しつつ中盤も厚い型' },
-  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, description: '守備と下落耐性を重視する堅守型' },
-  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
-  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
+  { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, weights: { FW: 0.35, MF: 0.30, DF: 0.25, GK: 0.10 }, description: '成長期待を前線に並べる標準的な攻撃型' },
+  { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 }, description: '絶対的エースを中盤で支える1トップ＋中盤支配型' },
+  { key: '4-4-2', label: '4-4-2', counts: { FW: 2, MF: 4, DF: 4, GK: 1 }, weights: { FW: 0.30, MF: 0.35, DF: 0.25, GK: 0.10 }, description: '中盤を厚くするバランス型' },
+  { key: '3-5-2', label: '3-5-2', counts: { FW: 2, MF: 5, DF: 3, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 }, description: '収益力と分散を重視する中盤重視型' },
+  { key: '3-4-3', label: '3-4-3', counts: { FW: 3, MF: 4, DF: 3, GK: 1 }, weights: { FW: 0.38, MF: 0.32, DF: 0.20, GK: 0.10 }, description: '攻撃力を残しつつ中盤も厚い超攻撃型' },
+  { key: '5-3-2', label: '5-3-2', counts: { FW: 2, MF: 3, DF: 5, GK: 1 }, weights: { FW: 0.22, MF: 0.28, DF: 0.40, GK: 0.10 }, description: '守備と下落耐性を重視する守備重視型' },
+  { key: '3-4-2-1', label: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, weights: { FW: 0.28, MF: 0.42, DF: 0.20, GK: 0.10 }, description: '中盤の厚みでエースを押し上げる攻撃的1トップ型' },
+  { key: '5-4-1', label: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, weights: { FW: 0.20, MF: 0.30, DF: 0.40, GK: 0.10 }, description: '守備を固めて一撃を狙う堅守カウンター型' },
 ];
 
 const DEFAULT_FORMATION = FORMATIONS[0];
+const DEFAULT_CUSTOM_FIT: Record<Position, number> = { FW: 70, MF: 70, DF: 70, GK: 70 };
 
 const TOURNAMENT = {
   name: '日本株代表カップ',
@@ -82,29 +96,43 @@ const TOURNAMENT = {
   resultDate: '2026/09/11',
   visibility: '限定公開',
   description: '運営が設定した大会日程で開催中',
+  judgeRule: 'ポジション加重リターン',
 };
 
 const STOCKS: Stock[] = [
-  { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 18.7, contribution: 1.74, fit: { FW: 91, MF: 84, DF: 61, GK: 55 }, tags: ['世界ブランド', 'エンタメ', '成長'] },
-  { code: '7203', name: 'トヨタ自動車', market: 'プライム', change: 14.6, contribution: 2.18, fit: { FW: 78, MF: 90, DF: 82, GK: 71 }, tags: ['大型株', '輸出', '主軸'] },
-  { code: '8035', name: '東京エレクトロン', market: 'プライム', change: 23.1, contribution: 3.21, fit: { FW: 96, MF: 80, DF: 48, GK: 42 }, tags: ['半導体', '攻撃力', 'テーマ'] },
-  { code: '4063', name: '信越化学工業', market: 'プライム', change: 11.2, contribution: 1.12, fit: { FW: 70, MF: 91, DF: 86, GK: 84 }, tags: ['素材', '高収益', '安定'] },
-  { code: '8306', name: '三菱UFJフィナンシャル・グループ', market: 'プライム', change: 10.3, contribution: 1.03, fit: { FW: 61, MF: 88, DF: 84, GK: 72 }, tags: ['金融', '中盤', '配当'] },
-  { code: '6861', name: 'キーエンス', market: 'プライム', change: 19.4, contribution: 1.87, fit: { FW: 88, MF: 94, DF: 72, GK: 80 }, tags: ['高収益', '司令塔', '品質'] },
-  { code: '7974', name: '任天堂', market: 'プライム', change: 15.3, contribution: 1.32, fit: { FW: 84, MF: 82, DF: 76, GK: 73 }, tags: ['IP', 'ゲーム', 'ブランド'] },
-  { code: '6367', name: 'ダイキン工業', market: 'プライム', change: 8.9, contribution: 0.89, fit: { FW: 64, MF: 79, DF: 88, GK: 76 }, tags: ['空調', '世界展開', '守備'] },
-  { code: '6301', name: 'コマツ', market: 'プライム', change: 9.7, contribution: 0.97, fit: { FW: 66, MF: 78, DF: 85, GK: 70 }, tags: ['建機', '景気敏感', '基盤'] },
-  { code: '6098', name: 'リクルートホールディングス', market: 'プライム', change: 12.0, contribution: 1.20, fit: { FW: 83, MF: 87, DF: 67, GK: 60 }, tags: ['人材', 'DX', '攻守'] },
-  { code: '7741', name: 'HOYA', market: 'プライム', change: 7.6, contribution: 0.76, fit: { FW: 72, MF: 86, DF: 90, GK: 94 }, tags: ['高収益', '医療', '最後の砦'] },
-  { code: '9432', name: 'NTT', market: 'プライム', change: 4.2, contribution: 0.56, fit: { FW: 45, MF: 78, DF: 92, GK: 88 }, tags: ['通信', '安定', '守備'] },
-  { code: '9433', name: 'KDDI', market: 'プライム', change: 5.3, contribution: 0.63, fit: { FW: 48, MF: 76, DF: 90, GK: 86 }, tags: ['通信', '配当', '安定'] },
-  { code: '9984', name: 'ソフトバンクグループ', market: 'プライム', change: 19.9, contribution: 2.02, fit: { FW: 95, MF: 66, DF: 38, GK: 31 }, tags: ['AI', '投資会社', '攻撃'] },
-  { code: '6857', name: 'アドバンテスト', market: 'プライム', change: 24.5, contribution: 2.30, fit: { FW: 97, MF: 74, DF: 41, GK: 35 }, tags: ['半導体', '攻撃', 'テーマ'] },
-  { code: '2782', name: 'セリア', market: 'スタンダード', change: 3.8, contribution: 0.50, fit: { FW: 50, MF: 68, DF: 80, GK: 72 }, tags: ['小売', '安定', '生活'] },
-  { code: '4816', name: '東映アニメーション', market: 'スタンダード', change: 15.4, contribution: 1.25, fit: { FW: 87, MF: 75, DF: 58, GK: 50 }, tags: ['IP', 'アニメ', '成長'] },
-  { code: '4478', name: 'フリー', market: 'グロース', change: 17.6, contribution: 1.14, fit: { FW: 89, MF: 67, DF: 35, GK: 30 }, tags: ['SaaS', 'グロース', '攻撃'] },
-  { code: '7342', name: 'ウェルスナビ', market: 'グロース', change: 9.8, contribution: 0.75, fit: { FW: 80, MF: 62, DF: 34, GK: 28 }, tags: ['FinTech', 'グロース', '攻撃'] },
-  { code: '9166', name: 'GENDA', market: 'グロース', change: 21.3, contribution: 1.41, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
+  { code: '285A', name: 'キオクシアホールディングス', market: 'プライム', change: 10.1, contribution: 2.63, fit: { FW: 98, MF: 76, DF: 42, GK: 34 }, tags: ['半導体メモリ', 'IPO', '高ボラ'] },
+  { code: '9984', name: 'ソフトバンクグループ', market: 'プライム', change: 14.0, contribution: 2.20, fit: { FW: 97, MF: 68, DF: 36, GK: 30 }, tags: ['AI', '投資会社', '攻撃'] },
+  { code: '6981', name: '村田製作所', market: 'プライム', change: 8.9, contribution: 1.45, fit: { FW: 82, MF: 89, DF: 70, GK: 66 }, tags: ['電子部品', 'スマホ', '中盤'] },
+  { code: '6976', name: '太陽誘電', market: 'プライム', change: 8.4, contribution: 1.32, fit: { FW: 85, MF: 78, DF: 55, GK: 48 }, tags: ['電子部品', '景気敏感', '攻撃'] },
+  { code: '5803', name: 'フジクラ', market: 'プライム', change: -2.0, contribution: 1.08, fit: { FW: 91, MF: 76, DF: 54, GK: 48 }, tags: ['電線', 'データセンター', 'テーマ'] },
+  { code: '4062', name: 'イビデン', market: 'プライム', change: -5.2, contribution: 0.96, fit: { FW: 88, MF: 74, DF: 50, GK: 44 }, tags: ['半導体基板', 'AIサーバー', '攻撃'] },
+  { code: '5801', name: '古河電気工業', market: 'プライム', change: 0.1, contribution: 0.88, fit: { FW: 80, MF: 78, DF: 66, GK: 58 }, tags: ['電線', 'インフラ', 'テーマ'] },
+  { code: '6857', name: 'アドバンテスト', market: 'プライム', change: -1.9, contribution: 1.48, fit: { FW: 97, MF: 74, DF: 41, GK: 35 }, tags: ['半導体検査', 'AI', '攻撃'] },
+  { code: '8035', name: '東京エレクトロン', market: 'プライム', change: 1.2, contribution: 1.42, fit: { FW: 96, MF: 80, DF: 48, GK: 42 }, tags: ['半導体製造装置', '大型株', '攻撃'] },
+  { code: '6762', name: 'TDK', market: 'プライム', change: -0.1, contribution: 0.88, fit: { FW: 78, MF: 88, DF: 72, GK: 68 }, tags: ['電子部品', '電池', 'バランス'] },
+  { code: '7203', name: 'トヨタ自動車', market: 'プライム', change: -4.5, contribution: 1.05, fit: { FW: 74, MF: 90, DF: 82, GK: 73 }, tags: ['自動車', '大型株', '主軸'] },
+  { code: '7011', name: '三菱重工業', market: 'プライム', change: -4.5, contribution: 1.12, fit: { FW: 82, MF: 84, DF: 78, GK: 66 }, tags: ['防衛', '重工', 'テーマ'] },
+  { code: '8306', name: '三菱UFJフィナンシャル・グループ', market: 'プライム', change: 0.8, contribution: 0.96, fit: { FW: 61, MF: 88, DF: 84, GK: 72 }, tags: ['銀行', '金利', '配当'] },
+  { code: '5802', name: '住友電気工業', market: 'プライム', change: 4.7, contribution: 0.94, fit: { FW: 70, MF: 83, DF: 78, GK: 68 }, tags: ['電線', '自動車部品', '守備'] },
+  { code: '5706', name: '三井金属鉱業', market: 'プライム', change: 4.3, contribution: 0.88, fit: { FW: 76, MF: 78, DF: 70, GK: 62 }, tags: ['非鉄金属', '素材', 'テーマ'] },
+  { code: '3436', name: 'SUMCO', market: 'プライム', change: 9.5, contribution: 1.04, fit: { FW: 86, MF: 72, DF: 46, GK: 40 }, tags: ['シリコンウエハ', '半導体', '景気敏感'] },
+  { code: '6920', name: 'レーザーテック', market: 'プライム', change: -4.4, contribution: 1.02, fit: { FW: 96, MF: 66, DF: 35, GK: 30 }, tags: ['半導体検査', '高ボラ', '攻撃'] },
+  { code: '6098', name: 'リクルートホールディングス', market: 'プライム', change: 3.1, contribution: 0.92, fit: { FW: 83, MF: 87, DF: 67, GK: 60 }, tags: ['人材', 'DX', '中盤'] },
+  { code: '6146', name: 'ディスコ', market: 'プライム', change: -2.0, contribution: 1.00, fit: { FW: 94, MF: 78, DF: 46, GK: 42 }, tags: ['半導体装置', '高収益', '攻撃'] },
+  { code: '4063', name: '信越化学工業', market: 'プライム', change: 0.5, contribution: 0.86, fit: { FW: 70, MF: 91, DF: 86, GK: 84 }, tags: ['素材', '高収益', '安定'] },
+  { code: '9983', name: 'ファーストリテイリング', market: 'プライム', change: -2.2, contribution: 0.82, fit: { FW: 76, MF: 84, DF: 70, GK: 64 }, tags: ['小売', 'グローバル', '大型株'] },
+  { code: '6758', name: 'ソニーグループ', market: 'プライム', change: 2.9, contribution: 0.92, fit: { FW: 89, MF: 84, DF: 63, GK: 55 }, tags: ['エンタメ', '半導体', 'ブランド'] },
+  { code: '6501', name: '日立製作所', market: 'プライム', change: -0.8, contribution: 0.90, fit: { FW: 78, MF: 88, DF: 82, GK: 72 }, tags: ['インフラ', 'DX', 'バランス'] },
+  { code: '8316', name: '三井住友フィナンシャルグループ', market: 'プライム', change: 0.7, contribution: 0.82, fit: { FW: 58, MF: 86, DF: 86, GK: 74 }, tags: ['銀行', '金利', '守備'] },
+  { code: '9432', name: 'NTT', market: 'プライム', change: 0.2, contribution: 0.56, fit: { FW: 45, MF: 78, DF: 92, GK: 88 }, tags: ['通信', '安定', '守備'] },
+  { code: '9433', name: 'KDDI', market: 'プライム', change: 0.4, contribution: 0.63, fit: { FW: 48, MF: 76, DF: 90, GK: 86 }, tags: ['通信', '配当', '安定'] },
+  { code: '7741', name: 'HOYA', market: 'プライム', change: 0.8, contribution: 0.76, fit: { FW: 72, MF: 86, DF: 90, GK: 94 }, tags: ['高収益', '医療', 'GK候補'] },
+  { code: '7974', name: '任天堂', market: 'プライム', change: 1.1, contribution: 0.74, fit: { FW: 84, MF: 82, DF: 76, GK: 73 }, tags: ['IP', 'ゲーム', 'ブランド'] },
+  { code: '6367', name: 'ダイキン工業', market: 'プライム', change: 0.7, contribution: 0.70, fit: { FW: 64, MF: 79, DF: 88, GK: 76 }, tags: ['空調', '世界展開', '守備'] },
+  { code: '2782', name: 'セリア', market: 'スタンダード', change: 0.3, contribution: 0.50, fit: { FW: 50, MF: 68, DF: 80, GK: 72 }, tags: ['小売', '生活防衛', '安定'] },
+  { code: '4816', name: '東映アニメーション', market: 'スタンダード', change: 1.5, contribution: 0.64, fit: { FW: 87, MF: 75, DF: 58, GK: 50 }, tags: ['IP', 'アニメ', '成長'] },
+  { code: '4478', name: 'フリー', market: 'グロース', change: 1.8, contribution: 0.58, fit: { FW: 89, MF: 67, DF: 35, GK: 30 }, tags: ['SaaS', 'グロース', '攻撃'] },
+  { code: '9166', name: 'GENDA', market: 'グロース', change: 2.1, contribution: 0.62, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
 ];
 
 const SAMPLE_TEAMS = [
@@ -131,6 +159,10 @@ function formatPct(value?: number | null) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+function formatWeight(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
 function formatPrice(value?: number | null, currency = 'JPY') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('ja-JP', { style: 'currency', currency, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }).format(value);
@@ -139,6 +171,33 @@ function formatPrice(value?: number | null, currency = 'JPY') {
 function normalizeQuoteCode(quote: MarketQuote) {
   const raw = quote.requestedSymbol || quote.symbol || '';
   return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+}
+
+function normalizeStockCodeInput(input: string) {
+  const raw = input.trim().toUpperCase();
+  if (!raw) return '';
+  return raw.replace(/\.T$/i, '').replace(/[^0-9A-Z]/g, '');
+}
+
+function createCustomStock(code: string, name?: string | null): Stock {
+  return {
+    code,
+    name: name || code,
+    market: '任意追加',
+    change: 0,
+    contribution: 0,
+    fit: DEFAULT_CUSTOM_FIT,
+    tags: ['実データ取得', 'ユーザー選択'],
+  };
+}
+
+function createStockFromSearchResult(result: SearchResult): Stock {
+  return createCustomStock(result.code, result.displayName || result.longName || result.shortName || result.code);
+}
+
+function getStockDisplayName(stock: Stock, quote?: MarketQuote) {
+  const name = quote?.displayName || quote?.longName || quote?.shortName || stock.name;
+  return name.replace(/\s*\(任意銘柄\)\s*$/g, '');
 }
 
 function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
@@ -180,6 +239,12 @@ function getNextOpenPosition(stocks: SelectedStock[], formation: Formation) {
   return POSITIONS.find((position) => counts[position] < formation.counts[position]) || 'MF';
 }
 
+function getPositionMemberWeight(formation: Formation, position: Position) {
+  const count = formation.counts[position];
+  if (!count) return 0;
+  return formation.weights[position] / count;
+}
+
 function getMiniPitchDots(formation: Formation): MiniPitchDot[] {
   const tops: Record<Position, number> = { FW: 22, MF: 43, DF: 64, GK: 82 };
   const lanes: Record<number, number[]> = {
@@ -203,8 +268,11 @@ export { FORMATIONS, getFormationByKey, assignFormationPositions, getNextOpenPos
 function App() {
   const [teamNameInput, setTeamNameInput] = useState('ツヨシ');
   const [isLocked, setIsLocked] = useState(false);
-  const [marketFilter, setMarketFilter] = useState<MarketFilter>('全市場');
   const [query, setQuery] = useState('');
+  const [customStocks, setCustomStocks] = useState<Stock[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [formationKey, setFormationKey] = useState<FormationKey>(DEFAULT_FORMATION.key);
   const [quoteMap, setQuoteMap] = useState<Record<string, MarketQuote>>({});
   const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
@@ -215,7 +283,9 @@ function App() {
   const teamName = formatTeamName(teamNameInput);
   const currentFormation = useMemo(() => getFormationByKey(formationKey), [formationKey]);
   const formationDots = useMemo(() => getMiniPitchDots(currentFormation), [currentFormation]);
+  const allStocks = useMemo(() => [...STOCKS, ...customStocks], [customStocks]);
   const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
+  const trimmedQuery = query.trim();
 
   useEffect(() => {
     if (!selectedCodesKey) {
@@ -283,11 +353,63 @@ function App() {
     return () => controller.abort();
   }, [selectedCodesKey]);
 
+  useEffect(() => {
+    if (!trimmedQuery) {
+      setSearchResults([]);
+      setSearchStatus('idle');
+      setSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setSearchStatus('loading');
+        setSearchError(null);
+        const response = await fetch(`${MARKET_API_BASE}/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`search ${response.status}`);
+        const payload = await response.json() as { results?: SearchResult[] };
+        setSearchResults(payload.results || []);
+        setSearchStatus('success');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setSearchResults([]);
+        setSearchStatus('error');
+        setSearchError(error instanceof Error ? error.message : String(error));
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [trimmedQuery]);
+
   const filteredStocks = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return STOCKS.filter((stock) => (marketFilter === '全市場' || stock.market === marketFilter)
-      && (!q || stock.name.toLowerCase().includes(q) || stock.code.includes(q)));
-  }, [marketFilter, query]);
+    const q = trimmedQuery.toLowerCase();
+    if (!q) return allStocks;
+
+    const localMatches = allStocks.filter((stock) => stock.name.toLowerCase().includes(q) || stock.code.includes(q));
+    const remoteMatches = searchResults.map((result) => {
+      const existing = allStocks.find((stock) => stock.code === result.code);
+      return existing || createStockFromSearchResult(result);
+    });
+
+    const merged: Stock[] = [];
+    [...localMatches, ...remoteMatches].forEach((stock) => {
+      if (!stock.code || merged.some((item) => item.code === stock.code)) return;
+      merged.push(stock);
+    });
+
+    const inputCode = normalizeStockCodeInput(trimmedQuery);
+    if (inputCode && !merged.some((stock) => stock.code === inputCode)) {
+      merged.push(createCustomStock(inputCode));
+    }
+
+    return merged;
+  }, [allStocks, searchResults, trimmedQuery]);
 
   const positionCounts = useMemo(() => selected.reduce<Record<Position, number>>((acc, stock) => {
     if (stock.position) acc[stock.position] += 1;
@@ -295,16 +417,16 @@ function App() {
   }, { FW: 0, MF: 0, DF: 0, GK: 0 }), [selected]);
 
   const marketSummary = useMemo(() => {
-    const counts: Record<Market, number> = { プライム: 0, スタンダード: 0, グロース: 0 };
+    const counts: Record<Market, number> = { プライム: 0, スタンダード: 0, グロース: 0, 任意追加: 0 };
     selected.forEach((stock) => counts[stock.market] += 1);
     return counts;
   }, [selected]);
 
   const isFormationComplete = selected.length === 11
-    && positionCounts.FW === 3
-    && positionCounts.MF === 3
-    && positionCounts.DF === 4
-    && positionCounts.GK === 1;
+    && positionCounts.FW === currentFormation.counts.FW
+    && positionCounts.MF === currentFormation.counts.MF
+    && positionCounts.DF === currentFormation.counts.DF
+    && positionCounts.GK === currentFormation.counts.GK;
 
   const scores = useMemo(() => {
     const average = (position: Position) => {
@@ -333,13 +455,24 @@ function App() {
     return { type: '個性派ミックスチーム', text: '市場区分やポジション適性が入り混じった、独自色の強い布陣です。配置を変えると診断も変わります。' };
   }, [scores, selected.length]);
 
-  const ranking = [...selected].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
-  const marketDataRows = selected.map((stock) => ({ stock, quote: quoteMap[stock.code] }));
-  const availableReturns = marketDataRows
-    .map(({ quote }) => quote?.periodReturnPct)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-  const actualTeamReturn = availableReturns.length
-    ? availableReturns.reduce((sum, value) => sum + value, 0) / availableReturns.length
+  const marketDataRows = useMemo(() => selected.map((stock) => {
+    const position = stock.position || 'MF';
+    const quote = quoteMap[stock.code];
+    const returnPct = quote?.periodReturnPct;
+    const memberWeight = getPositionMemberWeight(currentFormation, position);
+    const hasReturn = typeof returnPct === 'number' && Number.isFinite(returnPct);
+    return {
+      stock,
+      quote,
+      memberWeight,
+      weightedContribution: hasReturn ? returnPct * memberWeight : null,
+    };
+  }), [currentFormation, quoteMap, selected]);
+
+  const availableReturns = marketDataRows.filter((row) => row.weightedContribution !== null);
+  const availableWeight = availableReturns.reduce((sum, row) => sum + row.memberWeight, 0);
+  const actualTeamReturn = availableWeight > 0
+    ? availableReturns.reduce((sum, row) => sum + (row.weightedContribution || 0), 0) / availableWeight
     : null;
   const latestQuote = marketDataRows
     .map(({ quote }) => quote?.tsSource || quote?.tsServer)
@@ -347,7 +480,13 @@ function App() {
     .sort()
     .slice(-1)[0];
 
+  const ensureCustomCandidate = (stock: Stock) => {
+    if (stock.market !== '任意追加') return;
+    setCustomStocks((current) => current.some((item) => item.code === stock.code) ? current : [...current, stock]);
+  };
+
   const handleFormationChange = (nextKey: FormationKey) => {
+    if (isLocked) return;
     const nextFormation = getFormationByKey(nextKey);
     setFormationKey(nextKey);
     setSelected((current) => assignFormationPositions(current, nextFormation));
@@ -359,9 +498,27 @@ function App() {
       setSelected((current) => current.filter((item) => item.code !== stock.code));
       return;
     }
+
+    ensureCustomCandidate(stock);
     if (selected.length < 11) {
       setSelected((current) => [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }]);
     }
+  };
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isLocked || !trimmedQuery) return;
+
+    const firstStock = filteredStocks[0];
+    const inputCode = normalizeStockCodeInput(trimmedQuery);
+    const stock = firstStock || (inputCode ? createCustomStock(inputCode) : null);
+    if (!stock) return;
+
+    ensureCustomCandidate(stock);
+    setSelected((current) => {
+      if (current.some((item) => item.code === stock.code) || current.length >= 11) return current;
+      return [...current, { ...stock, position: getNextOpenPosition(current, currentFormation) }];
+    });
   };
 
   const setPosition = (code: string, position: Position) => {
@@ -413,15 +570,15 @@ function App() {
 
         <section className="match-strip card">
           <div>
-            <span>エントリー締切</span>
-            <strong>{TOURNAMENT.entryDeadline}</strong>
+            <span>試合期間</span>
+            <strong>{TOURNAMENT.duration}の終値で決着</strong>
           </div>
           <div>
-            <span>試合開始日</span>
-            <strong>{TOURNAMENT.startDate}</strong>
+            <span>判定方式</span>
+            <strong>{TOURNAMENT.judgeRule}</strong>
           </div>
           <div>
-            <span>結果発表日</span>
+            <span>締切</span>
             <strong>{TOURNAMENT.resultDate}</strong>
           </div>
           <button className="lock-button" disabled={!isFormationComplete} onClick={() => setIsLocked((locked) => !locked)}>
@@ -469,6 +626,7 @@ function App() {
                   <button
                     key={formation.key}
                     className={formation.key === currentFormation.key ? 'selected' : ''}
+                    disabled={isLocked}
                     onClick={() => handleFormationChange(formation.key)}
                   >
                     {formation.label}
@@ -506,10 +664,10 @@ function App() {
                 </div>
               </div>
               <div className="pitch-legend">
-                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名
-                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名
-                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名
-                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名
+                <span className="fw">FW</span>（フォワード）：{currentFormation.counts.FW}名 / {Math.round(currentFormation.weights.FW * 100)}%
+                <span className="mf">MF</span>（ミッドフィールダー）：{currentFormation.counts.MF}名 / {Math.round(currentFormation.weights.MF * 100)}%
+                <span className="df">DF</span>（ディフェンダー）：{currentFormation.counts.DF}名 / {Math.round(currentFormation.weights.DF * 100)}%
+                <span className="gk">GK</span>（ゴールキーパー）：{currentFormation.counts.GK}名 / {Math.round(currentFormation.weights.GK * 100)}%
               </div>
             </div>
           </div>
@@ -528,7 +686,7 @@ function App() {
               </div>
               <div className="match-rule-box">
                 <strong>勝敗ルール</strong>
-                <p>開始日の終値と終了日の終値を比較し、11銘柄の平均騰落率で順位を決定します。</p>
+                <p>開始日の終値と終了日の終値を比較し、フォーメーション別のポジション比重を反映したチームリターンで順位を決定します。</p>
               </div>
               <p className="chart-footnote">※ リターンは2026/5/11を0%として表示</p>
             </div>
@@ -566,13 +724,14 @@ function App() {
           <div className="card editor-card editor-wide">
             <h3>チーム編成</h3>
             <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} disabled={isLocked} placeholder="例：ツヨシ" />
-            <div className="filter-row">
-              {(['全市場', 'プライム', 'スタンダード', 'グロース'] as MarketFilter[]).map((market) => (
-                <button key={market} className={marketFilter === market ? 'selected' : ''} disabled={isLocked} onClick={() => setMarketFilter(market)}>{market}</button>
-              ))}
-            </div>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="銘柄名・証券コードで検索" />
-            <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース}</p>
+            <form className="filter-row custom-stock-row" onSubmit={handleSearchSubmit}>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} disabled={isLocked} placeholder="銘柄名・証券コードで検索して追加（例：ヤマハ / 7951）" />
+              <button type="submit" disabled={isLocked || !trimmedQuery}>{selected.length >= 11 ? '候補追加' : '検索して追加'}</button>
+            </form>
+            <p className="helper-text">
+              {searchStatus === 'loading' ? '検索中です。' : searchStatus === 'error' ? `検索に失敗しました：${searchError}` : trimmedQuery ? `検索候補：${filteredStocks.length}件` : '銘柄名または証券コードで検索し、下の銘柄リストから選抜してください。'}
+            </p>
+            <p className="helper-text">選抜メンバー：{selected.length} / 11銘柄　｜　市場構成：プライム {marketSummary.プライム} / スタンダード {marketSummary.スタンダード} / グロース {marketSummary.グロース} / 任意追加 {marketSummary.任意追加}</p>
           </div>
           <div className="card editor-card">
             <h3>チーム診断</h3>
@@ -592,26 +751,30 @@ function App() {
           <div className="card-title-row">
             <div>
               <h3>実データ確認 <small>（Yahoo Finance 遅延データ）</small></h3>
-              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンを等ウェイト平均した参考値です。配当・手数料・税金は含みません。</p>
+              <p className="helper-text">チームリターンは、選抜銘柄の株価ベースリターンにフォーメーション別ポジション比重を掛けた参考値です。配当・手数料・税金は含みません。</p>
             </div>
             <span className={`market-status status-${quoteStatus}`}>{quoteStatus === 'loading' ? '取得中' : quoteStatus === 'success' ? '取得済み' : quoteStatus === 'error' ? '取得エラー' : '未取得'}</span>
           </div>
           {quoteError && <div className="market-error">バックエンド未起動、または取得失敗：{quoteError}</div>}
           <div className="market-summary-row">
             <div><span>取得銘柄</span><strong>{availableReturns.length} / {selected.length}</strong></div>
+            <div><span>有効ウェイト</span><strong>{formatWeight(availableWeight)}</strong></div>
             <div><span>チームリターン</span><strong>{formatPct(actualTeamReturn)}</strong></div>
-            <div><span>API</span><strong>{MARKET_API_BASE}</strong></div>
           </div>
           <div className="market-table-wrap">
             <div className="market-table">
-              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>取得元</span></div>
-              {marketDataRows.map(({ stock, quote }) => (
+              <div className="market-table-header"><span>銘柄</span><span>現在値</span><span>前日比</span><span>個別リターン</span><span>比重</span></div>
+              {marketDataRows.map(({ stock, quote, memberWeight }) => (
                 <div className="market-table-row" key={stock.code}>
-                  <span><strong>{stock.name}</strong><small>{stock.code}</small></span>
+                  <span>
+                    <strong>{getStockDisplayName(stock, quote)}</strong>
+                    <small>{stock.code} / {stock.position}</small>
+                    <button type="button" disabled={isLocked} onClick={() => toggleStock(stock)}>外す</button>
+                  </span>
                   <span>{formatPrice(quote?.regularMarketPrice ?? quote?.lastClose, quote?.currency || 'JPY')}</span>
                   <span className={(quote?.changePct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.changePct)}</span>
                   <span className={(quote?.periodReturnPct ?? 0) >= 0 ? 'positive' : 'negative'}>{formatPct(quote?.periodReturnPct)}</span>
-                  <span>{quote?.source || quote?.error || '-'}</span>
+                  <span>{formatWeight(memberWeight)}</span>
                 </div>
               ))}
             </div>
@@ -620,27 +783,42 @@ function App() {
 
         <section className="card stock-list-card">
           <div className="card-title-row">
-            <h3>銘柄リスト</h3>
+            <h3>{trimmedQuery ? '検索結果・銘柄リスト' : '日本株代表候補リスト'}</h3>
             <div className="position-status">FW {positionCounts.FW}/{currentFormation.counts.FW}　MF {positionCounts.MF}/{currentFormation.counts.MF}　DF {positionCounts.DF}/{currentFormation.counts.DF}　GK {positionCounts.GK}/{currentFormation.counts.GK}</div>
           </div>
           <div className="stock-grid">
             {filteredStocks.map((stock) => {
               const chosen = selected.find((item) => item.code === stock.code);
+              const quote = quoteMap[stock.code];
               return (
                 <article className={`stock-item ${chosen ? 'chosen' : ''} ${isLocked ? 'locked' : ''}`} key={stock.code}>
                   <div className="stock-item-head">
-                    <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? '上限' : '選抜'}</button>
+                    <button disabled={isLocked} onClick={() => toggleStock(stock)}>{chosen ? '選抜中' : selected.length >= 11 ? (stock.market === '任意追加' ? '候補追加' : '上限') : '選抜'}</button>
                     <div>
-                      <strong>{stock.name}</strong>
+                      <strong>{getStockDisplayName(stock, quote)}</strong>
                       <small>{stock.code} / {stock.market}</small>
                     </div>
                   </div>
                   <p>{stock.tags.join('・')}</p>
                   {chosen && (
                     <div className="position-buttons">
-                      {POSITIONS.map((position) => (
-                        <button key={position} disabled={isLocked} className={chosen.position === position ? 'selected' : ''} onClick={() => setPosition(stock.code, position)}>{position}</button>
-                      ))}
+                      {POSITIONS.map((position) => {
+                        const isSelectedPosition = chosen.position === position;
+                        const isFullPosition = positionCounts[position] >= currentFormation.counts[position] && !isSelectedPosition;
+                        return (
+                          <button
+                            key={position}
+                            type="button"
+                            disabled={isLocked || isFullPosition}
+                            aria-pressed={isSelectedPosition}
+                            className={isSelectedPosition ? 'selected active-position' : 'position-option'}
+                            onClick={() => setPosition(stock.code, position)}
+                            title={isFullPosition ? `${position}は上限です` : `${position}に配置`}
+                          >
+                            {position}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </article>
@@ -667,7 +845,7 @@ function PlayerCard({ stock, quote, candles }: { stock: SelectedStock; quote?: M
   return (
     <article className={`player-card position-${position.toLowerCase()}`}>
       <div className="position-pill">{position}</div>
-      <strong>{stock.name}</strong>
+      <strong>{getStockDisplayName(stock, quote)}</strong>
       <small>{stock.code}</small>
       <div className={`player-change ${trendClass}`}>{formatPct(returnPct)}</div>
       <svg className={`sparkline spark-${position.toLowerCase()} ${trendClass}`} viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">

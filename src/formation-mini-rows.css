@@ -22,3 +22,46 @@
 .formation-mini-pitch i.formation-mini-dot:nth-child(11) {
   display: block !important;
 }
+
+.pitch-players:has(.row-mf .player-card:nth-child(6)) {
+  grid-template-rows: .82fr 1.55fr 1fr .78fr;
+  gap: 8px;
+}
+
+.row-mf:has(.player-card:nth-child(6)) {
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  row-gap: 8px;
+  column-gap: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.row-mf:has(.player-card:nth-child(6)) .player-card:nth-child(-n+2) {
+  order: 1;
+}
+
+.row-mf:has(.player-card:nth-child(6))::after {
+  content: "";
+  order: 2;
+  flex-basis: 100%;
+  height: 0;
+}
+
+.row-mf:has(.player-card:nth-child(6)) .player-card:nth-child(n+3) {
+  order: 3;
+}
+
+@media (min-width: 1321px) {
+  .pitch-players:has(.row-mf .player-card:nth-child(6)) {
+    grid-template-rows: .78fr 1.52fr .95fr .72fr;
+    gap: 6px;
+  }
+
+  .row-mf:has(.player-card:nth-child(6)) {
+    max-width: 470px;
+    row-gap: 6px;
+    column-gap: 11px;
+  }
+}
