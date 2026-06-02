@@ -54,4 +54,25 @@
     padding: 12px 16px;
     font-size: 15px;
   }
+
+  .main {
+    margin: 0;
+    padding: 22px 22px 18px 18px;
+    width: min(100%, 1480px);
+    transform-origin: top left;
+  }
+}
+
+@media (min-width: 1500px) {
+  .main {
+    transform: scale(1.06);
+    width: min(calc(100% / 1.06), 1480px);
+  }
+}
+
+@media (min-width: 1800px) {
+  .main {
+    transform: scale(1.08);
+    width: min(calc(100% / 1.08), 1480px);
+  }
 }
