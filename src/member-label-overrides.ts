@@ -67,15 +67,6 @@ function removeEntryCompleteBanner() {
   document.querySelector<HTMLElement>(`.${ENTRY_BANNER_CLASS}`)?.remove();
 }
 
-function rewriteTeamChipStatus(teamChip: HTMLElement | null, status: 'entered' | 'editing') {
-  if (!teamChip?.textContent) return;
-
-  const nextLabel = status === 'entered' ? ENTRY_DONE_STATUS_LABEL : '編成中';
-  teamChip.textContent = teamChip.textContent
-    .replace('チーム確定済み', nextLabel)
-    .replace(ENTRY_DONE_STATUS_LABEL, nextLabel);
-}
-
 function inferEntryState(lockButton: HTMLButtonElement | null, teamChip: HTMLElement | null): EntryState {
   if (entryState !== 'unknown') return entryState;
 
@@ -107,12 +98,10 @@ function syncEntryLabels() {
   }
 
   if (currentEntryState === 'entered') {
-    rewriteTeamChipStatus(teamChip, 'entered');
     renderEntryCompleteBanner(getTeamNameFromChip(teamChip));
     return;
   }
 
-  rewriteTeamChipStatus(teamChip, 'editing');
   removeEntryCompleteBanner();
 }
 
