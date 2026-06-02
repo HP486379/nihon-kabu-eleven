@@ -153,22 +153,14 @@
   }
 
   .pitch-markings {
+    --pitch-line-size: 3px;
+    --pitch-line-half: 1.5px;
+    --center-circle-radius: 65px;
+    --penalty-height: 104px;
+    --goal-height: 43px;
+    --pk-distance: 75px;
+    --pk-size: 5px;
     inset: 13px;
-    border-width: 3px;
-  }
-
-  .pitch-markings::before {
-    width: 130px;
-    height: 130px;
-    margin-left: -65px;
-    margin-top: -65px;
-    border-width: 3px;
-  }
-
-  .pitch-markings::after {
-    left: 21%;
-    right: 21%;
-    height: 104px;
     border-width: 3px;
   }
 

@@ -323,32 +323,43 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
 }
 .pitch-markings {
+  --pitch-line: rgba(255,255,255,.86);
+  --pitch-line-size: 4px;
+  --pitch-line-half: 2px;
+  --center-circle-radius: 85px;
+  --penalty-x: 20%;
+  --penalty-width: 60%;
+  --penalty-height: 150px;
+  --goal-x: 36%;
+  --goal-width: 28%;
+  --goal-height: 62px;
+  --pk-distance: 108px;
+  --pk-size: 7px;
   position: absolute;
   inset: 16px;
-  border: 4px solid rgba(255,255,255,.92);
+  border: var(--pitch-line-size) solid rgba(255,255,255,.92);
   border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 calc(var(--center-circle-radius) - var(--pitch-line-half)), var(--pitch-line) calc(var(--center-circle-radius) - var(--pitch-line-half)) calc(var(--center-circle-radius) + var(--pitch-line-half)), transparent calc(var(--center-circle-radius) + var(--pitch-line-half) + 1px)),
+    radial-gradient(circle at 50% var(--pk-distance), var(--pitch-line) 0 var(--pk-size), transparent calc(var(--pk-size) + 1px)),
+    radial-gradient(circle at 50% calc(100% - var(--pk-distance)), var(--pitch-line) 0 var(--pk-size), transparent calc(var(--pk-size) + 1px)),
+    linear-gradient(to bottom, transparent calc(50% - var(--pitch-line-half)), var(--pitch-line) calc(50% - var(--pitch-line-half)) calc(50% + var(--pitch-line-half)), transparent calc(50% + var(--pitch-line-half))),
+    linear-gradient(var(--pitch-line), var(--pitch-line)) 50% var(--penalty-height) / var(--penalty-width) var(--pitch-line-size) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-x) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--penalty-x)) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) 50% calc(100% - var(--penalty-height)) / var(--penalty-width) var(--pitch-line-size) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-x) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--penalty-x)) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) 50% var(--goal-height) / var(--goal-width) var(--pitch-line-size) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-x) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--goal-x)) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) 50% calc(100% - var(--goal-height)) / var(--goal-width) var(--pitch-line-size) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-x) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--goal-x)) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat;
 }
-.pitch-markings::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 49%;
-  width: 170px;
-  height: 170px;
-  margin-left: -85px;
-  margin-top: -85px;
-  border-radius: 50%;
-  border: 4px solid rgba(255,255,255,.85);
-}
+.pitch-markings::before,
 .pitch-markings::after {
-  content: "";
-  position: absolute;
-  left: 20%;
-  right: 20%;
-  bottom: 0;
-  height: 150px;
-  border: 4px solid rgba(255,255,255,.85);
-  border-bottom: 0;
+  display: none;
 }
 .pitch-players {
   position: relative;

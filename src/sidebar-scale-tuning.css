@@ -91,31 +91,15 @@
   .row-df { padding-top: 0; }
 
   .pitch-markings {
-    background:
-      radial-gradient(circle at 50% 50%, transparent 0 61px, rgba(255,255,255,.86) 62px 65px, transparent 66px),
-      linear-gradient(to bottom, transparent calc(50% - 1.5px), rgba(255,255,255,.86) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+    --pitch-line-size: 3px;
+    --pitch-line-half: 1.5px;
+    --center-circle-radius: 65px;
+    --penalty-height: 92px;
+    --goal-height: 38px;
+    --pk-distance: 66px;
+    --pk-size: 5px;
   }
 
-  .pitch-markings::before,
-  .pitch-markings::after {
-    content: "";
-    position: absolute;
-    left: 24%;
-    right: 24%;
-    height: 92px;
-    border: 3px solid rgba(255,255,255,.86);
-    pointer-events: none;
-  }
-
-  .pitch-markings::before {
-    top: 0;
-    border-top: 0;
-  }
-
-  .pitch-markings::after {
-    bottom: 0;
-    border-bottom: 0;
-  }
 }
 
 @media (min-width: 1500px) {
