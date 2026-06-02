@@ -4,6 +4,7 @@ const ENTRY_BUTTON_LABEL = '代表メンバーを確定して試合にエント�
 const CANCEL_ENTRY_BUTTON_LABEL = 'エントリーを取り消す';
 const ENTRY_DONE_STATUS_LABEL = 'エントリー済み';
 const ENTRY_BANNER_CLASS = 'entry-complete-banner';
+let pendingCancelEntry = false;
 
 function syncMemberLabels() {
   const marketHeaderFirstCell = document.querySelector<HTMLElement>('.market-table-header span:first-child');
@@ -69,13 +70,6 @@ function syncEntryLabels() {
   const lockButton = document.querySelector<HTMLButtonElement>('.lock-button');
   const teamChip = document.querySelector<HTMLElement>('.team-chip');
 
-  const isEnteredBeforeRewrite = Boolean(
-    teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
-    || teamChip?.textContent?.includes('チーム確定済み')
-    || lockButton?.textContent?.trim() === CANCEL_ENTRY_BUTTON_LABEL
-    || lockButton?.textContent?.trim() === '確定を解除',
-  );
-
   if (lockButton) {
     lockButton.classList.add('entry-lock-button');
     const currentText = lockButton.textContent?.trim() || '';
@@ -91,9 +85,13 @@ function syncEntryLabels() {
     teamChip.textContent = teamChip.textContent.replace('チーム確定済み', ENTRY_DONE_STATUS_LABEL);
   }
 
+  if (pendingCancelEntry) {
+    removeEntryCompleteBanner();
+    return;
+  }
+
   const isEntered = Boolean(
-    isEnteredBeforeRewrite
-    || teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
+    teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
     || lockButton?.textContent?.trim() === CANCEL_ENTRY_BUTTON_LABEL,
   );
 
@@ -112,6 +110,22 @@ function scheduleApplyMemberLabels() {
   });
 }
 
+function scheduleCancelEntryCleanup() {
+  pendingCancelEntry = true;
+  removeEntryCompleteBanner();
+
+  window.setTimeout(() => {
+    removeEntryCompleteBanner();
+    applyMemberLabels();
+  }, 0);
+
+  window.setTimeout(() => {
+    removeEntryCompleteBanner();
+    pendingCancelEntry = false;
+    applyMemberLabels();
+  }, 160);
+}
+
 function applyMemberLabels() {
   syncMemberLabels();
   syncEntryLabels();
@@ -128,8 +142,17 @@ export function initMemberLabelOverrides() {
 
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
-    if (target?.closest('.lock-button')) {
-      scheduleApplyMemberLabels();
+    const lockButton = target?.closest<HTMLButtonElement>('.lock-button');
+    if (!lockButton) return;
+
+    const currentText = lockButton.textContent?.trim() || '';
+    const isCancelClick = currentText === CANCEL_ENTRY_BUTTON_LABEL || currentText === '確定を解除';
+
+    if (isCancelClick) {
+      scheduleCancelEntryCleanup();
+      return;
     }
-  });
+
+    scheduleApplyMemberLabels();
+  }, true);
 }
