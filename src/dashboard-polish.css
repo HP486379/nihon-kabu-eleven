@@ -1,3 +1,5 @@
+:root {
+}
 .match-strip {
   display: grid;
   grid-template-columns: 1.05fr 1.35fr 1.1fr auto;
@@ -64,7 +66,7 @@
 }
 
 .match-strip > div:nth-child(2) strong::before {
-  content: "11銘柄の平均騰落率";
+  content: "ポジション加重リターン";
   font-size: 14px;
 }
 
