@@ -1,0 +1,8 @@
+.market-table-header span:first-child,
+.stock-list-card .card-title-row h3 {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: #18315b;
+  letter-spacing: -0.03em;
+}
