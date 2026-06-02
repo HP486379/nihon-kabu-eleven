@@ -327,10 +327,10 @@ a { color: inherit; text-decoration: none; }
   --pitch-line-size: 4px;
   --pitch-line-half: 2px;
   --center-circle-radius: 85px;
-  --penalty-x: 20%;
+  --penalty-left: 20%;
   --penalty-width: 60%;
   --penalty-height: 150px;
-  --goal-x: 36%;
+  --goal-left: 36%;
   --goal-width: 28%;
   --goal-height: 62px;
   --pk-distance: 108px;
@@ -345,17 +345,17 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(circle at 50% calc(100% - var(--pk-distance)), var(--pitch-line) 0 var(--pk-size), transparent calc(var(--pk-size) + 1px)),
     linear-gradient(to bottom, transparent calc(50% - var(--pitch-line-half)), var(--pitch-line) calc(50% - var(--pitch-line-half)) calc(50% + var(--pitch-line-half)), transparent calc(50% + var(--pitch-line-half))),
     linear-gradient(var(--pitch-line), var(--pitch-line)) 50% var(--penalty-height) / var(--penalty-width) var(--pitch-line-size) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-x) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--penalty-x)) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-left) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(var(--penalty-left) + var(--penalty-width)) 0 / var(--pitch-line-size) var(--penalty-height) no-repeat,
     linear-gradient(var(--pitch-line), var(--pitch-line)) 50% calc(100% - var(--penalty-height)) / var(--penalty-width) var(--pitch-line-size) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-x) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--penalty-x)) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--penalty-left) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(var(--penalty-left) + var(--penalty-width)) calc(100% - var(--penalty-height)) / var(--pitch-line-size) var(--penalty-height) no-repeat,
     linear-gradient(var(--pitch-line), var(--pitch-line)) 50% var(--goal-height) / var(--goal-width) var(--pitch-line-size) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-x) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--goal-x)) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-left) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(var(--goal-left) + var(--goal-width)) 0 / var(--pitch-line-size) var(--goal-height) no-repeat,
     linear-gradient(var(--pitch-line), var(--pitch-line)) 50% calc(100% - var(--goal-height)) / var(--goal-width) var(--pitch-line-size) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-x) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat,
-    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(100% - var(--goal-x)) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat;
+    linear-gradient(var(--pitch-line), var(--pitch-line)) var(--goal-left) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat,
+    linear-gradient(var(--pitch-line), var(--pitch-line)) calc(var(--goal-left) + var(--goal-width)) calc(100% - var(--goal-height)) / var(--pitch-line-size) var(--goal-height) no-repeat;
 }
 .pitch-markings::before,
 .pitch-markings::after {

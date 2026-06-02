@@ -164,6 +164,21 @@
     border-width: 3px;
   }
 
+  .pitch-markings::before {
+    width: 130px;
+    height: 130px;
+    margin-left: -65px;
+    margin-top: -65px;
+    border-width: 3px;
+  }
+
+  .pitch-markings::after {
+    left: 21%;
+    right: 21%;
+    height: 104px;
+    border-width: 3px;
+  }
+
   .pitch-players {
     min-height: 476px;
     grid-template-rows: 1fr 1fr 1.1fr .84fr;
