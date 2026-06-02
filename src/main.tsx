@@ -11,6 +11,7 @@ import './formation-mini-rows.css';
 import './position-control-fixes.css';
 import './pitch-drag-drop.css';
 import './member-label-overrides.css';
+import './sidebar-scale-tuning.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
