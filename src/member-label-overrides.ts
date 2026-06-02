@@ -4,7 +4,8 @@ const ENTRY_BUTTON_LABEL = '代表メンバーを確定して試合にエント�
 const CANCEL_ENTRY_BUTTON_LABEL = 'エントリーを取り消す';
 const ENTRY_DONE_STATUS_LABEL = 'エントリー済み';
 const ENTRY_BANNER_CLASS = 'entry-complete-banner';
-let pendingCancelEntry = false;
+type EntryState = 'unknown' | 'entered' | 'editing';
+let entryState: EntryState = 'unknown';
 
 function syncMemberLabels() {
   const marketHeaderFirstCell = document.querySelector<HTMLElement>('.market-table-header span:first-child');
@@ -66,40 +67,53 @@ function removeEntryCompleteBanner() {
   document.querySelector<HTMLElement>(`.${ENTRY_BANNER_CLASS}`)?.remove();
 }
 
+function rewriteTeamChipStatus(teamChip: HTMLElement | null, status: 'entered' | 'editing') {
+  if (!teamChip?.textContent) return;
+
+  const nextLabel = status === 'entered' ? ENTRY_DONE_STATUS_LABEL : '編成中';
+  teamChip.textContent = teamChip.textContent
+    .replace('チーム確定済み', nextLabel)
+    .replace(ENTRY_DONE_STATUS_LABEL, nextLabel);
+}
+
+function inferEntryState(lockButton: HTMLButtonElement | null, teamChip: HTMLElement | null): EntryState {
+  if (entryState !== 'unknown') return entryState;
+
+  const buttonText = lockButton?.textContent?.trim() || '';
+  const chipText = teamChip?.textContent || '';
+  if (buttonText === '確定を解除' || buttonText === CANCEL_ENTRY_BUTTON_LABEL || chipText.includes('チーム確定済み') || chipText.includes(ENTRY_DONE_STATUS_LABEL)) {
+    return 'entered';
+  }
+  return 'editing';
+}
+
 function syncEntryLabels() {
   const lockButton = document.querySelector<HTMLButtonElement>('.lock-button');
   const teamChip = document.querySelector<HTMLElement>('.team-chip');
+  const currentEntryState = inferEntryState(lockButton, teamChip);
 
   if (lockButton) {
     lockButton.classList.add('entry-lock-button');
     const currentText = lockButton.textContent?.trim() || '';
-    if (currentText === 'チームを確定') {
-      lockButton.textContent = ENTRY_BUTTON_LABEL;
-    }
-    if (currentText === '確定を解除') {
-      lockButton.textContent = CANCEL_ENTRY_BUTTON_LABEL;
+    if (currentEntryState === 'entered') {
+      if (currentText === '確定を解除' || currentText === 'チームを確定' || currentText === ENTRY_BUTTON_LABEL) {
+        lockButton.textContent = CANCEL_ENTRY_BUTTON_LABEL;
+      }
+    } else {
+      if (currentText === 'チームを確定' || currentText === '確定を解除' || currentText === CANCEL_ENTRY_BUTTON_LABEL) {
+        lockButton.textContent = ENTRY_BUTTON_LABEL;
+      }
     }
   }
 
-  if (teamChip?.textContent?.includes('チーム確定済み')) {
-    teamChip.textContent = teamChip.textContent.replace('チーム確定済み', ENTRY_DONE_STATUS_LABEL);
-  }
-
-  if (pendingCancelEntry) {
-    removeEntryCompleteBanner();
+  if (currentEntryState === 'entered') {
+    rewriteTeamChipStatus(teamChip, 'entered');
+    renderEntryCompleteBanner(getTeamNameFromChip(teamChip));
     return;
   }
 
-  const isEntered = Boolean(
-    teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
-    || lockButton?.textContent?.trim() === CANCEL_ENTRY_BUTTON_LABEL,
-  );
-
-  if (isEntered) {
-    renderEntryCompleteBanner(getTeamNameFromChip(teamChip));
-  } else {
-    removeEntryCompleteBanner();
-  }
+  rewriteTeamChipStatus(teamChip, 'editing');
+  removeEntryCompleteBanner();
 }
 
 function scheduleApplyMemberLabels() {
@@ -108,22 +122,6 @@ function scheduleApplyMemberLabels() {
     window.setTimeout(applyMemberLabels, 0);
     window.setTimeout(applyMemberLabels, 80);
   });
-}
-
-function scheduleCancelEntryCleanup() {
-  pendingCancelEntry = true;
-  removeEntryCompleteBanner();
-
-  window.setTimeout(() => {
-    removeEntryCompleteBanner();
-    applyMemberLabels();
-  }, 0);
-
-  window.setTimeout(() => {
-    removeEntryCompleteBanner();
-    pendingCancelEntry = false;
-    applyMemberLabels();
-  }, 160);
 }
 
 function applyMemberLabels() {
@@ -148,11 +146,8 @@ export function initMemberLabelOverrides() {
     const currentText = lockButton.textContent?.trim() || '';
     const isCancelClick = currentText === CANCEL_ENTRY_BUTTON_LABEL || currentText === '確定を解除';
 
-    if (isCancelClick) {
-      scheduleCancelEntryCleanup();
-      return;
-    }
-
+    entryState = isCancelClick ? 'editing' : 'entered';
+    if (isCancelClick) removeEntryCompleteBanner();
     scheduleApplyMemberLabels();
   }, true);
 }
