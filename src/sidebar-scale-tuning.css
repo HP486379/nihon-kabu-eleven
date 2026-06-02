@@ -57,22 +57,87 @@
 
   .main {
     margin: 0;
-    padding: 22px 22px 18px 18px;
-    width: min(100%, 1480px);
-    transform-origin: top left;
+    padding: 22px 24px 18px 18px;
+    width: min(100%, 1320px);
+    transform: none;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 220px minmax(620px, 680px) 340px;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .center-panel {
+    min-width: 0;
+  }
+
+  .pitch-card {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .pitch-stage {
+    min-height: 600px;
+  }
+
+  .pitch-players {
+    min-height: 570px;
+    gap: 14px;
+  }
+
+  .row-fw { padding-top: 24px; }
+  .row-mf { padding-top: 2px; }
+  .row-df { padding-top: 0; }
+
+  .pitch-markings {
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 61px, rgba(255,255,255,.86) 62px 65px, transparent 66px),
+      linear-gradient(to bottom, transparent calc(50% - 1.5px), rgba(255,255,255,.86) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+  }
+
+  .pitch-markings::before,
+  .pitch-markings::after {
+    content: "";
+    position: absolute;
+    left: 24%;
+    right: 24%;
+    height: 92px;
+    border: 3px solid rgba(255,255,255,.86);
+    pointer-events: none;
+  }
+
+  .pitch-markings::before {
+    top: 0;
+    border-top: 0;
+  }
+
+  .pitch-markings::after {
+    bottom: 0;
+    border-bottom: 0;
   }
 }
 
 @media (min-width: 1500px) {
   .main {
-    transform: scale(1.06);
-    width: min(calc(100% / 1.06), 1480px);
+    width: min(100%, 1340px);
+    transform: none;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 225px minmax(630px, 690px) 350px;
+    gap: 15px;
   }
 }
 
 @media (min-width: 1800px) {
   .main {
-    transform: scale(1.08);
-    width: min(calc(100% / 1.08), 1480px);
+    width: min(100%, 1360px);
+    transform: none;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 230px minmax(640px, 700px) 360px;
+    gap: 16px;
   }
 }
