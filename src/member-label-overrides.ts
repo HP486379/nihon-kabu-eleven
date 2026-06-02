@@ -67,6 +67,15 @@ function removeEntryCompleteBanner() {
 
 function syncEntryLabels() {
   const lockButton = document.querySelector<HTMLButtonElement>('.lock-button');
+  const teamChip = document.querySelector<HTMLElement>('.team-chip');
+
+  const isEnteredBeforeRewrite = Boolean(
+    teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
+    || teamChip?.textContent?.includes('チーム確定済み')
+    || lockButton?.textContent?.trim() === CANCEL_ENTRY_BUTTON_LABEL
+    || lockButton?.textContent?.trim() === '確定を解除',
+  );
+
   if (lockButton) {
     lockButton.classList.add('entry-lock-button');
     const currentText = lockButton.textContent?.trim() || '';
@@ -78,13 +87,13 @@ function syncEntryLabels() {
     }
   }
 
-  const teamChip = document.querySelector<HTMLElement>('.team-chip');
   if (teamChip?.textContent?.includes('チーム確定済み')) {
     teamChip.textContent = teamChip.textContent.replace('チーム確定済み', ENTRY_DONE_STATUS_LABEL);
   }
 
   const isEntered = Boolean(
-    teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
+    isEnteredBeforeRewrite
+    || teamChip?.textContent?.includes(ENTRY_DONE_STATUS_LABEL)
     || lockButton?.textContent?.trim() === CANCEL_ENTRY_BUTTON_LABEL,
   );
 
@@ -93,6 +102,14 @@ function syncEntryLabels() {
   } else {
     removeEntryCompleteBanner();
   }
+}
+
+function scheduleApplyMemberLabels() {
+  window.requestAnimationFrame(() => {
+    applyMemberLabels();
+    window.setTimeout(applyMemberLabels, 0);
+    window.setTimeout(applyMemberLabels, 80);
+  });
 }
 
 function applyMemberLabels() {
@@ -108,4 +125,11 @@ export function initMemberLabelOverrides() {
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.lock-button')) {
+      scheduleApplyMemberLabels();
+    }
+  });
 }
