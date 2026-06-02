@@ -3,7 +3,7 @@ const BENCH_MEMBER_LABEL = 'ベンチ入りメンバー(日本株代表候補リ
 
 function applyMemberLabels() {
   const marketHeaderFirstCell = document.querySelector<HTMLElement>('.market-table-header span:first-child');
-  if (marketHeaderFirstCell && marketHeaderFirstCell.textContent !== MARKET_MEMBER_LABEL) {
+  if (marketHeaderFirstCell && marketHeaderFirstCell.textContent?.trim() !== MARKET_MEMBER_LABEL) {
     marketHeaderFirstCell.textContent = MARKET_MEMBER_LABEL;
   }
 
@@ -11,13 +11,18 @@ function applyMemberLabels() {
   if (!stockListTitle) return;
 
   const currentText = stockListTitle.textContent?.trim() || '';
-  if (currentText === '日本株代表候補リスト' || currentText === 'ベンチ入りメンバー(日本株代表候補リスト)') {
+  if (currentText === BENCH_MEMBER_LABEL) return;
+  if (currentText === '日本株代表候補リスト') {
     stockListTitle.textContent = BENCH_MEMBER_LABEL;
   }
 }
 
 export function initMemberLabelOverrides() {
-  const observer = new MutationObserver(applyMemberLabels);
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   window.setTimeout(applyMemberLabels, 0);
+
+  const observer = new MutationObserver(() => {
+    window.requestAnimationFrame(applyMemberLabels);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
 }
