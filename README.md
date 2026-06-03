@@ -5,7 +5,7 @@
 ## v0.1 MVP Dashboard
 
 現時点のMVPは、参考画像に寄せた白ベース・青アクセントの金融ダッシュボードUIです。
-中央に4-3-3のサッカーピッチを配置し、左右にチームサマリー、パフォーマンス比較、得点ランキングを表示します。
+中央に4-3-3のサッカーピッチを配置し、左右にチームサマリー、勝負状況、参加チームランキングを表示します。
 
 ## MVP機能
 
@@ -18,8 +18,8 @@
 - ピッチ上の銘柄カード配置とミニフォーメーション図の連動
 - ポジション配置に基づくチーム診断
 - チームスコア表示
-- パフォーマンス比較チャート風UI
-- 得点ランキング
+- 勝負状況チャート風UI（あなた / 現在1位 / 参加チーム中央値）
+- 参加チームランキング
 - 投資助言ではないことを明示する免責文
 
 ## ポジション定義
@@ -102,10 +102,212 @@ GK比重 10%：GK 1銘柄なので1銘柄あたり10%
 - チーム確定時の各銘柄のポジション
 - チーム確定時のフォーメーション
 
+## 想定アーキテクチャ
+
+本アプリは、以下の3層構成を想定します。
+
+```text
+フロントエンド：Vercel
+バックエンド：Render
+DB / Auth：Supabase
+```
+
+### フロントエンド：Vercel
+
+React / Vite による画面表示を担当します。
+
+主な役割：
+
+- チーム編成画面の表示
+- チーム名、フォーメーション、銘柄、ポジションの入力
+- エントリー操作
+- ランキング、勝負状況、ピッチUIの表示
+
+Vercel側の環境変数例：
+
+```text
+VITE_API_BASE=https://xxxxx.onrender.com
+VITE_SUPABASE_URL=xxxxx
+VITE_SUPABASE_ANON_KEY=xxxxx
+```
+
+`VITE_SUPABASE_ANON_KEY` は公開前提のキーとして扱います。`service_role key` は絶対にフロントエンドへ置きません。
+
+### バックエンド：Render
+
+Node / Express によるAPIサーバーを想定します。
+
+主な役割：
+
+- 株価取得プロキシ
+- エントリー保存API
+- エントリー内容の検証
+- ランキング計算API
+- 勝負状況（あなた / 現在1位 / 中央値）の集計
+- 将来的な不正対策、定期集計
+
+Render側の環境変数例：
+
+```text
+SUPABASE_URL=xxxxx
+SUPABASE_SERVICE_ROLE_KEY=xxxxx
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` は管理者権限を持つため、Render側だけに置きます。
+
+### DB / Auth：Supabase
+
+Supabase Postgres を、ユーザーエントリー、大会、ランキング集計の保存先として使います。
+
+最初はログイン必須の投資管理アプリではなく、ゲーム参加用のエントリー管理として扱います。
+
+## ユーザーデータ管理方針
+
+本アプリは証券口座連携や実保有株管理ではなく、一回勝負のゲームエントリーを管理します。
+
+そのため、ユーザーデータ管理の中心は「ユーザー」ではなく「エントリー」です。
+
+保存対象：
+
+- 大会ID
+- チーム名
+- フォーメーション
+- 11銘柄
+- 各銘柄のポジション
+- エントリー状態
+- エントリー日時
+- 所有ユーザーID
+
+保存しないもの：
+
+- 実際の保有株数
+- 証券口座情報
+- 購入単価
+- 個人の資産情報
+
+## Supabaseテーブル案
+
+MVPでは以下のテーブル構成を想定します。
+
+```text
+profiles
+contests
+entries
+entry_members
+entry_results
+```
+
+### profiles
+
+ユーザー表示名などの最小プロフィールを保存します。
+
+```text
+id uuid primary key
+display_name text
+created_at timestamptz
+```
+
+### contests
+
+大会情報を保存します。
+
+```text
+id uuid primary key
+name text
+start_date date
+end_date date
+entry_deadline timestamptz
+status text
+judge_rule text
+created_at timestamptz
+```
+
+### entries
+
+1チーム1エントリーを保存します。
+
+```text
+id uuid primary key
+contest_id uuid
+user_id uuid
+team_name text
+formation text
+status text
+locked_at timestamptz
+created_at timestamptz
+updated_at timestamptz
+```
+
+### entry_members
+
+エントリー時点の11銘柄と配置を保存します。
+
+```text
+id uuid primary key
+entry_id uuid
+stock_code text
+stock_name text
+position text
+slot_order int
+weight numeric
+```
+
+### entry_results
+
+集計結果を保存します。
+
+```text
+entry_id uuid primary key
+contest_id uuid
+team_return numeric
+rank int
+calculated_at timestamptz
+```
+
+## ランキング・勝負状況の算出方針
+
+右カラムの「勝負状況」は、将来的には `entry_results` をもとに表示します。
+
+```text
+あなた        = 自分の entry_results.team_return
+現在1位      = 同じ contest_id の max(team_return)
+中央値       = 同じ contest_id の percentile_cont(0.5)
+1位との差    = 自分の team_return - 現在1位の team_return
+中央値との差 = 自分の team_return - 中央値
+```
+
+TOPIXは勝敗対象ではなく、参考指数として小さく表示する方針です。
+
+## データ保存フロー
+
+### エントリー時
+
+```text
+ユーザーが「代表メンバーを確定して試合にエントリー」を押す
+↓
+Vercelフロント
+↓
+Render API /api/entries
+↓
+Supabaseに entries / entry_members を保存
+```
+
+### ランキング表示時
+
+```text
+Vercelフロント
+↓
+Render API /api/contest/:id/standings
+↓
+Supabaseから entry_results / entries を取得・集計
+↓
+ランキングと勝負状況を表示
+```
+
 ## 現時点の制約
 
-- 表示データはサンプルです
-- リアルタイム株価API連携は未実装です
+- 表示データの一部はサンプルです
+- Supabase連携は設計方針段階で、未実装です
 - ユーザー登録・ログイン・チーム保存は未実装です
 - 投資助言ではなく、仮想ポートフォリオの可視化を目的とした金融エンタメです
 

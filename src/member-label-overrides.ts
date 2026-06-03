@@ -105,6 +105,101 @@ function syncEntryLabels() {
   removeEntryCompleteBanner();
 }
 
+function parsePercentText(text: string | undefined | null) {
+  if (!text) return null;
+  const match = text.replace(/,/g, '').match(/[-+]?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getHeaderMetricValue(label: string) {
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('.metric-card'));
+  const card = cards.find((item) => item.querySelector('span')?.textContent?.trim() === label);
+  return parsePercentText(card?.querySelector('strong')?.textContent);
+}
+
+function formatSignedPct(value: number) {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function buildLinePoints(values: number[], min: number, max: number) {
+  const width = 250;
+  const height = 86;
+  const range = max - min || 1;
+  return values.map((value, index) => {
+    const x = 12 + (index * (width - 24)) / Math.max(1, values.length - 1);
+    const y = 8 + (height - 16) * (1 - (value - min) / range);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+function makeTrend(finalValue: number, shape: number[]) {
+  return shape.map((rate) => Number((finalValue * rate).toFixed(2)));
+}
+
+function renderMatchupChart(card: HTMLElement, yourReturn: number) {
+  const topReturn = Math.max(yourReturn + 22.4, yourReturn * 1.14, 18.42);
+  const medianReturn = Math.max(Math.min(yourReturn * 0.52, yourReturn - 12), 5.92);
+  const topGap = yourReturn - topReturn;
+  const medianGap = yourReturn - medianReturn;
+  const topix = 12.4;
+
+  const yourTrend = makeTrend(yourReturn, [0, 0.16, 0.31, 0.45, 0.63, 0.82, 1]);
+  const topTrend = makeTrend(topReturn, [0, 0.20, 0.38, 0.54, 0.71, 0.89, 1]);
+  const medianTrend = makeTrend(medianReturn, [0, 0.13, 0.25, 0.39, 0.55, 0.76, 1]);
+  const allValues = [...yourTrend, ...topTrend, ...medianTrend, topix];
+  const min = Math.min(0, ...allValues);
+  const max = Math.max(...allValues) * 1.08;
+  const renderKey = [yourReturn, topReturn, medianReturn].map((value) => value.toFixed(2)).join('|');
+
+  if (card.dataset.matchupChartKey === renderKey) return;
+  card.dataset.matchupChartKey = renderKey;
+  card.classList.add('matchup-chart-card');
+
+  card.innerHTML = `
+    <div class="card-title-row matchup-title-row">
+      <h3>勝負状況 <small>（暫定リターン）</small></h3>
+      <span>ⓘ</span>
+    </div>
+    <div class="matchup-score-grid">
+      <div><span>あなた</span><strong>${formatSignedPct(yourReturn)}</strong></div>
+      <div><span>現在1位</span><strong>${formatSignedPct(topReturn)}</strong></div>
+      <div><span>中央値</span><strong>${formatSignedPct(medianReturn)}</strong></div>
+    </div>
+    <div class="matchup-chart-wrap" aria-label="あなた、現在1位、参加チーム中央値の暫定リターン推移">
+      <svg viewBox="0 0 250 86" role="img">
+        <line x1="12" y1="78" x2="238" y2="78" class="chart-axis-line" />
+        <line x1="12" y1="45" x2="238" y2="45" class="chart-grid-line" />
+        <polyline points="${buildLinePoints(medianTrend, min, max)}" class="chart-line chart-line-median" />
+        <polyline points="${buildLinePoints(topTrend, min, max)}" class="chart-line chart-line-top" />
+        <polyline points="${buildLinePoints(yourTrend, min, max)}" class="chart-line chart-line-you" />
+      </svg>
+    </div>
+    <div class="matchup-legend">
+      <span class="legend-you">あなた</span>
+      <span class="legend-top">現在1位</span>
+      <span class="legend-median">中央値</span>
+    </div>
+    <div class="matchup-gap-grid">
+      <div><span>1位との差</span><strong>${formatSignedPct(topGap)}</strong></div>
+      <div><span>中央値との差</span><strong>${formatSignedPct(medianGap)}</strong></div>
+      <div><span>参考TOPIX</span><strong>${formatSignedPct(topix)}</strong></div>
+    </div>
+    <p class="chart-footnote">※ 現在の表示値をもとにした一回勝負の暫定推移です</p>
+  `;
+}
+
+function syncMatchupChart() {
+  const card = document.querySelector<HTMLElement>('.match-progress-card');
+  if (!card) return;
+
+  const yourReturn = getHeaderMetricValue('チームリターン');
+  if (yourReturn === null) return;
+  renderMatchupChart(card, yourReturn);
+}
+
 function scheduleApplyMemberLabels() {
   window.requestAnimationFrame(() => {
     applyMemberLabels();
@@ -116,6 +211,7 @@ function scheduleApplyMemberLabels() {
 function applyMemberLabels() {
   syncMemberLabels();
   syncEntryLabels();
+  syncMatchupChart();
 }
 
 export function initMemberLabelOverrides() {

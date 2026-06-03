@@ -47,6 +47,154 @@
   line-height: 1.45;
 }
 
+.matchup-chart-card {
+  overflow: hidden;
+}
+
+.matchup-title-row {
+  margin-bottom: 12px;
+}
+
+.matchup-score-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.matchup-score-grid div,
+.matchup-gap-grid div {
+  padding: 8px 7px;
+  border: 1px solid #dfebf8;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.matchup-score-grid span,
+.matchup-gap-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: #64758f;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.matchup-score-grid strong,
+.matchup-gap-grid strong {
+  display: block;
+  color: #0d7f43;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.matchup-chart-wrap {
+  height: 116px;
+  margin: 0 0 8px;
+  padding: 8px 4px 4px;
+  border: 1px solid #e2ecf7;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6faff 100%);
+}
+
+.matchup-chart-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart-axis-line {
+  stroke: #d9e5f3;
+  stroke-width: 2;
+}
+
+.chart-grid-line {
+  stroke: #edf3fa;
+  stroke-width: 1.5;
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-line-you {
+  stroke: #1462d5;
+}
+
+.chart-line-top {
+  stroke: #d49b1e;
+}
+
+.chart-line-median {
+  stroke: #8fa1b8;
+  stroke-width: 3;
+  stroke-dasharray: 5 5;
+}
+
+.matchup-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #64758f;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.matchup-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.legend-you::before { background: #1462d5; }
+.legend-top::before { background: #d49b1e; }
+.legend-median::before { background: #8fa1b8; }
+
+.matchup-gap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.matchup-chart-card .chart-footnote {
+  margin-top: 9px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+@media (min-width: 1321px) {
+  .matchup-score-grid,
+  .matchup-gap-grid {
+    gap: 6px;
+  }
+
+  .matchup-score-grid div,
+  .matchup-gap-grid div {
+    padding: 7px 6px;
+  }
+
+  .matchup-score-grid strong,
+  .matchup-gap-grid strong {
+    font-size: 12px;
+  }
+
+  .matchup-chart-wrap {
+    height: 108px;
+  }
+}
+
 @keyframes entry-complete-pop {
   from {
     opacity: 0;
