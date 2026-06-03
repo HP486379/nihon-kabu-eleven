@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
+import { initEntrySubmit } from './entry-submit-wireup';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -21,3 +22,4 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 
 initPitchDragDrop();
 initMemberLabelOverrides();
+initEntrySubmit();
