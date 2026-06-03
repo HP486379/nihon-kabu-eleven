@@ -26,6 +26,19 @@ const FALLBACK_SEARCH = [
   ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
 ];
 
+const FORMATION_COUNTS = {
+  '4-3-3': { FW: 3, MF: 3, DF: 4, GK: 1 },
+  '4-2-3-1': { FW: 1, MF: 5, DF: 4, GK: 1 },
+  '4-4-2': { FW: 2, MF: 4, DF: 4, GK: 1 },
+  '3-5-2': { FW: 2, MF: 5, DF: 3, GK: 1 },
+  '3-4-3': { FW: 3, MF: 4, DF: 3, GK: 1 },
+  '5-3-2': { FW: 2, MF: 3, DF: 5, GK: 1 },
+  '3-4-2-1': { FW: 1, MF: 6, DF: 3, GK: 1 },
+  '5-4-1': { FW: 1, MF: 4, DF: 5, GK: 1 },
+};
+
+const POSITIONS = ['FW', 'MF', 'DF', 'GK'];
+
 const nowIso = () => new Date().toISOString();
 const normalizeText = (value) => String(value || '')
   .normalize('NFKC')
@@ -281,6 +294,98 @@ async function fetchQuote(rawSymbol) {
   setCache(key, payload);
   return payload;
 }
+
+function validateEntryPayload(payload) {
+  const errors = [];
+  const contestId = String(payload?.contestId || '').trim();
+  const teamName = String(payload?.teamName || '').trim();
+  const formation = String(payload?.formation || '').trim();
+  const members = Array.isArray(payload?.members) ? payload.members : [];
+
+  if (!contestId) errors.push('contestId is required');
+  if (!teamName) errors.push('teamName is required');
+  if (!FORMATION_COUNTS[formation]) errors.push('formation is invalid');
+  if (members.length !== 11) errors.push('members must contain exactly 11 stocks');
+
+  const stockCodes = new Set();
+  const slotOrders = new Set();
+  const positionCounts = { FW: 0, MF: 0, DF: 0, GK: 0 };
+
+  members.forEach((member, index) => {
+    const stockCode = String(member?.stockCode || member?.stock_code || member?.code || '').trim();
+    const stockName = String(member?.stockName || member?.stock_name || member?.name || '').trim();
+    const position = String(member?.position || '').trim().toUpperCase();
+    const slotOrder = Number(member?.slotOrder ?? member?.slot_order);
+    const weight = Number(member?.weight);
+
+    if (!stockCode) errors.push(`members[${index}].stockCode is required`);
+    if (!stockName) errors.push(`members[${index}].stockName is required`);
+
+    if (stockCode) {
+      if (stockCodes.has(stockCode)) errors.push(`duplicate stockCode: ${stockCode}`);
+      stockCodes.add(stockCode);
+    }
+
+    if (!POSITIONS.includes(position)) {
+      errors.push(`members[${index}].position is invalid`);
+    } else {
+      positionCounts[position] += 1;
+    }
+
+    if (!Number.isInteger(slotOrder) || slotOrder < 1 || slotOrder > 11) {
+      errors.push(`members[${index}].slotOrder must be an integer from 1 to 11`);
+    } else if (slotOrders.has(slotOrder)) {
+      errors.push(`duplicate slotOrder: ${slotOrder}`);
+    } else {
+      slotOrders.add(slotOrder);
+    }
+
+    if (!Number.isFinite(weight) || weight <= 0) {
+      errors.push(`members[${index}].weight must be greater than 0`);
+    }
+  });
+
+  const expectedCounts = FORMATION_COUNTS[formation];
+  if (expectedCounts) {
+    POSITIONS.forEach((position) => {
+      if (positionCounts[position] !== expectedCounts[position]) {
+        errors.push(`${formation} requires ${expectedCounts[position]} ${position}, got ${positionCounts[position]}`);
+      }
+    });
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    normalized: {
+      contestId,
+      teamName,
+      formation,
+      membersCount: members.length,
+      positionCounts,
+    },
+  };
+}
+
+app.post('/api/entries', (req, res) => {
+  const validation = validateEntryPayload(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json({
+      ok: false,
+      errors: validation.errors,
+      tsServer: nowIso(),
+    });
+  }
+
+  return res.status(202).json({
+    ok: true,
+    status: 'validated_only',
+    message: 'Entry payload is valid. Supabase persistence is not enabled in this step.',
+    entry: validation.normalized,
+    tsServer: nowIso(),
+  });
+});
 
 app.get('/api/search', async (req, res) => {
   try {
