@@ -184,7 +184,7 @@ function renderMatchupChart(card: HTMLElement, yourReturn: number) {
     </div>
     <div class="matchup-gap-grid">
       <div><span>1位との差</span><strong>${formatSignedPct(topGap)}</strong></div>
-      <div><span>平均との差</span><strong>${formatSignedPct(medianGap)}</strong></div>
+      <div><span>中央値との差</span><strong>${formatSignedPct(medianGap)}</strong></div>
       <div><span>参考TOPIX</span><strong>${formatSignedPct(topix)}</strong></div>
     </div>
     <p class="chart-footnote">※ 現在の表示値をもとにした一回勝負の暫定推移です</p>
