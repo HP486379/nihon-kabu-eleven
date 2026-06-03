@@ -82,14 +82,14 @@ function ensureStatusElement(button: HTMLButtonElement) {
   return element;
 }
 
-function setStatus(button: HTMLButtonElement, message: string, type: 'idle' | 'saving' | 'saved' | 'error') {
+function setStatus(button: HTMLButtonElement, message: string, type: 'idle' | 'saving' | 'saved' | 'warning' | 'error') {
   const element = ensureStatusElement(button);
   if (!element) return;
 
   element.textContent = message;
   element.dataset.status = type;
   element.style.margin = '8px 0 0';
-  element.style.fontWeight = type === 'error' ? '700' : '600';
+  element.style.fontWeight = type === 'error' || type === 'warning' ? '700' : '600';
 }
 
 function validateMembers(members: SelectedMember[], formation: FormationConfig) {
@@ -109,6 +109,14 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
+function isCancelAction(label: string) {
+  return label.includes('取り消') || label.includes('解除');
+}
+
+function isAlreadyEnteredError(message: string) {
+  return message.includes('Active entry already exists') || message.includes('already exists');
+}
+
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   if (allowReactLockOnce) {
     allowReactLockOnce = false;
@@ -116,8 +124,8 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   }
 
   const label = button.textContent?.trim() || '';
-  if (label.includes('確定を解除')) {
-    setStatus(button, 'エントリー表示を解除しました。再エントリーする場合は、もう一度保存してください。', 'idle');
+  if (isCancelAction(label)) {
+    setStatus(button, 'エントリー表示を解除しました。既存の保存済みエントリーはDB側に残っています。', 'idle');
     return;
   }
 
@@ -165,7 +173,11 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     button.click();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
+    if (isAlreadyEnteredError(message)) {
+      setStatus(button, 'この大会には既にエントリー済みです。APIとSupabaseの重複チェックは正常に動いています。', 'warning');
+    } else {
+      setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
+    }
     button.disabled = false;
     button.textContent = originalText;
   } finally {
