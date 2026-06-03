@@ -128,10 +128,10 @@ Vercel側の環境変数例：
 ```text
 VITE_API_BASE=https://xxxxx.onrender.com
 VITE_SUPABASE_URL=xxxxx
-VITE_SUPABASE_ANON_KEY=xxxxx
+VITE_SUPABASE_PUBLISHABLE_KEY=xxxxx
 ```
 
-`VITE_SUPABASE_ANON_KEY` は公開前提のキーとして扱います。`service_role key` は絶対にフロントエンドへ置きません。
+`VITE_SUPABASE_PUBLISHABLE_KEY` は公開前提のキーとして扱います。`service_role key` は絶対にフロントエンドへ置きません。
 
 ### バックエンド：Render
 
@@ -292,6 +292,89 @@ Render API /api/entries
 Supabaseに entries / entry_members を保存
 ```
 
+## エントリー保存API仕様
+
+エントリー保存は、フロントエンドからSupabaseへ直接書き込むのではなく、Render上のバックエンドAPIを経由して行います。
+
+### API
+
+```text
+POST /api/entries
+```
+
+### 役割
+
+ユーザーが「エントリーする」ボタンを押したとき、現在のチーム編成を大会エントリーとして保存します。
+
+本アプリは株購入アプリではなくゲームアプリであるため、実際の保有株数、購入単価、証券口座情報、個人資産情報は保存しません。
+
+### リクエスト項目
+
+```text
+contestId
+teamName
+formation
+members[]
+```
+
+`members[]` には以下を含めます。
+
+```text
+stockCode
+stockName
+market
+position
+slotOrder
+weight
+```
+
+### バックエンド側の検証
+
+Render API側で以下を検証してからSupabaseへ保存します。
+
+- 11銘柄ちょうどであること
+- 同じ銘柄コードが重複していないこと
+- `position` が `FW` / `MF` / `DF` / `GK` のいずれかであること
+- `formation` と各ポジション人数が一致していること
+- `slotOrder` が 1〜11 の範囲で重複していないこと
+- `weight` が 0 より大きいこと
+- 対象大会がエントリー受付中であること
+- `entry_deadline` を過ぎていないこと
+- 同一ユーザーが同一大会へ有効エントリー済みでないこと
+
+### 保存先
+
+エントリー本体は `entries` に保存します。
+
+```text
+contest_id
+user_id
+team_name
+formation
+status
+locked_at
+```
+
+11銘柄の明細は `entry_members` に保存します。
+
+```text
+entry_id
+stock_code
+stock_name
+market
+position
+slot_order
+weight
+```
+
+エントリー完了時は、`entries.status = entered`、`entries.locked_at = now()` として保存します。
+
+### user_id の扱い
+
+最終的には Supabase Auth のログイン情報から `user_id` を確定します。
+
+ただし初期開発段階では、API単体の保存テストを優先し、開発用の仮ユーザーで動作確認します。その後、Auth正式対応に進みます。
+
 ### ランキング表示時
 
 ```text
@@ -307,7 +390,7 @@ Supabaseから entry_results / entries を取得・集計
 ## 現時点の制約
 
 - 表示データの一部はサンプルです
-- Supabase連携は設計方針段階で、未実装です
+- Supabase接続の土台は作成済みですが、エントリー保存APIとランキング実データ化は未実装です
 - ユーザー登録・ログイン・チーム保存は未実装です
 - 投資助言ではなく、仮想ポートフォリオの可視化を目的とした金融エンタメです
 
