@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fetch from 'node-fetch';
 import * as XLSX from 'xlsx';
+import { requireSupabaseAdmin } from './supabaseAdmin.js';
 
 const app = express();
 app.use(cors());
@@ -26,6 +27,20 @@ const FALLBACK_SEARCH = [
   ['9984', 'ソフトバンクグループ', ['ソフトバンクG', 'SBG']],
 ];
 
+const FORMATION_COUNTS = {
+  '4-3-3': { FW: 3, MF: 3, DF: 4, GK: 1 },
+  '4-2-3-1': { FW: 1, MF: 5, DF: 4, GK: 1 },
+  '4-4-2': { FW: 2, MF: 4, DF: 4, GK: 1 },
+  '3-5-2': { FW: 2, MF: 5, DF: 3, GK: 1 },
+  '3-4-3': { FW: 3, MF: 4, DF: 3, GK: 1 },
+  '5-3-2': { FW: 2, MF: 3, DF: 5, GK: 1 },
+  '3-4-2-1': { FW: 1, MF: 6, DF: 3, GK: 1 },
+  '5-4-1': { FW: 1, MF: 4, DF: 5, GK: 1 },
+};
+
+const POSITIONS = ['FW', 'MF', 'DF', 'GK'];
+const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
+
 const nowIso = () => new Date().toISOString();
 const normalizeText = (value) => String(value || '')
   .normalize('NFKC')
@@ -37,6 +52,7 @@ const symbolOf = (value) => {
   if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
   return `${upper}.T`;
 };
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
 function getCache(key, ttlMs) {
   const hit = CACHE.get(key);
@@ -281,6 +297,211 @@ async function fetchQuote(rawSymbol) {
   setCache(key, payload);
   return payload;
 }
+
+function normalizeEntryMember(member) {
+  return {
+    stockCode: String(member?.stockCode || member?.stock_code || member?.code || '').trim(),
+    stockName: String(member?.stockName || member?.stock_name || member?.name || '').trim(),
+    market: String(member?.market || '').trim() || null,
+    position: String(member?.position || '').trim().toUpperCase(),
+    slotOrder: Number(member?.slotOrder ?? member?.slot_order),
+    weight: Number(member?.weight),
+  };
+}
+
+function validateEntryPayload(payload) {
+  const errors = [];
+  const contestId = String(payload?.contestId || '').trim();
+  const teamName = String(payload?.teamName || '').trim();
+  const formation = String(payload?.formation || '').trim();
+  const members = Array.isArray(payload?.members) ? payload.members.map(normalizeEntryMember) : [];
+
+  if (!contestId) errors.push('contestId is required');
+  if (contestId && !isUuid(contestId)) errors.push('contestId must be a valid UUID');
+  if (!teamName) errors.push('teamName is required');
+  if (!FORMATION_COUNTS[formation]) errors.push('formation is invalid');
+  if (members.length !== 11) errors.push('members must contain exactly 11 stocks');
+
+  const stockCodes = new Set();
+  const slotOrders = new Set();
+  const positionCounts = { FW: 0, MF: 0, DF: 0, GK: 0 };
+
+  members.forEach((member, index) => {
+    if (!member.stockCode) errors.push(`members[${index}].stockCode is required`);
+    if (!member.stockName) errors.push(`members[${index}].stockName is required`);
+
+    if (member.stockCode) {
+      if (stockCodes.has(member.stockCode)) errors.push(`duplicate stockCode: ${member.stockCode}`);
+      stockCodes.add(member.stockCode);
+    }
+
+    if (!POSITIONS.includes(member.position)) {
+      errors.push(`members[${index}].position is invalid`);
+    } else {
+      positionCounts[member.position] += 1;
+    }
+
+    if (!Number.isInteger(member.slotOrder) || member.slotOrder < 1 || member.slotOrder > 11) {
+      errors.push(`members[${index}].slotOrder must be an integer from 1 to 11`);
+    } else if (slotOrders.has(member.slotOrder)) {
+      errors.push(`duplicate slotOrder: ${member.slotOrder}`);
+    } else {
+      slotOrders.add(member.slotOrder);
+    }
+
+    if (!Number.isFinite(member.weight) || member.weight <= 0) {
+      errors.push(`members[${index}].weight must be greater than 0`);
+    }
+  });
+
+  const expectedCounts = FORMATION_COUNTS[formation];
+  if (expectedCounts) {
+    POSITIONS.forEach((position) => {
+      if (positionCounts[position] !== expectedCounts[position]) {
+        errors.push(`${formation} requires ${expectedCounts[position]} ${position}, got ${positionCounts[position]}`);
+      }
+    });
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    normalized: {
+      contestId,
+      teamName,
+      formation,
+      members,
+      membersCount: members.length,
+      positionCounts,
+    },
+  };
+}
+
+function httpError(status, message, details = null) {
+  const error = new Error(message);
+  error.status = status;
+  error.details = details;
+  return error;
+}
+
+async function persistEntry(entry) {
+  const supabase = requireSupabaseAdmin();
+  const userId = String(process.env.DEV_USER_ID || '').trim();
+
+  if (!isUuid(userId)) {
+    throw httpError(500, 'DEV_USER_ID is not configured as a valid UUID');
+  }
+
+  const { data: contest, error: contestError } = await supabase
+    .from('contests')
+    .select('id,status,entry_deadline')
+    .eq('id', entry.contestId)
+    .maybeSingle();
+
+  if (contestError) {
+    throw httpError(500, 'Failed to load contest', contestError.message);
+  }
+
+  if (!contest) {
+    throw httpError(404, 'Contest was not found');
+  }
+
+  if (contest.status !== 'entry_open') {
+    throw httpError(409, `Contest is not accepting entries: ${contest.status}`);
+  }
+
+  if (contest.entry_deadline && new Date(contest.entry_deadline).getTime() <= Date.now()) {
+    throw httpError(409, 'Contest entry deadline has passed');
+  }
+
+  const { data: existingEntry, error: existingError } = await supabase
+    .from('entries')
+    .select('id,status')
+    .eq('contest_id', entry.contestId)
+    .eq('user_id', userId)
+    .in('status', ACTIVE_ENTRY_STATUSES)
+    .maybeSingle();
+
+  if (existingError) {
+    throw httpError(500, 'Failed to check existing entry', existingError.message);
+  }
+
+  if (existingEntry) {
+    throw httpError(409, 'Active entry already exists for this contest');
+  }
+
+  const lockedAt = nowIso();
+  const { data: savedEntry, error: entryError } = await supabase
+    .from('entries')
+    .insert({
+      contest_id: entry.contestId,
+      user_id: userId,
+      team_name: entry.teamName,
+      formation: entry.formation,
+      status: 'entered',
+      locked_at: lockedAt,
+    })
+    .select('id,contest_id,user_id,team_name,formation,status,locked_at,created_at')
+    .single();
+
+  if (entryError) {
+    throw httpError(500, 'Failed to save entry', entryError.message);
+  }
+
+  const memberRows = entry.members.map((member) => ({
+    entry_id: savedEntry.id,
+    stock_code: member.stockCode,
+    stock_name: member.stockName,
+    market: member.market,
+    position: member.position,
+    slot_order: member.slotOrder,
+    weight: member.weight,
+  }));
+
+  const { error: membersError } = await supabase
+    .from('entry_members')
+    .insert(memberRows);
+
+  if (membersError) {
+    await supabase.from('entries').delete().eq('id', savedEntry.id);
+    throw httpError(500, 'Failed to save entry members', membersError.message);
+  }
+
+  return {
+    ...savedEntry,
+    membersCount: memberRows.length,
+  };
+}
+
+app.post('/api/entries', async (req, res) => {
+  const validation = validateEntryPayload(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json({
+      ok: false,
+      errors: validation.errors,
+      tsServer: nowIso(),
+    });
+  }
+
+  try {
+    const savedEntry = await persistEntry(validation.normalized);
+
+    return res.status(201).json({
+      ok: true,
+      status: 'saved',
+      entry: savedEntry,
+      tsServer: nowIso(),
+    });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: err.message,
+      details: err.details || null,
+      tsServer: nowIso(),
+    });
+  }
+});
 
 app.get('/api/search', async (req, res) => {
   try {
