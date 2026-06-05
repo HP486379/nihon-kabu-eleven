@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --import ./entryCancelPatch.js server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
