@@ -31,6 +31,45 @@
   z-index: 3 !important;
 }
 
+.pitch-stage {
+  background:
+    linear-gradient(180deg, transparent calc(33.333% - 1px), rgba(255,255,255,.48) calc(33.333% - 1px), rgba(255,255,255,.48) calc(33.333% + 1px), transparent calc(33.333% + 1px)),
+    linear-gradient(180deg, transparent calc(66.666% - 1px), rgba(255,255,255,.48) calc(66.666% - 1px), rgba(255,255,255,.48) calc(66.666% + 1px), transparent calc(66.666% + 1px)),
+    linear-gradient(180deg, rgba(255, 95, 95, .07) 0 33.333%, rgba(74, 206, 95, .07) 33.333% 66.666%, rgba(69, 137, 255, .07) 66.666% 100%),
+    linear-gradient(180deg, #6fb660 0%, #5dac54 6%, #5aa651 20%, #47964a 50%, #398942 78%, #2e7f3d 100%) !important;
+}
+
+.pitch-zone-labels {
+  position: absolute;
+  inset: 16px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pitch-zone-labels::before,
+.pitch-zone-labels::after {
+  position: absolute;
+  left: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+  color: rgba(255,255,255,.88);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.24);
+}
+
+.pitch-zone-labels::before {
+  content: "FW ZONE";
+  top: calc(33.333% - 24px);
+}
+
+.pitch-zone-labels::after {
+  content: "DF ZONE";
+  top: calc(66.666% + 6px);
+}
+
 .editor-card.tournament-card {
   display: none !important;
 }
