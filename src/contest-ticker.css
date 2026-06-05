@@ -1,0 +1,129 @@
+.contest-ticker {
+  margin-top: -6px;
+}
+
+.contest-ticker__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 48px;
+  overflow: hidden;
+  border: 1px solid rgba(24, 66, 130, .35);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #071122 0%, #0a1730 52%, #050b17 100%);
+  box-shadow: 0 12px 26px rgba(12, 30, 65, .14), inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+.contest-ticker__head {
+  height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 18px;
+  border-right: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(20, 98, 213, .36), rgba(20, 98, 213, .08));
+  color: #d8e9ff;
+  white-space: nowrap;
+}
+
+.contest-ticker__head span {
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: #6fc2ff;
+  font-weight: 900;
+}
+
+.contest-ticker__head strong {
+  font-size: 14px;
+  letter-spacing: .08em;
+  color: #ffffff;
+}
+
+.contest-ticker__viewport {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.contest-ticker__track {
+  display: inline-flex;
+  align-items: center;
+  gap: 36px;
+  white-space: nowrap;
+  padding: 0 0 0 100%;
+  color: #f8fbff;
+  font-weight: 900;
+  letter-spacing: .03em;
+  animation: contestTickerScroll 32s linear infinite;
+}
+
+.contest-ticker:hover .contest-ticker__track {
+  animation-play-state: paused;
+}
+
+.contest-ticker__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  text-shadow: 0 0 8px rgba(98, 197, 255, .45);
+}
+
+.contest-ticker__item::after {
+  content: '◆';
+  margin-left: 26px;
+  color: rgba(255,255,255,.38);
+  font-size: 10px;
+}
+
+.contest-ticker__label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-shadow: none;
+}
+
+.contest-ticker__label--entry {
+  color: #071122;
+  background: #ffd15c;
+  box-shadow: 0 0 14px rgba(255, 209, 92, .42);
+}
+
+.contest-ticker__label--live {
+  color: #06130b;
+  background: #38e078;
+  box-shadow: 0 0 14px rgba(56, 224, 120, .42);
+}
+
+@keyframes contestTickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-66.666%); }
+}
+
+@media (max-width: 900px) {
+  .contest-ticker__inner {
+    grid-template-columns: 1fr;
+  }
+
+  .contest-ticker__head {
+    display: none;
+  }
+
+  .contest-ticker__track {
+    animation-duration: 24s;
+  }
+
+  .contest-ticker__item {
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contest-ticker__track {
+    animation: none;
+    padding-left: 12px;
+  }
+}

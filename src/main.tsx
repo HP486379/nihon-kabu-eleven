@@ -4,6 +4,7 @@ import App from './App';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
 import { initEntrySubmit } from './entry-submit-wireup';
+import { initContestTicker } from './contest-ticker-wireup';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -13,6 +14,7 @@ import './position-control-fixes.css';
 import './pitch-drag-drop.css';
 import './member-label-overrides.css';
 import './sidebar-scale-tuning.css';
+import './contest-ticker.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -23,3 +25,4 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 initPitchDragDrop();
 initMemberLabelOverrides();
 initEntrySubmit();
+initContestTicker();
