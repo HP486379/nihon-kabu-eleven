@@ -1,0 +1,37 @@
+.formation-card .formation-mini-pitch {
+  width: min(132px, 100%);
+  height: auto !important;
+  aspect-ratio: 2 / 3;
+  margin: 12px auto 10px;
+  border-radius: 14px;
+}
+
+.formation-card .formation-mini-pitch::before {
+  inset: 10px;
+}
+
+.editor-card.tournament-card {
+  display: none !important;
+}
+
+.editor-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, .95fr) !important;
+}
+
+.contest-ticker__track::after {
+  content: "◆ NOTICE 大会日程は運営側で設定します。参加者は締切までに11銘柄を選抜し、チームを確定してください。";
+  display: inline-flex;
+  align-items: center;
+  color: #ffd64f;
+  text-shadow: 0 0 7px rgba(255,214,79,.55), 0 0 16px rgba(255,214,79,.22);
+}
+
+@media (max-width: 900px) {
+  .editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .formation-card .formation-mini-pitch {
+    width: min(128px, 100%);
+  }
+}

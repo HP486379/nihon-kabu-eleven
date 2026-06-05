@@ -16,6 +16,7 @@ import './member-label-overrides.css';
 import './sidebar-scale-tuning.css';
 import './contest-ticker.css';
 import './contest-ticker-neon.css';
+import './contest-layout-cleanup.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
