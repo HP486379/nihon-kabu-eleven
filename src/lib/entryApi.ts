@@ -37,6 +37,14 @@ export type SubmitEntryResult = {
   error?: string;
 };
 
+export type CancelEntryResult = {
+  ok?: boolean;
+  status?: string;
+  entry?: unknown;
+  message?: string;
+  error?: string;
+};
+
 export const DEV_CONTEST_ID = '5345b8eb-e9ec-4b4b-9549-35b3c4135003';
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
@@ -45,6 +53,17 @@ function getMemberWeight(formation: FormationForEntry, position: Position) {
   const count = formation.counts[position];
   if (!count) return 0;
   return formation.weights[position] / count;
+}
+
+async function parseApiResponse<T>(response: Response, fallbackLabel: string): Promise<T> {
+  const result = await response.json().catch(() => ({})) as T & { ok?: boolean; message?: string; error?: string };
+
+  if (!response.ok || result.ok === false) {
+    const message = result.message || result.error || `${fallbackLabel} ${response.status}`;
+    throw new Error(message);
+  }
+
+  return result;
 }
 
 export function buildEntryPayload({
@@ -83,12 +102,15 @@ export async function submitEntry(payload: EntryPayload): Promise<SubmitEntryRes
     body: JSON.stringify(payload),
   });
 
-  const result = await response.json().catch(() => ({})) as SubmitEntryResult;
+  return parseApiResponse<SubmitEntryResult>(response, 'entries api');
+}
 
-  if (!response.ok || result.ok === false) {
-    const message = result.message || result.error || `entries api ${response.status}`;
-    throw new Error(message);
-  }
+export async function cancelEntry(contestId = DEV_CONTEST_ID): Promise<CancelEntryResult> {
+  const response = await fetch(`${API_BASE}/api/entries/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contestId }),
+  });
 
-  return result;
+  return parseApiResponse<CancelEntryResult>(response, 'entries cancel api');
 }
