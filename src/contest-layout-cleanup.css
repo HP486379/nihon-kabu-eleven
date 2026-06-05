@@ -95,3 +95,11 @@
     width: min(128px, 100%);
   }
 }
+
+.pitch-card .pitch-stage {
+  background: linear-gradient(180deg, #6fb660 0%, #5dac54 6%, #5aa651 20%, #47964a 50%, #398942 78%, #2e7f3d 100%) !important;
+}
+
+.pitch-card .pitch-zone-labels {
+  display: none !important;
+}
