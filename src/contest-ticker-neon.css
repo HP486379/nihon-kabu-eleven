@@ -1,0 +1,111 @@
+.contest-ticker {
+  margin-top: -4px;
+}
+
+.contest-ticker__inner {
+  position: relative;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 62px;
+  border-radius: 8px;
+  border: 2px solid #12d7ff;
+  background: linear-gradient(180deg, #03050b 0%, #08101f 48%, #03060f 100%);
+  box-shadow: 0 0 16px rgba(18,215,255,.42), 0 0 34px rgba(18,215,255,.20), inset 0 0 22px rgba(18,215,255,.10);
+}
+
+.contest-ticker__inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.07) 0, rgba(255,255,255,.07) 1px, transparent 2px, transparent 5px);
+  opacity: .24;
+}
+
+.contest-ticker__inner::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+.contest-ticker__head {
+  position: relative;
+  z-index: 1;
+  border-right: 2px solid rgba(255,124,0,.72);
+  background: linear-gradient(180deg, rgba(255,124,0,.22), rgba(255,124,0,.05)), #050812;
+  box-shadow: inset -14px 0 22px rgba(255,124,0,.12), 0 0 18px rgba(255,124,0,.12);
+}
+
+.contest-ticker__head span,
+.contest-ticker__head strong,
+.contest-ticker__track,
+.contest-ticker__label {
+  font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.contest-ticker__head span {
+  color: #61d8ff;
+  letter-spacing: .20em;
+  text-shadow: 0 0 7px rgba(97,216,255,.85), 0 0 16px rgba(97,216,255,.35);
+}
+
+.contest-ticker__head strong {
+  font-size: 23px;
+  color: #ff9d1c;
+  text-shadow: 0 0 6px rgba(255,157,28,.95), 0 0 16px rgba(255,157,28,.55), 0 0 28px rgba(255,157,28,.24);
+}
+
+.contest-ticker__viewport {
+  z-index: 1;
+}
+
+.contest-ticker__track {
+  min-height: 62px;
+  font-size: 20px;
+  letter-spacing: .045em;
+  color: #f3fbff;
+  text-shadow: 0 0 7px rgba(116,220,255,.42), 0 0 15px rgba(116,220,255,.20);
+  animation-duration: 28s;
+}
+
+.contest-ticker__item {
+  gap: 13px;
+}
+
+.contest-ticker__item::after {
+  color: #7be5ff;
+  font-size: 12px;
+  text-shadow: 0 0 8px rgba(123,229,255,.75), 0 0 18px rgba(123,229,255,.30);
+}
+
+.contest-ticker__label {
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  background: rgba(0,0,0,.42);
+  letter-spacing: .13em;
+}
+
+.contest-ticker__label--entry {
+  color: #ffd64f;
+  background: rgba(0,0,0,.42);
+  box-shadow: 0 0 7px rgba(255,214,79,.62), inset 0 0 10px rgba(255,214,79,.10);
+}
+
+.contest-ticker__label--live {
+  color: #3dff86;
+  background: rgba(0,0,0,.42);
+  box-shadow: 0 0 7px rgba(61,255,134,.60), inset 0 0 10px rgba(61,255,134,.10);
+}
+
+@media (max-width: 900px) {
+  .contest-ticker__inner {
+    min-height: 52px;
+  }
+
+  .contest-ticker__track {
+    min-height: 52px;
+    font-size: 14px;
+  }
+}
