@@ -29,6 +29,13 @@ function findActualChosenCardByPosition(position: Position, excludeCode?: string
   }) || null;
 }
 
+function getSelectionButton(card: HTMLElement | null | undefined): HTMLButtonElement | null {
+  const head = card?.querySelector('.stock-item-head');
+  if (!head) return null;
+  return Array.from(head.querySelectorAll<HTMLButtonElement>('button'))
+    .find((button) => !button.classList.contains('bench-remove-button')) || null;
+}
+
 function clickThroughReact(button: HTMLButtonElement | null | undefined): boolean {
   if (!button) return false;
   bypassPositionClick = true;
@@ -39,6 +46,45 @@ function clickThroughReact(button: HTMLButtonElement | null | undefined): boolea
     bypassPositionClick = false;
   }, 0);
   return true;
+}
+
+function removeStockByCode(code: string): boolean {
+  const actualCard = findActualStockCard(code);
+  const selectionButton = getSelectionButton(actualCard);
+  return clickThroughReact(selectionButton);
+}
+
+function addRemoveButtonsToChosenCards(): void {
+  document
+    .querySelectorAll<HTMLButtonElement>('.stock-list-card:not([data-generated-bench-card="true"]) .stock-item:not(.chosen) .bench-remove-button')
+    .forEach((button) => button.remove());
+
+  document
+    .querySelectorAll<HTMLElement>('.stock-list-card:not([data-generated-bench-card="true"]) .stock-item.chosen')
+    .forEach((card) => {
+      const head = card.querySelector('.stock-item-head');
+      const selectionButton = getSelectionButton(card);
+      if (!head || !selectionButton) return;
+
+      let removeButton = head.querySelector<HTMLButtonElement>('.bench-remove-button');
+      if (!removeButton) {
+        removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'bench-remove-button';
+        removeButton.textContent = '外す';
+        removeButton.title = 'この銘柄をピッチから外します';
+        removeButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          clickThroughReact(selectionButton);
+        });
+        selectionButton.insertAdjacentElement('afterend', removeButton);
+      }
+
+      removeButton.disabled = selectionButton.disabled;
+      removeButton.toggleAttribute('disabled', selectionButton.disabled);
+    });
 }
 
 function unlockPositionButtons(): void {
@@ -84,7 +130,7 @@ function handlePositionButtonClick(event: MouseEvent): void {
   }
 
   const swapCode = getStockCodeFromCard(occupiedTargetCard);
-  const removeSwapButton = occupiedTargetCard.querySelector<HTMLButtonElement>('.stock-item-head > button');
+  const removeSwapButton = getSelectionButton(occupiedTargetCard);
   if (!swapCode || !removeSwapButton) return;
 
   clickThroughReact(removeSwapButton);
@@ -98,7 +144,7 @@ function handlePositionButtonClick(event: MouseEvent): void {
 
     window.setTimeout(() => {
       const swapCard = findActualStockCard(swapCode);
-      const reselectSwapButton = swapCard?.querySelector<HTMLButtonElement>('.stock-item-head > button');
+      const reselectSwapButton = getSelectionButton(swapCard);
       clickThroughReact(reselectSwapButton);
     }, 160);
   }, 160);
@@ -131,6 +177,7 @@ function makeBenchCard(positionStatus: string): HTMLElement {
 
     const name = row.querySelector('strong')?.textContent?.trim() || '選抜メンバー';
     const codeAndPosition = row.querySelector('small')?.textContent?.trim() || '';
+    const code = codeAndPosition.split('/')[0]?.trim() || '';
     const position = codeAndPosition.split('/')[1]?.trim() || '';
 
     const head = document.createElement('div');
@@ -141,13 +188,25 @@ function makeBenchCard(positionStatus: string): HTMLElement {
     badge.textContent = '選抜中';
     badge.disabled = true;
 
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'bench-remove-button';
+    removeButton.textContent = '外す';
+    removeButton.title = 'この銘柄をピッチから外します';
+    removeButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      removeStockByCode(code);
+    });
+
     const nameBox = document.createElement('div');
     const strong = document.createElement('strong');
     strong.textContent = name;
     const small = document.createElement('small');
     small.textContent = codeAndPosition;
     nameBox.append(strong, small);
-    head.append(badge, nameBox);
+    head.append(badge, removeButton, nameBox);
 
     const description = document.createElement('p');
     description.textContent = '検索中も表示する選抜済みメンバー';
@@ -212,6 +271,7 @@ function initMarketDataToggle(): void {
   toggleButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation();
     const nextExpanded = !marketData.classList.contains('is-market-expanded');
     setMarketDataExpanded(marketData, toggleButton, nextExpanded);
   });
@@ -230,6 +290,7 @@ function applyLowerLayout(): void {
 
   initMarketDataToggle();
   unlockPositionButtons();
+  addRemoveButtonsToChosenCards();
 
   if (isSearchMode) {
     const positionStatus = stockList.querySelector('.position-status')?.textContent || '';
