@@ -1,7 +1,9 @@
 /* Lower layout fixes: keep the main pitch untouched. */
 .market-data-card .card-title-row {
-  cursor: pointer;
+  cursor: default;
   user-select: none;
+  align-items: center;
+  gap: 12px;
 }
 
 .market-table-wrap {
@@ -12,8 +14,6 @@
   transition: max-height .22s ease, opacity .18s ease, margin-top .18s ease !important;
 }
 
-.market-data-card:hover .market-table-wrap,
-.market-data-card:focus-within .market-table-wrap,
 .market-data-card.is-market-expanded .market-table-wrap {
   max-height: 1200px !important;
   overflow: auto !important;
@@ -21,20 +21,33 @@
   margin-top: 12px !important;
 }
 
-.market-data-card .card-title-row::after {
-  content: "クリックで開閉";
+.market-toggle-tab {
   margin-left: auto;
-  padding: 4px 10px;
+  padding: 6px 12px;
+  border: 1px solid #cfe0ff;
   border-radius: 999px;
   background: #eef6ff;
   color: #1462d5;
   font-size: 11px;
   font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 98, 213, .08);
 }
 
-.market-data-card.is-market-expanded .card-title-row::after {
-  content: "開いています";
+.market-toggle-tab:hover {
+  background: #dbeafe;
+  border-color: #9fc0ff;
+}
+
+.market-toggle-tab:focus-visible {
+  outline: 3px solid rgba(20, 98, 213, .24);
+  outline-offset: 2px;
+}
+
+.market-data-card.is-market-expanded .market-toggle-tab {
   background: #e8fbf2;
+  border-color: #bcebd6;
   color: #008a55;
 }
 
