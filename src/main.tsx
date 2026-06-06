@@ -7,6 +7,7 @@ import { initEntrySubmit } from './entry-submit-wireup';
 import { initContestTicker } from './contest-ticker-wireup';
 import { initFormationMiniLayout } from './formation-mini-layout-wireup';
 import { initLowerLayoutWireup } from './lower-layout-wireup';
+import { initTeamNameSuffixPreview } from './team-name-suffix-preview';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -20,6 +21,7 @@ import './contest-ticker.css';
 import './contest-ticker-neon.css';
 import './contest-layout-cleanup.css';
 import './lower-layout-fixes.css';
+import './team-name-suffix-preview.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -33,3 +35,4 @@ initEntrySubmit();
 initContestTicker();
 initFormationMiniLayout();
 initLowerLayoutWireup();
+initTeamNameSuffixPreview();
