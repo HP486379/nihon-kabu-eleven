@@ -19,6 +19,7 @@ import './sidebar-scale-tuning.css';
 import './contest-ticker.css';
 import './contest-ticker-neon.css';
 import './contest-layout-cleanup.css';
+import './lower-layout-fixes.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
