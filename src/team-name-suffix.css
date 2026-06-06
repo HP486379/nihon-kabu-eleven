@@ -1,0 +1,42 @@
+.editor-wide > .team-base-name-input {
+  display: inline-block;
+  width: min(420px, 48%);
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+.editor-wide > .team-name-suffix-select {
+  display: inline-block;
+  width: 168px;
+  height: 44px;
+  padding: 0 36px 0 14px;
+  border: 1px solid #cfe0f5;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #0b2b5c;
+  font-weight: 700;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.editor-wide > .team-name-suffix-select:disabled,
+.editor-wide > .team-base-name-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.editor-wide > .custom-stock-row {
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .editor-wide > .team-base-name-input,
+  .editor-wide > .team-name-suffix-select {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .editor-wide > .team-name-suffix-select {
+    margin-top: 8px;
+  }
+}
