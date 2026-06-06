@@ -158,18 +158,18 @@
 }
 
 .market-table-wrap {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  margin-top: 0;
-  transition: max-height .22s ease, opacity .18s ease, margin-top .18s ease;
+  max-height: none !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  margin-top: 12px !important;
+  transition: none !important;
 }
 
 .market-data-card:hover .market-table-wrap,
 .market-data-card:focus-within .market-table-wrap {
-  max-height: 520px;
-  opacity: 1;
-  margin-top: 12px;
+  max-height: none !important;
+  opacity: 1 !important;
+  margin-top: 12px !important;
 }
 
 .stock-list-card {
@@ -188,9 +188,9 @@
 .stock-grid {
   grid-template-columns: repeat(2, minmax(320px, 1fr)) !important;
   gap: 10px !important;
-  max-height: 580px;
-  overflow: auto;
-  padding-right: 4px;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0;
 }
 
 .stock-item {
