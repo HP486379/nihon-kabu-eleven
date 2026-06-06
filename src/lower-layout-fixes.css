@@ -14,7 +14,17 @@
   transition: max-height .22s ease, opacity .18s ease, margin-top .18s ease !important;
 }
 
-.market-data-card.is-market-expanded .market-table-wrap {
+.market-data-card:not(.is-market-expanded):hover .market-table-wrap,
+.market-data-card:not(.is-market-expanded):focus-within .market-table-wrap {
+  max-height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  margin-top: 0 !important;
+}
+
+.market-data-card.is-market-expanded .market-table-wrap,
+.market-data-card.is-market-expanded:hover .market-table-wrap,
+.market-data-card.is-market-expanded:focus-within .market-table-wrap {
   max-height: 1200px !important;
   overflow: auto !important;
   opacity: 1 !important;
@@ -58,4 +68,34 @@
 .stock-item.chosen .position-buttons button:not(.selected):not(.active-position):not([aria-pressed="true"]):hover {
   background: #dbeafe;
   color: #0b57c2;
+}
+
+.stock-item.chosen .stock-item-head {
+  position: relative;
+  padding-bottom: 28px;
+}
+
+.bench-remove-button {
+  position: absolute;
+  left: 0;
+  top: 36px;
+  padding: 5px 12px !important;
+  border-radius: 999px !important;
+  background: #fff0f0 !important;
+  color: #d33a35 !important;
+  border: 1px solid #ffd2d2 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+.bench-remove-button:hover {
+  background: #ffe2e2 !important;
+  border-color: #ffb8b8 !important;
+}
+
+.bench-remove-button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
