@@ -103,3 +103,176 @@
 .pitch-card .pitch-zone-labels {
   display: none !important;
 }
+
+/* Compact lower layout prototype: keep the main pitch untouched and compress only the lower editing area. */
+.editor-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.editor-grid > .editor-card:not(.editor-wide) {
+  display: none !important;
+}
+
+.editor-wide {
+  padding: 16px 18px !important;
+}
+
+.editor-wide h3 {
+  margin-bottom: 10px !important;
+}
+
+.editor-wide input {
+  padding: 9px 12px;
+}
+
+.editor-wide .custom-stock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin: 8px 0 6px;
+}
+
+.editor-wide .helper-text {
+  margin-top: 6px;
+}
+
+.market-data-card {
+  padding: 16px 18px !important;
+}
+
+.market-data-card .card-title-row {
+  margin-bottom: 8px;
+}
+
+.market-data-card .card-title-row p {
+  margin-top: 4px;
+}
+
+.market-summary-row {
+  grid-template-columns: 160px 180px minmax(240px, 1fr) !important;
+  margin: 10px 0 0 !important;
+}
+
+.market-summary-row div {
+  padding: 10px 14px !important;
+}
+
+.market-table-wrap {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  transition: max-height .22s ease, opacity .18s ease, margin-top .18s ease;
+}
+
+.market-data-card:hover .market-table-wrap,
+.market-data-card:focus-within .market-table-wrap {
+  max-height: 520px;
+  opacity: 1;
+  margin-top: 12px;
+}
+
+.stock-list-card {
+  padding: 16px 18px !important;
+}
+
+.stock-list-card .card-title-row {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -4px -4px 12px;
+  padding: 4px;
+  background: #fff;
+}
+
+.stock-grid {
+  grid-template-columns: repeat(2, minmax(320px, 1fr)) !important;
+  gap: 10px !important;
+  max-height: 580px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.stock-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 74px;
+  padding: 10px 12px !important;
+}
+
+.stock-item.chosen {
+  order: -1;
+}
+
+.stock-item.chosen::before {
+  content: "選抜済み";
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #1462d5;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.stock-item-head {
+  min-width: 0;
+  align-items: center !important;
+}
+
+.stock-item-head > button {
+  min-width: 62px;
+  padding: 6px 10px !important;
+  font-size: 12px;
+}
+
+.stock-item strong {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.stock-item small {
+  margin-top: 2px !important;
+}
+
+.stock-item p {
+  grid-column: 1 / 2;
+  margin: -2px 0 0 !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.stock-item .position-buttons {
+  grid-column: 1 / -1;
+  margin: 4px 0 0 !important;
+  gap: 6px !important;
+}
+
+.stock-item .position-buttons button {
+  padding: 6px 10px !important;
+  min-width: 42px;
+}
+
+@media (max-width: 980px) {
+  .editor-wide .custom-stock-row {
+    grid-template-columns: 1fr;
+  }
+
+  .market-summary-row,
+  .stock-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-grid {
+    max-height: none;
+    overflow: visible;
+  }
+}
