@@ -182,6 +182,12 @@ function removeGeneratedBenchCard(): void {
   document.querySelector('[data-generated-bench-card="true"]')?.remove();
 }
 
+function setMarketDataExpanded(marketData: HTMLElement, toggleButton: HTMLButtonElement, expanded: boolean): void {
+  marketData.classList.toggle('is-market-expanded', expanded);
+  toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  toggleButton.textContent = expanded ? '▲ 詳細を閉じる' : '▼ 詳細を開く';
+}
+
 function initMarketDataToggle(): void {
   const marketData = document.querySelector('.market-data-card') as HTMLElement | null;
   const titleRow = marketData?.querySelector('.card-title-row') as HTMLElement | null;
@@ -189,17 +195,28 @@ function initMarketDataToggle(): void {
 
   marketData.dataset.marketToggleReady = 'true';
   marketData.classList.remove('is-market-expanded');
-  titleRow.setAttribute('role', 'button');
-  titleRow.setAttribute('tabindex', '0');
-  titleRow.setAttribute('title', 'クリックで実データ一覧を開閉します');
-  titleRow.addEventListener('click', () => {
-    marketData.classList.toggle('is-market-expanded');
-  });
-  titleRow.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
+  titleRow.removeAttribute('role');
+  titleRow.removeAttribute('tabindex');
+  titleRow.removeAttribute('title');
+
+  const toggleButton = document.createElement('button');
+  toggleButton.type = 'button';
+  toggleButton.className = 'market-toggle-tab';
+  toggleButton.setAttribute('aria-controls', 'market-data-detail');
+
+  const marketTable = marketData.querySelector('.market-table-wrap') as HTMLElement | null;
+  marketTable?.setAttribute('id', 'market-data-detail');
+
+  setMarketDataExpanded(marketData, toggleButton, false);
+
+  toggleButton.addEventListener('click', (event) => {
     event.preventDefault();
-    marketData.classList.toggle('is-market-expanded');
+    event.stopPropagation();
+    const nextExpanded = !marketData.classList.contains('is-market-expanded');
+    setMarketDataExpanded(marketData, toggleButton, nextExpanded);
   });
+
+  titleRow.appendChild(toggleButton);
 }
 
 function applyLowerLayout(): void {
