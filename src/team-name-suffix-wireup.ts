@@ -30,7 +30,8 @@ function updateTeamChip(input: HTMLInputElement, suffixSelect: HTMLSelectElement
   if (!chip) return;
 
   const tail = getTeamStatusTail(chip);
-  chip.textContent = `${buildTeamName(input.value, suffixSelect.value)}${tail}`;
+  const nextText = `${buildTeamName(input.value, suffixSelect.value)}${tail}`;
+  if (chip.textContent !== nextText) chip.textContent = nextText;
 }
 
 function setupTeamNameControls() {
@@ -61,6 +62,8 @@ function setupTeamNameControls() {
     });
     input.insertAdjacentElement('afterend', suffixSelect);
   }
+
+  suffixSelect.disabled = input.disabled;
 
   const searchInput = card.querySelector<HTMLInputElement>('.custom-stock-row input');
   if (searchInput) {
