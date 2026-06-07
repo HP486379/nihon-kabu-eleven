@@ -1,3 +1,5 @@
+import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
+
 type ResultItem = {
   rank: number;
   team: string;
@@ -9,17 +11,6 @@ type ResultItem = {
   highlight: string;
 };
 
-const RESULTS: ResultItem[] = [
-  { rank: 1, team: '半導体ジャパン', owner: '暫定優勝', formation: '3-4-3', matchType: '3か月マッチ', resultPct: 18.42, status: '結果確定', highlight: 'FWの半導体勢が大きく貢献' },
-  { rank: 2, team: 'ツヨシジャパン', owner: '準優勝', formation: '4-3-3', matchType: '3か月マッチ', resultPct: 15.68, status: '結果確定', highlight: '攻守バランスよく上位追走' },
-  { rank: 3, team: '高配当ジャパン', owner: '3位', formation: '5-4-1', matchType: '3か月マッチ', resultPct: 9.74, status: '結果確定', highlight: '守備型ながら堅実にプラス' },
-  { rank: 4, team: 'グロース連合', owner: '入賞圏外', formation: '4-2-3-1', matchType: '1か月マッチ', resultPct: 7.92, status: '集計中', highlight: '中盤銘柄の底上げが目立つ' },
-  { rank: 5, team: '任天堂FC', owner: '入賞圏外', formation: '4-4-2', matchType: '1か月マッチ', resultPct: 5.31, status: '集計中', highlight: '安定型で大崩れせず' },
-  { rank: 6, team: '素材代表', owner: '入賞圏外', formation: '3-5-2', matchType: '1週間マッチ', resultPct: 4.88, status: '集計中', highlight: '短期テーマ株が貢献' },
-  { rank: 7, team: '財務堅守イレブン', owner: '入賞圏外', formation: '5-3-2', matchType: '3か月マッチ', resultPct: 2.44, status: '集計中', highlight: '守備重視で小幅プラス' },
-  { rank: 8, team: '成長株ユナイテッド', owner: '入賞圏外', formation: '3-4-2-1', matchType: '1週間マッチ', resultPct: -1.26, status: '集計中', highlight: '攻撃型が短期変動に苦戦' },
-];
-
 const ROOT_ID = 'results-page';
 const ACTIVE_CLASS = 'results-page-mode';
 const CONTEST_ACTIVE_CLASS = 'contest-list-mode';
@@ -27,14 +18,198 @@ const FORMATION_ACTIVE_CLASS = 'formation-page-mode';
 const PARTICIPANTS_ACTIVE_CLASS = 'participants-page-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function formatPct(value: number) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
+function toResultItem(participant: ParticipantItem, index: number): ResultItem | null {
+  if (participant.returnPct === null) return null;
+
+  return {
+    rank: index + 1,
+    team: participant.team,
+    owner: participant.owner,
+    formation: participant.formation,
+    matchType: participant.matchType,
+    resultPct: participant.returnPct,
+    status: '結果確定',
+    highlight: participant.returnPct >= 0 ? 'ポジション加重リターンでプラス着地' : 'ポジション加重リターンでマイナス着地',
+  };
+}
+
+function normalizeResults(participants: ParticipantItem[]) {
+  return participants
+    .filter((participant) => participant.returnPct !== null)
+    .sort((a, b) => (b.returnPct ?? Number.NEGATIVE_INFINITY) - (a.returnPct ?? Number.NEGATIVE_INFINITY))
+    .map(toResultItem)
+    .filter((item): item is ResultItem => item !== null);
+}
+
+function renderChampion(results: ResultItem[]) {
+  const champion = results[0];
+  if (!champion) {
+    return `
+      <div class="results-champion-card results-champion-empty">
+        <div class="results-cup">🏆</div>
+        <div>
+          <span>WAITING</span>
+          <h3>結果集計待ち</h3>
+          <p>集計結果が保存されると、ここに優勝チームが表示されます。</p>
+        </div>
+        <strong>-</strong>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="results-champion-card">
+      <div class="results-cup">🏆</div>
+      <div>
+        <span>WINNER</span>
+        <h3>${escapeHtml(champion.team)}</h3>
+        <p>${escapeHtml(champion.matchType)} / ${escapeHtml(champion.formation)} / ${escapeHtml(champion.highlight)}</p>
+      </div>
+      <strong>${formatPct(champion.resultPct)}</strong>
+    </div>
+  `;
+}
+
+function renderSummary(results: ResultItem[], totalParticipants: number) {
+  const champion = results[0];
+  const average = results.length > 0 ? results.reduce((sum, item) => sum + item.resultPct, 0) / results.length : null;
+  const positiveCount = results.filter((item) => item.resultPct >= 0).length;
+
+  return `
+    <div><span>参加チーム</span><b>${totalParticipants}チーム</b></div>
+    <div><span>優勝リターン</span><b>${champion ? formatPct(champion.resultPct) : '-'}</b></div>
+    <div><span>平均リターン</span><b>${average === null ? '-' : formatPct(average)}</b></div>
+    <div><span>プラス着地</span><b>${results.length > 0 ? `${positiveCount}チーム` : '-'}</b></div>
+  `;
+}
+
+function renderPodium(results: ResultItem[]) {
+  if (results.length === 0) {
+    return `
+      <div class="results-empty-state results-empty-podium">
+        <strong>まだ確定結果はありません</strong>
+        <span>entry_results に集計結果が保存されると、表彰台と順位表が表示されます。</span>
+      </div>
+    `;
+  }
+
+  return results.slice(0, 3).map((team) => `
+    <article class="results-podium-card rank-${team.rank}">
+      <div class="results-medal">${team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : '🥉'}</div>
+      <h3>${escapeHtml(team.team)}</h3>
+      <p>${escapeHtml(team.owner)} / ${escapeHtml(team.formation)}</p>
+      <strong class="${team.resultPct >= 0 ? 'positive' : 'negative'}">${formatPct(team.resultPct)}</strong>
+    </article>
+  `).join('');
+}
+
+function renderRows(results: ResultItem[]) {
+  if (results.length === 0) {
+    return `
+      <tr>
+        <td colspan="7">
+          <div class="results-empty-state">
+            <strong>まだ結果はありません</strong>
+            <span>大会集計後に entry_results の成績をもとに表示します。</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  return results.map((team) => `
+    <tr>
+      <td><span class="results-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
+      <td>
+        <strong>${escapeHtml(team.team)}</strong>
+        <small>${escapeHtml(team.owner)}</small>
+      </td>
+      <td><b>${escapeHtml(team.formation)}</b></td>
+      <td>${escapeHtml(team.matchType)}</td>
+      <td><span class="results-status fixed">${escapeHtml(team.status)}</span></td>
+      <td class="results-return ${team.resultPct >= 0 ? 'positive' : 'negative'}">${formatPct(team.resultPct)}</td>
+      <td>${escapeHtml(team.highlight)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderResults(page: HTMLElement, participants: ParticipantItem[]) {
+  const results = normalizeResults(participants);
+  const championSlot = page.querySelector<HTMLElement>('[data-results-champion]');
+  const summary = page.querySelector<HTMLElement>('.results-summary-grid');
+  const podium = page.querySelector<HTMLElement>('[data-results-podium]');
+  const body = page.querySelector<HTMLElement>('[data-results-body]');
+  const source = page.querySelector<HTMLElement>('[data-results-source]');
+  const note = page.querySelector<HTMLElement>('[data-results-note]');
+
+  if (championSlot) championSlot.innerHTML = renderChampion(results);
+  if (summary) summary.innerHTML = renderSummary(results, participants.length);
+  if (podium) podium.innerHTML = renderPodium(results);
+  if (body) body.innerHTML = renderRows(results);
+  if (source) source.textContent = results.length > 0 ? 'API実データを表示中' : '集計結果待ち';
+  if (note) {
+    note.innerHTML = '<strong>集計ルール</strong><span>API / Supabase の entry_results に保存された team_return をポジション加重リターンとして表示します。未集計の場合は結果待ちとして表示します。</span>';
+  }
+}
+
+function renderResultsError(page: HTMLElement, message: string) {
+  const championSlot = page.querySelector<HTMLElement>('[data-results-champion]');
+  const body = page.querySelector<HTMLElement>('[data-results-body]');
+  const podium = page.querySelector<HTMLElement>('[data-results-podium]');
+  const source = page.querySelector<HTMLElement>('[data-results-source]');
+  const note = page.querySelector<HTMLElement>('[data-results-note]');
+
+  if (championSlot) championSlot.innerHTML = renderChampion([]);
+  if (podium) {
+    podium.innerHTML = `
+      <div class="results-error-state results-empty-podium">
+        <strong>結果データの取得に失敗しました</strong>
+        <span>${escapeHtml(message)}</span>
+      </div>
+    `;
+  }
+  if (body) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="7">
+          <div class="results-error-state">
+            <strong>結果データの取得に失敗しました</strong>
+            <span>${escapeHtml(message)}</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+  if (source) source.textContent = 'API取得エラー';
+  if (note) {
+    note.innerHTML = '<strong>確認ポイント</strong><span>Render 側の GET /api/entries が有効か、entry_results の取得でエラーが出ていないか確認してください。</span>';
+  }
+}
+
+async function loadResults(page: HTMLElement) {
+  try {
+    const participants = await fetchParticipants();
+    renderResults(page, participants);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    renderResultsError(page, message);
+  }
+}
+
 function createResultsPage() {
-  const champion = RESULTS[0];
-  const average = RESULTS.reduce((sum, item) => sum + item.resultPct, 0) / RESULTS.length;
-  const positiveCount = RESULTS.filter((item) => item.resultPct >= 0).length;
   const section = document.createElement('section');
   section.id = ROOT_ID;
   section.className = 'results-page card';
@@ -49,39 +224,34 @@ function createResultsPage() {
       <button type="button" class="results-page-back">ダッシュボードへ戻る</button>
     </div>
 
-    <div class="results-champion-card">
-      <div class="results-cup">🏆</div>
-      <div>
-        <span>WINNER</span>
-        <h3>${champion.team}</h3>
-        <p>${champion.matchType} / ${champion.formation} / ${champion.highlight}</p>
+    <div data-results-champion>
+      <div class="results-champion-card results-champion-empty">
+        <div class="results-cup">🏆</div>
+        <div>
+          <span>LOADING</span>
+          <h3>結果を読み込み中</h3>
+          <p>API / Supabase から集計済みデータを取得しています。</p>
+        </div>
+        <strong>-</strong>
       </div>
-      <strong>${formatPct(champion.resultPct)}</strong>
     </div>
 
     <div class="results-summary-grid">
-      <div><span>参加チーム</span><b>${RESULTS.length}チーム</b></div>
-      <div><span>優勝リターン</span><b>${formatPct(champion.resultPct)}</b></div>
-      <div><span>平均リターン</span><b>${formatPct(average)}</b></div>
-      <div><span>プラス着地</span><b>${positiveCount}チーム</b></div>
+      <div><span>参加チーム</span><b>読み込み中</b></div>
+      <div><span>優勝リターン</span><b>-</b></div>
+      <div><span>平均リターン</span><b>-</b></div>
+      <div><span>プラス着地</span><b>-</b></div>
     </div>
 
     <div class="results-toolbar">
       <span>3か月マッチ</span>
       <span>1か月マッチ</span>
       <span>1週間マッチ</span>
-      <strong>表示は暫定結果データです</strong>
+      <strong data-results-source>APIから取得中...</strong>
     </div>
 
-    <div class="results-podium">
-      ${RESULTS.slice(0, 3).map((team) => `
-        <article class="results-podium-card rank-${team.rank}">
-          <div class="results-medal">${team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : '🥉'}</div>
-          <h3>${team.team}</h3>
-          <p>${team.owner} / ${team.formation}</p>
-          <strong class="${team.resultPct >= 0 ? 'positive' : 'negative'}">${formatPct(team.resultPct)}</strong>
-        </article>
-      `).join('')}
+    <div class="results-podium" data-results-podium>
+      <div class="results-loading-state results-empty-podium">結果データを読み込んでいます...</div>
     </div>
 
     <div class="results-table-wrap">
@@ -97,28 +267,19 @@ function createResultsPage() {
             <th>寸評</th>
           </tr>
         </thead>
-        <tbody>
-          ${RESULTS.map((team) => `
-            <tr>
-              <td><span class="results-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
-              <td>
-                <strong>${team.team}</strong>
-                <small>${team.owner}</small>
-              </td>
-              <td><b>${team.formation}</b></td>
-              <td>${team.matchType}</td>
-              <td><span class="results-status ${team.status === '結果確定' ? 'fixed' : 'pending'}">${team.status}</span></td>
-              <td class="results-return ${team.resultPct >= 0 ? 'positive' : 'negative'}">${formatPct(team.resultPct)}</td>
-              <td>${team.highlight}</td>
-            </tr>
-          `).join('')}
+        <tbody data-results-body>
+          <tr>
+            <td colspan="7">
+              <div class="results-loading-state">結果データを読み込んでいます...</div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="results-note">
+    <div class="results-note" data-results-note>
       <strong>集計ルール</strong>
-      <span>締切日の終値を基準価格とし、各大会の集計日の終値との差をポジション加重リターンで判定します。</span>
+      <span>API / Supabase の集計結果を取得します。</span>
     </div>
   `;
   return section;
@@ -195,6 +356,7 @@ function showResultsPage() {
   shell.classList.add(ACTIVE_CLASS);
   applyResultsHeader();
   setActiveNav('results');
+  void loadResults(page);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
