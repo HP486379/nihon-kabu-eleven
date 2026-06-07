@@ -1,39 +1,128 @@
-type ParticipantItem = {
-  rank: number;
-  team: string;
-  owner: string;
-  formation: string;
-  matchType: string;
-  returnPct: number;
-  status: string;
-  style: string;
-};
-
-const PARTICIPANTS: ParticipantItem[] = [
-  { rank: 1, team: '半導体ジャパン', owner: '暫定首位', formation: '3-4-3', matchType: '3か月マッチ', returnPct: 18.42, status: '確定済み', style: '攻撃型' },
-  { rank: 2, team: 'ツヨシジャパン', owner: '逆転圏内', formation: '4-3-3', matchType: '3か月マッチ', returnPct: 15.68, status: '確定済み', style: '標準攻撃型' },
-  { rank: 3, team: '高配当ジャパン', owner: '堅守型', formation: '5-4-1', matchType: '3か月マッチ', returnPct: 9.74, status: '確定済み', style: '守備型' },
-  { rank: 4, team: 'グロース連合', owner: '追走中', formation: '4-2-3-1', matchType: '1か月マッチ', returnPct: 7.92, status: '編成中', style: '中盤支配型' },
-  { rank: 5, team: '任天堂FC', owner: '守備固め', formation: '4-4-2', matchType: '1か月マッチ', returnPct: 5.31, status: '確定済み', style: 'バランス型' },
-  { rank: 6, team: '素材代表', owner: 'テーマ分散', formation: '3-5-2', matchType: '1週間マッチ', returnPct: 4.88, status: '確定済み', style: '中盤厚め型' },
-  { rank: 7, team: '財務堅守イレブン', owner: '低ボラ重視', formation: '5-3-2', matchType: '3か月マッチ', returnPct: 2.44, status: '編成中', style: '守備重視型' },
-  { rank: 8, team: '成長株ユナイテッド', owner: '攻撃準備中', formation: '3-4-2-1', matchType: '1週間マッチ', returnPct: -1.26, status: '編成中', style: '攻撃的1トップ型' },
-];
+import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
 
 const ROOT_ID = 'participants-page';
 const ACTIVE_CLASS = 'participants-page-mode';
 const CONTEST_ACTIVE_CLASS = 'contest-list-mode';
 const FORMATION_ACTIVE_CLASS = 'formation-page-mode';
+const RESULTS_ACTIVE_CLASS = 'results-page-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 
-function formatReturn(value: number) {
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatReturn(value: number | null) {
+  if (value === null) return '集計待ち';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
+function getReturnClass(value: number | null) {
+  if (value === null) return 'neutral';
+  return value >= 0 ? 'positive' : 'negative';
+}
+
+function isLockedStatus(status: string) {
+  return status.includes('確定') || status.includes('完了') || status.toLowerCase().includes('locked');
+}
+
+function renderSummary(participants: ParticipantItem[]) {
+  const confirmed = participants.filter((team) => isLockedStatus(team.status)).length;
+  const editing = Math.max(participants.length - confirmed, 0);
+  const leader = participants[0];
+
+  return `
+    <div><span>参加チーム</span><b>${participants.length}チーム</b></div>
+    <div><span>確定済み</span><b>${confirmed}チーム</b></div>
+    <div><span>編成中</span><b>${editing}チーム</b></div>
+    <div><span>暫定首位</span><b>${leader ? escapeHtml(leader.team) : '-'}</b></div>
+  `;
+}
+
+function renderRows(participants: ParticipantItem[]) {
+  if (participants.length === 0) {
+    return `
+      <tr>
+        <td colspan="6">
+          <div class="participants-empty-state">
+            <strong>まだ参加チームがありません</strong>
+            <span>チームを確定すると、この一覧にAPI経由で表示されます。</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  return participants.map((team) => {
+    const locked = isLockedStatus(team.status);
+    return `
+      <tr>
+        <td><span class="participants-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
+        <td>
+          <strong>${escapeHtml(team.team)}</strong>
+          <small>${escapeHtml(team.owner)} / ${escapeHtml(team.style)}</small>
+        </td>
+        <td><b>${escapeHtml(team.formation)}</b></td>
+        <td>${escapeHtml(team.matchType)}</td>
+        <td><span class="participants-status ${locked ? 'locked' : 'editing'}">${escapeHtml(team.status)}</span></td>
+        <td class="participants-return ${getReturnClass(team.returnPct)}">${formatReturn(team.returnPct)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderParticipants(page: HTMLElement, participants: ParticipantItem[]) {
+  const summary = page.querySelector<HTMLElement>('.participants-summary-grid');
+  const body = page.querySelector<HTMLElement>('[data-participants-body]');
+  const note = page.querySelector<HTMLElement>('[data-participants-note]');
+  const toolbarStatus = page.querySelector<HTMLElement>('[data-participants-source]');
+
+  if (summary) summary.innerHTML = renderSummary(participants);
+  if (body) body.innerHTML = renderRows(participants);
+  if (toolbarStatus) toolbarStatus.textContent = 'API実データを表示中';
+  if (note) {
+    note.innerHTML = '<strong>表示ルール</strong><span>API / Supabase に保存されたエントリーを取得し、ポジション加重リターン順に表示します。未集計のチームは「集計待ち」として表示します。</span>';
+  }
+}
+
+function renderParticipantsError(page: HTMLElement, message: string) {
+  const body = page.querySelector<HTMLElement>('[data-participants-body]');
+  const toolbarStatus = page.querySelector<HTMLElement>('[data-participants-source]');
+  const note = page.querySelector<HTMLElement>('[data-participants-note]');
+
+  if (toolbarStatus) toolbarStatus.textContent = 'API取得エラー';
+  if (body) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6">
+          <div class="participants-error-state">
+            <strong>参加チームの取得に失敗しました</strong>
+            <span>${escapeHtml(message)}</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+  if (note) {
+    note.innerHTML = '<strong>確認ポイント</strong><span>バックエンドの GET /api/entries が有効か、Vercel の VITE_API_BASE が Render のAPI URLを向いているか確認してください。</span>';
+  }
+}
+
+async function loadParticipants(page: HTMLElement) {
+  try {
+    const participants = await fetchParticipants();
+    renderParticipants(page, participants);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    renderParticipantsError(page, message);
+  }
+}
+
 function createParticipantsPage() {
-  const confirmed = PARTICIPANTS.filter((team) => team.status === '確定済み').length;
-  const editing = PARTICIPANTS.length - confirmed;
-  const leader = PARTICIPANTS[0];
   const section = document.createElement('section');
   section.id = ROOT_ID;
   section.className = 'participants-page card';
@@ -49,17 +138,17 @@ function createParticipantsPage() {
     </div>
 
     <div class="participants-summary-grid">
-      <div><span>参加チーム</span><b>${PARTICIPANTS.length}チーム</b></div>
-      <div><span>確定済み</span><b>${confirmed}チーム</b></div>
-      <div><span>編成中</span><b>${editing}チーム</b></div>
-      <div><span>暫定首位</span><b>${leader.team}</b></div>
+      <div><span>参加チーム</span><b>読み込み中</b></div>
+      <div><span>確定済み</span><b>-</b></div>
+      <div><span>編成中</span><b>-</b></div>
+      <div><span>暫定首位</span><b>-</b></div>
     </div>
 
     <div class="participants-toolbar">
       <span>3か月マッチ</span>
       <span>1か月マッチ</span>
       <span>1週間マッチ</span>
-      <strong>表示は暫定データです</strong>
+      <strong data-participants-source>APIから取得中...</strong>
     </div>
 
     <div class="participants-table-wrap">
@@ -74,27 +163,19 @@ function createParticipantsPage() {
             <th>暫定リターン</th>
           </tr>
         </thead>
-        <tbody>
-          ${PARTICIPANTS.map((team) => `
-            <tr>
-              <td><span class="participants-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
-              <td>
-                <strong>${team.team}</strong>
-                <small>${team.owner} / ${team.style}</small>
-              </td>
-              <td><b>${team.formation}</b></td>
-              <td>${team.matchType}</td>
-              <td><span class="participants-status ${team.status === '確定済み' ? 'locked' : 'editing'}">${team.status}</span></td>
-              <td class="participants-return ${team.returnPct >= 0 ? 'positive' : 'negative'}">${formatReturn(team.returnPct)}</td>
-            </tr>
-          `).join('')}
+        <tbody data-participants-body>
+          <tr>
+            <td colspan="6">
+              <div class="participants-loading-state">参加チームを読み込んでいます...</div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="participants-note">
+    <div class="participants-note" data-participants-note>
       <strong>表示ルール</strong>
-      <span>現在は画面確認用の暫定データです。実データ化時に entries / entry_results と接続します。</span>
+      <span>API / Supabase に保存された参加チームを取得します。</span>
     </div>
   `;
   return section;
@@ -168,9 +249,11 @@ function showParticipantsPage() {
 
   shell.classList.remove(CONTEST_ACTIVE_CLASS);
   shell.classList.remove(FORMATION_ACTIVE_CLASS);
+  shell.classList.remove(RESULTS_ACTIVE_CLASS);
   shell.classList.add(ACTIVE_CLASS);
   applyParticipantsHeader();
   setActiveNav('participants');
+  void loadParticipants(page);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -179,6 +262,7 @@ function showDashboard() {
   shell?.classList.remove(ACTIVE_CLASS);
   shell?.classList.remove(CONTEST_ACTIVE_CLASS);
   shell?.classList.remove(FORMATION_ACTIVE_CLASS);
+  shell?.classList.remove(RESULTS_ACTIVE_CLASS);
   restoreDashboardHeader();
   setActiveNav('dashboard');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -188,8 +272,7 @@ function bindParticipantsNavigation() {
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.sidebar-nav a'));
   const participantsNav = links.find((link) => link.textContent?.includes('参加チーム'));
   const dashboardNav = links.find((link) => link.textContent?.includes('ダッシュボード'));
-  const contestNav = links.find((link) => link.textContent?.includes('試合モード'));
-  const formationNav = links.find((link) => link.textContent?.includes('フォーメーション'));
+  const otherNavs = links.filter((link) => ['試合モード', 'フォーメーション', '結果発表'].some((label) => link.textContent?.includes(label)));
   if (!participantsNav || participantsNav.dataset.participantsPageBound === 'true') return false;
 
   participantsNav.dataset.participantsPageBound = 'true';
@@ -208,8 +291,8 @@ function bindParticipantsNavigation() {
     });
   }
 
-  [contestNav, formationNav].forEach((link) => {
-    link?.addEventListener('click', () => {
+  otherNavs.forEach((link) => {
+    link.addEventListener('click', () => {
       document.querySelector('.app-shell')?.classList.remove(ACTIVE_CLASS);
     }, { capture: true });
   });
