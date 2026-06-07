@@ -10,6 +10,7 @@ import { initLowerLayoutWireup } from './lower-layout-wireup';
 import { initTeamNameSuffixPreview } from './team-name-suffix-preview';
 import { initMatchDurationRules } from './match-duration-rules-wireup';
 import { initContestListPage } from './contest-list-page-wireup';
+import { initFormationPage } from './formation-page-wireup';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -25,6 +26,7 @@ import './lower-layout-fixes.css';
 import './team-name-suffix-preview.css';
 import './match-duration-rules.css';
 import './contest-list-page.css';
+import './formation-page.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -41,3 +43,4 @@ initLowerLayoutWireup();
 initTeamNameSuffixPreview();
 initMatchDurationRules();
 initContestListPage();
+initFormationPage();

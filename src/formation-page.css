@@ -1,0 +1,226 @@
+.formation-page {
+  display: none;
+  margin: 18px 0 24px;
+  padding: 22px;
+}
+
+.formation-page-mode main.main > :not(.page-header):not(#formation-page) {
+  display: none !important;
+}
+
+.formation-page-mode #formation-page {
+  display: block;
+}
+
+.formation-page-hero {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.formation-page-kicker {
+  color: #1462d5;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  margin: 0 0 5px;
+}
+
+.formation-page-hero h2 {
+  color: #0b2a55;
+  font-size: 28px;
+  margin: 0 0 6px;
+}
+
+.formation-page-hero p {
+  color: #607490;
+  margin: 0;
+}
+
+.formation-page-back {
+  background: #1462d5;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 12px 24px rgba(20, 98, 213, 0.20);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 11px 16px;
+  white-space: nowrap;
+}
+
+.formation-page-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.formation-page-card {
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  box-shadow: 0 12px 24px rgba(30, 70, 120, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.formation-page-card.current {
+  border-color: #1462d5;
+  box-shadow: 0 14px 28px rgba(20, 98, 213, 0.16);
+}
+
+.formation-page-card-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 28px;
+}
+
+.formation-page-card-head span,
+.formation-page-card-head b {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.formation-page-card-head span {
+  background: #edf4ff;
+  color: #1462d5;
+}
+
+.formation-page-card-head b {
+  background: #e9f9ef;
+  color: #039855;
+}
+
+.formation-page-card h3 {
+  color: #0b2a55;
+  font-size: 24px;
+  margin: 0;
+}
+
+.formation-page-card p {
+  color: #52677f;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.formation-page-mini-pitch {
+  background: linear-gradient(180deg, #eef7ff, #f8fbff);
+  border: 1px solid #dce8f6;
+  border-radius: 14px;
+  height: 150px;
+  overflow: hidden;
+  position: relative;
+}
+
+.formation-page-mini-pitch::before,
+.formation-page-mini-pitch::after {
+  content: '';
+  left: 8%;
+  position: absolute;
+  right: 8%;
+}
+
+.formation-page-mini-pitch::before {
+  border-top: 2px solid rgba(20, 98, 213, 0.22);
+  top: 50%;
+}
+
+.formation-page-mini-pitch::after {
+  border-top: 2px solid rgba(20, 98, 213, 0.18);
+  top: 74%;
+}
+
+.formation-page-dot {
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(12, 38, 75, 0.16);
+  height: 12px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 12px;
+}
+
+.formation-page-dot.dot-fw { background: #ff5a5f; }
+.formation-page-dot.dot-mf { background: #3dbb63; }
+.formation-page-dot.dot-df { background: #2f80ed; }
+.formation-page-dot.dot-gk { background: #f4b529; }
+
+.formation-page-card dl {
+  display: grid;
+  gap: 8px;
+  margin: auto 0 0;
+}
+
+.formation-page-card dl div {
+  background: #f2f7fd;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.formation-page-card dt {
+  color: #7a8ca5;
+  font-size: 11px;
+  font-weight: 900;
+  margin-bottom: 3px;
+}
+
+.formation-page-card dd {
+  color: #18375f;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.formation-page-note {
+  align-items: flex-start;
+  background: #eef7ff;
+  border: 1px solid #cfe3ff;
+  border-radius: 14px;
+  color: #234466;
+  display: flex;
+  gap: 10px;
+  line-height: 1.65;
+  margin-top: 16px;
+  padding: 12px 14px;
+}
+
+.formation-page-note strong {
+  color: #1462d5;
+  white-space: nowrap;
+}
+
+@media (max-width: 1320px) {
+  .formation-page-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .formation-page {
+    padding: 16px;
+  }
+
+  .formation-page-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .formation-page-back {
+    width: 100%;
+  }
+
+  .formation-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-page-note {
+    flex-direction: column;
+  }
+}
