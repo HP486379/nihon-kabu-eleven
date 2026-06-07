@@ -107,6 +107,75 @@
   }
 }
 
+@media (min-width: 1200px) and (hover: hover) {
+  .app-shell {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    z-index: 1100;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+    overflow: hidden;
+    transform: translateX(calc(-100% + 28px));
+    transition: transform .18s ease, box-shadow .18s ease;
+    box-shadow: none;
+  }
+
+  .sidebar:hover,
+  .sidebar:focus-within {
+    transform: translateX(0);
+    box-shadow: 18px 0 38px rgba(18, 43, 89, .14);
+  }
+
+  .sidebar::after {
+    content: "☰";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 28px;
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18px;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 900;
+    background: linear-gradient(180deg, #1768df, #0d4cb0);
+    box-shadow: inset 1px 0 0 rgba(255,255,255,.25);
+    pointer-events: none;
+    transition: opacity .15s ease;
+  }
+
+  .sidebar:hover::after,
+  .sidebar:focus-within::after {
+    opacity: 0;
+  }
+
+  .sidebar .brand-block,
+  .sidebar .sidebar-nav,
+  .sidebar .help-link {
+    transition: opacity .12s ease;
+  }
+
+  .sidebar:not(:hover):not(:focus-within) .brand-block,
+  .sidebar:not(:hover):not(:focus-within) .sidebar-nav,
+  .sidebar:not(:hover):not(:focus-within) .help-link {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .main {
+    padding-left: 12px;
+    width: min(100%, 1540px);
+  }
+}
+
 @media (min-width: 1500px) {
   .main {
     width: min(100%, 1340px);
@@ -119,6 +188,12 @@
   }
 }
 
+@media (min-width: 1500px) and (hover: hover) {
+  .main {
+    width: min(100%, 1560px);
+  }
+}
+
 @media (min-width: 1800px) {
   .main {
     width: min(100%, 1360px);
@@ -128,5 +203,11 @@
   .dashboard-grid {
     grid-template-columns: 230px minmax(640px, 700px) 360px;
     gap: 16px;
+  }
+}
+
+@media (min-width: 1800px) and (hover: hover) {
+  .main {
+    width: min(100%, 1580px);
   }
 }
