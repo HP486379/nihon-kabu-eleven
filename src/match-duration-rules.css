@@ -1,0 +1,141 @@
+.match-duration-rules-card {
+  margin: 14px 0 18px;
+  padding: 18px;
+  border: 1px solid rgba(58, 227, 255, 0.28);
+  background: linear-gradient(135deg, rgba(3, 15, 31, 0.96), rgba(10, 26, 48, 0.94));
+  box-shadow: 0 0 24px rgba(0, 200, 255, 0.10);
+}
+
+.match-rule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.match-rule-header h3 {
+  margin: 0;
+  color: #f6fbff;
+  letter-spacing: 0.04em;
+}
+
+.match-rule-kicker {
+  margin: 0 0 4px;
+  color: #46e7ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.match-rule-badge {
+  border: 1px solid rgba(255, 177, 65, 0.58);
+  border-radius: 999px;
+  color: #ffd48a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 7px 10px;
+  white-space: nowrap;
+  box-shadow: 0 0 14px rgba(255, 159, 41, 0.18);
+}
+
+.match-type-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.match-type-button {
+  border: 1px solid rgba(120, 215, 255, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #dff7ff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.match-type-button:hover {
+  border-color: rgba(70, 231, 255, 0.72);
+  background: rgba(70, 231, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.match-type-button.selected {
+  border-color: rgba(255, 188, 68, 0.92);
+  background: rgba(255, 169, 39, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 188, 68, 0.20), 0 0 18px rgba(255, 168, 46, 0.14);
+}
+
+.match-type-button strong {
+  font-size: 14px;
+}
+
+.match-type-button small {
+  color: rgba(220, 244, 255, 0.70);
+  font-size: 11px;
+}
+
+.match-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.match-rule-grid > div {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 12px;
+}
+
+.match-rule-grid span {
+  color: #46e7ff;
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+}
+
+.match-rule-grid strong {
+  color: #ffffff;
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.match-rule-grid small {
+  color: rgba(230, 246, 255, 0.68);
+  display: block;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.match-rule-note {
+  border-left: 3px solid rgba(255, 188, 68, 0.86);
+  color: rgba(244, 250, 255, 0.86);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 14px 0 0;
+  padding-left: 12px;
+}
+
+@media (max-width: 860px) {
+  .match-type-buttons,
+  .match-rule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .match-rule-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
