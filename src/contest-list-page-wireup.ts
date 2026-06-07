@@ -52,6 +52,7 @@ const CONTESTS: ContestItem[] = [
 
 const ROOT_ID = 'contest-list-page';
 const ACTIVE_CLASS = 'contest-list-mode';
+const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 
 function createContestListPage() {
   const section = document.createElement('section');
@@ -94,6 +95,47 @@ function createContestListPage() {
   return section;
 }
 
+function rememberOriginalHtml(element: HTMLElement | null) {
+  if (!element) return;
+  if (!element.dataset[HEADER_ORIGINAL_KEY]) {
+    element.dataset[HEADER_ORIGINAL_KEY] = element.innerHTML;
+  }
+}
+
+function applyContestHeader() {
+  const header = document.querySelector<HTMLElement>('.page-header');
+  if (!header) return;
+
+  const kicker = header.querySelector<HTMLElement>('.match-kicker');
+  const title = header.querySelector<HTMLElement>('.header-main h1');
+  const subline = header.querySelector<HTMLElement>('.header-subline');
+  const chip = header.querySelector<HTMLElement>('.team-chip');
+
+  [kicker, title, subline, chip].forEach(rememberOriginalHtml);
+
+  if (kicker) kicker.textContent = 'MATCH MODE';
+  if (title) title.textContent = '試合モード / 大会一覧';
+  if (subline) {
+    subline.innerHTML = `
+      <span>🏆 1週間・1か月・3か月マッチ</span>
+      <span>📅 締切後の終値で集計</span>
+      <span>📈 ポジション加重リターンで判定</span>
+    `;
+  }
+  if (chip) chip.textContent = '大会一覧｜勝負形式を選択｜金融エンタメゲーム';
+}
+
+function restoreDashboardHeader() {
+  const elements = document.querySelectorAll<HTMLElement>(`[data-${HEADER_ORIGINAL_KEY.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}]`);
+  elements.forEach((element) => {
+    const originalHtml = element.dataset[HEADER_ORIGINAL_KEY];
+    if (originalHtml !== undefined) {
+      element.innerHTML = originalHtml;
+      delete element.dataset[HEADER_ORIGINAL_KEY];
+    }
+  });
+}
+
 function setActiveNav(target: 'dashboard' | 'contest') {
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.sidebar-nav a'));
   links.forEach((link) => link.classList.remove('active'));
@@ -117,12 +159,14 @@ function showContestList() {
     page.querySelector('.contest-list-back')?.addEventListener('click', showDashboard);
   }
   shell.classList.add(ACTIVE_CLASS);
+  applyContestHeader();
   setActiveNav('contest');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showDashboard() {
   document.querySelector('.app-shell')?.classList.remove(ACTIVE_CLASS);
+  restoreDashboardHeader();
   setActiveNav('dashboard');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
