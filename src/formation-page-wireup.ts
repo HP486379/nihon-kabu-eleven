@@ -97,6 +97,29 @@ const CONTEST_ACTIVE_CLASS = 'contest-list-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 
 function getDots(formation: FormationItem): FormationDot[] {
+  const dots = (position: Position, top: number, lefts: number[]) =>
+    lefts.map((left) => ({ position, left, top }));
+
+  if (formation.key === '4-2-3-1') {
+    return [
+      ...dots('FW', 22, [50]),
+      ...dots('MF', 39, [30, 50, 70]),
+      ...dots('MF', 53, [40, 60]),
+      ...dots('DF', 68, [23, 41, 59, 77]),
+      ...dots('GK', 84, [50]),
+    ];
+  }
+
+  if (formation.key === '3-4-2-1') {
+    return [
+      ...dots('FW', 20, [50]),
+      ...dots('MF', 37, [38, 62]),
+      ...dots('MF', 53, [23, 41, 59, 77]),
+      ...dots('DF', 68, [30, 50, 70]),
+      ...dots('GK', 84, [50]),
+    ];
+  }
+
   const tops: Record<Position, number> = { FW: 22, MF: 43, DF: 64, GK: 82 };
   const lanes: Record<number, number[]> = {
     1: [50],
@@ -109,7 +132,7 @@ function getDots(formation: FormationItem): FormationDot[] {
 
   return (['FW', 'MF', 'DF', 'GK'] as Position[]).flatMap((position) => {
     const lefts = lanes[formation.counts[position]] || lanes[3];
-    return lefts.map((left) => ({ position, left, top: tops[position] }));
+    return dots(position, tops[position], lefts);
   });
 }
 
