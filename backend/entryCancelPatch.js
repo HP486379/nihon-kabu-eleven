@@ -1,9 +1,16 @@
 import express from 'express';
+import fetch from 'node-fetch';
 import { requireSupabaseAdmin } from './supabaseAdmin.js';
 
 const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
+const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 const nowIso = () => new Date().toISOString();
 const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+const symbolOf = (value) => {
+  const upper = String(value || '').trim().toUpperCase();
+  if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
+  return `${upper}.T`;
+};
 
 function httpError(status, message, details = null) {
   const error = new Error(message);
@@ -19,6 +26,18 @@ function toNumber(value) {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function toTimestampSeconds(value) {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return null;
+  return Math.floor(time / 1000);
+}
+
+function addDays(value, days) {
+  const date = new Date(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date;
 }
 
 function displayStatus(status) {
@@ -135,6 +154,189 @@ async function listEntries(contestId) {
     .map((entry, index) => ({ ...entry, rank: Number.isInteger(entry.rank) ? entry.rank : index + 1 }));
 }
 
+async function loadContest(supabase, contestId) {
+  const { data, error } = await supabase
+    .from('contests')
+    .select('id,name,status,entry_deadline')
+    .eq('id', contestId)
+    .maybeSingle();
+
+  if (error) throw httpError(500, 'Failed to load contest', error.message);
+  if (!data) throw httpError(404, 'Contest was not found');
+  return data;
+}
+
+async function loadEntriesForCalculation(supabase, contestId) {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id,contest_id,team_name,formation,status,locked_at,created_at')
+    .eq('contest_id', contestId)
+    .in('status', ACTIVE_ENTRY_STATUSES)
+    .order('created_at', { ascending: true });
+
+  if (error) throw httpError(500, 'Failed to load entries for calculation', error.message);
+  return data || [];
+}
+
+async function loadMembersForEntries(supabase, entryIds) {
+  if (!entryIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from('entry_members')
+    .select('entry_id,stock_code,stock_name,position,slot_order,weight')
+    .in('entry_id', entryIds)
+    .order('slot_order', { ascending: true });
+
+  if (error) throw httpError(500, 'Failed to load entry members', error.message);
+
+  const byEntryId = new Map();
+  (data || []).forEach((member) => {
+    if (!byEntryId.has(member.entry_id)) byEntryId.set(member.entry_id, []);
+    byEntryId.get(member.entry_id).push(member);
+  });
+  return byEntryId;
+}
+
+async function fetchDailyCloses(symbol, startDate, endDate) {
+  const period1 = toTimestampSeconds(addDays(startDate, -7));
+  const period2 = toTimestampSeconds(addDays(endDate, 7));
+  if (period1 === null || period2 === null) throw httpError(400, 'Invalid calculation date');
+
+  const params = new URLSearchParams({
+    interval: '1d',
+    period1: String(period1),
+    period2: String(period2),
+  });
+
+  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`, { headers: HEADERS });
+  if (!res.ok) throw httpError(502, `Yahoo chart fetch failed: ${symbol} ${res.status}`);
+
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  const timestamps = result?.timestamp || [];
+  const closes = result?.indicators?.quote?.[0]?.close || [];
+
+  return timestamps.map((timestamp, index) => ({
+    date: new Date(timestamp * 1000),
+    close: closes[index],
+  })).filter((point) => typeof point.close === 'number' && Number.isFinite(point.close));
+}
+
+function pickCloseOnOrAfter(points, targetDate) {
+  const target = new Date(targetDate).getTime();
+  return points.find((point) => point.date.getTime() >= target) || null;
+}
+
+function pickCloseOnOrBefore(points, targetDate) {
+  const target = new Date(targetDate).getTime();
+  return [...points].reverse().find((point) => point.date.getTime() <= target) || points.at(-1) || null;
+}
+
+async function calculateMemberReturn(member, baseDate, resultDate) {
+  const symbol = symbolOf(member.stock_code);
+  const points = await fetchDailyCloses(symbol, baseDate, resultDate);
+  const base = pickCloseOnOrAfter(points, baseDate);
+  const result = pickCloseOnOrBefore(points, resultDate);
+
+  if (!base || !result || !base.close) {
+    throw httpError(502, `Price data was not enough: ${symbol}`);
+  }
+
+  return {
+    stockCode: member.stock_code,
+    stockName: member.stock_name,
+    symbol,
+    position: member.position,
+    weight: toNumber(member.weight) ?? 0,
+    baseClose: base.close,
+    resultClose: result.close,
+    baseDate: base.date.toISOString(),
+    resultDate: result.date.toISOString(),
+    returnPct: ((result.close / base.close) - 1) * 100,
+  };
+}
+
+async function calculateEntryResult(entry, members, contest, resultDate) {
+  const baseDate = contest.entry_deadline || entry.locked_at || entry.created_at;
+  if (!baseDate) throw httpError(400, `Base date was not found for entry: ${entry.id}`);
+  if (members.length !== 11) throw httpError(409, `Entry must have exactly 11 members: ${entry.id}`);
+
+  const memberResults = await Promise.all(members.map((member) => calculateMemberReturn(member, baseDate, resultDate)));
+  const weightTotal = memberResults.reduce((sum, member) => sum + member.weight, 0);
+  if (!Number.isFinite(weightTotal) || weightTotal <= 0) throw httpError(409, `Entry weights are invalid: ${entry.id}`);
+
+  const teamReturn = memberResults.reduce((sum, member) => sum + member.returnPct * member.weight, 0) / weightTotal;
+
+  return {
+    entryId: entry.id,
+    contestId: entry.contest_id,
+    teamName: entry.team_name,
+    formation: entry.formation,
+    teamReturn,
+    baseDate,
+    resultDate,
+    members: memberResults,
+  };
+}
+
+async function calculateContestResults(contestId, resultDateInput) {
+  const supabase = requireSupabaseAdmin();
+  if (!isUuid(contestId)) throw httpError(400, 'contestId must be a valid UUID');
+
+  const contest = await loadContest(supabase, contestId);
+  const entries = await loadEntriesForCalculation(supabase, contestId);
+  if (!entries.length) throw httpError(404, 'No active entries were found for this contest');
+
+  const resultDate = resultDateInput || nowIso();
+  const membersByEntryId = await loadMembersForEntries(supabase, entries.map((entry) => entry.id));
+  const calculated = await Promise.all(entries.map((entry) => calculateEntryResult(entry, membersByEntryId.get(entry.id) || [], contest, resultDate)));
+  const ranked = [...calculated]
+    .sort((a, b) => b.teamReturn - a.teamReturn)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+
+  const { error: deleteError } = await supabase
+    .from('entry_results')
+    .delete()
+    .eq('contest_id', contestId)
+    .in('entry_id', ranked.map((item) => item.entryId));
+
+  if (deleteError) throw httpError(500, 'Failed to clear previous entry results', deleteError.message);
+
+  const calculatedAt = nowIso();
+  const rows = ranked.map((item) => ({
+    entry_id: item.entryId,
+    contest_id: item.contestId,
+    team_return: Number(item.teamReturn.toFixed(6)),
+    rank: item.rank,
+    calculated_at: calculatedAt,
+  }));
+
+  const { data: savedResults, error: insertError } = await supabase
+    .from('entry_results')
+    .insert(rows)
+    .select('entry_id,contest_id,team_return,rank,calculated_at');
+
+  if (insertError) throw httpError(500, 'Failed to save entry results', insertError.message);
+
+  return {
+    contest,
+    count: ranked.length,
+    calculatedAt,
+    results: ranked.map((item) => ({
+      entryId: item.entryId,
+      contestId: item.contestId,
+      rank: item.rank,
+      teamName: item.teamName,
+      formation: item.formation,
+      teamReturn: Number(item.teamReturn.toFixed(6)),
+      baseDate: item.baseDate,
+      resultDate: item.resultDate,
+      members: item.members,
+    })),
+    savedResults,
+  };
+}
+
 async function cancelActiveEntry(contestId) {
   const supabase = requireSupabaseAdmin();
   const userId = String(process.env.DEV_USER_ID || '').trim();
@@ -206,6 +408,28 @@ express.application.listen = function patchedListen(...args) {
           entries,
           participants: entries,
           count: entries.length,
+          tsServer: nowIso(),
+        });
+      } catch (err) {
+        return res.status(err.status || 500).json({
+          ok: false,
+          error: err.message,
+          details: err.details || null,
+          tsServer: nowIso(),
+        });
+      }
+    });
+
+    this.post('/api/results/calculate', async (req, res) => {
+      const contestId = String(req.body?.contestId || req.body?.contest_id || req.query?.contestId || req.query?.contest_id || '').trim();
+      const resultDate = String(req.body?.resultDate || req.body?.result_date || req.query?.resultDate || req.query?.result_date || '').trim() || null;
+
+      try {
+        const result = await calculateContestResults(contestId, resultDate);
+        return res.json({
+          ok: true,
+          status: 'calculated',
+          ...result,
           tsServer: nowIso(),
         });
       } catch (err) {
