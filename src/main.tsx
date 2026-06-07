@@ -18,7 +18,6 @@ import './formation-mini-rows.css';
 import './position-control-fixes.css';
 import './pitch-drag-drop.css';
 import './member-label-overrides.css';
-import './sidebar-scale-tuning.css';
 import './contest-ticker.css';
 import './contest-ticker-neon.css';
 import './contest-layout-cleanup.css';
