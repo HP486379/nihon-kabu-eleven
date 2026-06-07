@@ -52,6 +52,7 @@ const CONTESTS: ContestItem[] = [
 
 const ROOT_ID = 'contest-list-page';
 const ACTIVE_CLASS = 'contest-list-mode';
+const FORMATION_ACTIVE_CLASS = 'formation-page-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 
 function createContestListPage() {
@@ -89,7 +90,7 @@ function createContestListPage() {
     </div>
     <div class="contest-list-note">
       <strong>共通ルール</strong>
-      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。実際の株購入や証券口座連携は行わない、金融エンタメゲームとしての大会です。</span>
+      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。</span>
     </div>
   `;
   return section;
@@ -158,6 +159,7 @@ function showContestList() {
     }
     page.querySelector('.contest-list-back')?.addEventListener('click', showDashboard);
   }
+  shell.classList.remove(FORMATION_ACTIVE_CLASS);
   shell.classList.add(ACTIVE_CLASS);
   applyContestHeader();
   setActiveNav('contest');
@@ -165,7 +167,9 @@ function showContestList() {
 }
 
 function showDashboard() {
-  document.querySelector('.app-shell')?.classList.remove(ACTIVE_CLASS);
+  const shell = document.querySelector('.app-shell');
+  shell?.classList.remove(ACTIVE_CLASS);
+  shell?.classList.remove(FORMATION_ACTIVE_CLASS);
   restoreDashboardHeader();
   setActiveNav('dashboard');
   window.scrollTo({ top: 0, behavior: 'smooth' });
