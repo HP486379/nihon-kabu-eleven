@@ -112,28 +112,56 @@ function renderRulePanel(container: HTMLElement, current: MatchRule, onSelect: (
   });
 }
 
-export function initMatchDurationRules() {
-  const mount = () => {
-    const matchStrip = document.querySelector('.match-strip');
-    if (!matchStrip || document.querySelector('.match-duration-rules-card')) return;
+function getInitialRule(): MatchRule {
+  const pageText = document.body.textContent ?? '';
+  if (pageText.includes('1週間')) return MATCH_RULES[0];
+  if (pageText.includes('1か月')) return MATCH_RULES[1];
+  return MATCH_RULES[2];
+}
 
-    let current = MATCH_RULES[1];
-    const panel = document.createElement('section');
-    panel.className = 'card match-duration-rules-card';
-    matchStrip.insertAdjacentElement('afterend', panel);
+function mountMatchDurationRules() {
+  const matchStrip = document.querySelector('.match-strip');
+  if (!matchStrip || document.querySelector('.match-duration-rules-card')) return false;
 
-    const apply = (rule: MatchRule) => {
-      current = rule;
-      updateExistingTournamentCopy(current);
-      renderRulePanel(panel, current, apply);
-    };
+  let current = getInitialRule();
+  const panel = document.createElement('section');
+  panel.className = 'card match-duration-rules-card';
+  matchStrip.insertAdjacentElement('afterend', panel);
 
-    apply(current);
+  const apply = (rule: MatchRule) => {
+    current = rule;
+    updateExistingTournamentCopy(current);
+    renderRulePanel(panel, current, apply);
   };
 
-  if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', mount, { once: true });
+  apply(current);
+  return true;
+}
+
+export function initMatchDurationRules() {
+  const tryMount = () => mountMatchDurationRules();
+
+  if (tryMount()) return;
+
+  let tries = 0;
+  const maxTries = 60;
+  const timer = window.setInterval(() => {
+    tries += 1;
+    if (tryMount() || tries >= maxTries) {
+      window.clearInterval(timer);
+    }
+  }, 100);
+
+  const observer = new MutationObserver(() => {
+    if (tryMount()) observer.disconnect();
+  });
+
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
   } else {
-    window.setTimeout(mount, 0);
+    window.addEventListener('DOMContentLoaded', () => {
+      tryMount();
+      if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+    }, { once: true });
   }
 }
