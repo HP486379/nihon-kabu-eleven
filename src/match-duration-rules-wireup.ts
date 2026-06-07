@@ -4,10 +4,9 @@ type MatchRule = {
   id: MatchType;
   label: string;
   shortLabel: string;
-  badge: string;
+  compactLabel: string;
   durationText: string;
   deadlineText: string;
-  basePriceText: string;
   resultText: string;
   strategyText: string;
   ruleText: string;
@@ -18,42 +17,39 @@ const MATCH_RULES: MatchRule[] = [
     id: 'weekly',
     label: '1週間マッチ',
     shortLabel: '短期決戦',
-    badge: 'WEEKLY MATCH',
+    compactLabel: '1週間',
     durationText: '締切1週間後の終値で決着',
     deadlineText: '締切日の終値を基準価格にします',
-    basePriceText: '締切日が休場日の場合は、直後の取引日の終値を基準にします',
     resultText: '締切1週間後が休場日の場合は、直後の取引日の終値で集計します',
-    strategyText: '決算・材料・テーマ株が動きやすいライト参加向けの短期勝負です。',
+    strategyText: '短期決戦。決算・材料・テーマ株が動きやすいライト参加向けです。',
     ruleText: '締切日の終値と、締切1週間後の終値を比較し、ポジション加重リターンで順位を決定します。',
   },
   {
     id: 'monthly',
     label: '1か月マッチ',
     shortLabel: '標準大会',
-    badge: 'MONTHLY MATCH',
+    compactLabel: '1か月',
     durationText: '締切1か月後の終値で決着',
     deadlineText: '締切日の終値を基準価格にします',
-    basePriceText: '締切日が休場日の場合は、直後の取引日の終値を基準にします',
     resultText: '締切1か月後が休場日の場合は、直後の取引日の終値で集計します',
-    strategyText: '短期材料と銘柄選定力のバランスが出やすいメイン大会です。',
+    strategyText: '標準大会。短期材料と銘柄選定力のバランスが出やすい期間です。',
     ruleText: '締切日の終値と、締切1か月後の終値を比較し、ポジション加重リターンで順位を決定します。',
   },
   {
     id: 'quarterly',
     label: '3か月マッチ',
     shortLabel: '本格リーグ',
-    badge: 'QUARTERLY MATCH',
+    compactLabel: '3か月',
     durationText: '締切3か月後の終値で決着',
     deadlineText: '締切日の終値を基準価格にします',
-    basePriceText: '締切日が休場日の場合は、直後の取引日の終値を基準にします',
     resultText: '締切3か月後が休場日の場合は、直後の取引日の終値で集計します',
-    strategyText: '業績・テーマ・地合いの読みが出やすい本格リーグです。',
+    strategyText: '本格リーグ。業績・テーマ・地合いの読みが出やすい期間です。',
     ruleText: '締切日の終値と、締切3か月後の終値を比較し、ポジション加重リターンで順位を決定します。',
   },
 ];
 
 function findValueByLabel(root: ParentNode, label: string) {
-  return Array.from(root.querySelectorAll('div')).find((node) => node.querySelector('span')?.textContent?.trim() === label)?.querySelector('strong');
+  return Array.from(root.querySelectorAll('div')).find((node) => node.querySelector('span')?.textContent?.trim() === label)?.querySelector('strong') as HTMLElement | null;
 }
 
 function updateExistingTournamentCopy(rule: MatchRule) {
@@ -67,8 +63,13 @@ function updateExistingTournamentCopy(rule: MatchRule) {
   if (matchStrip) {
     const durationValue = findValueByLabel(matchStrip, '試合期間');
     const deadlineValue = findValueByLabel(matchStrip, '締切');
-    if (durationValue) durationValue.textContent = rule.durationText;
+    const judgeValue = findValueByLabel(matchStrip, '判定方式');
+    if (durationValue) {
+      durationValue.textContent = rule.durationText;
+      durationValue.dataset.matchDuration = rule.durationText;
+    }
     if (deadlineValue) deadlineValue.textContent = '運営設定の締切日時';
+    if (judgeValue) judgeValue.textContent = 'ポジション加重リターン';
   }
 
   const sideSummary = Array.from(document.querySelectorAll('.summary-block')).find((block) => block.querySelector('.label')?.textContent?.trim() === '試合名');
@@ -79,29 +80,15 @@ function updateExistingTournamentCopy(rule: MatchRule) {
   if (ruleBoxText) ruleBoxText.textContent = rule.ruleText;
 }
 
-function renderRulePanel(container: HTMLElement, current: MatchRule, onSelect: (rule: MatchRule) => void) {
+function renderCompactSelector(container: HTMLElement, current: MatchRule, onSelect: (rule: MatchRule) => void) {
   container.innerHTML = `
-    <div class="match-rule-header">
-      <div>
-        <p class="match-rule-kicker">MATCH TYPE</p>
-        <h3>大会タイプ</h3>
-      </div>
-      <span class="match-rule-badge">${current.badge}</span>
-    </div>
-    <div class="match-type-buttons">
-      ${MATCH_RULES.map((rule) => `
-        <button type="button" class="match-type-button ${rule.id === current.id ? 'selected' : ''}" data-match-type="${rule.id}">
-          <strong>${rule.label}</strong>
-          <small>${rule.shortLabel}</small>
-        </button>
-      `).join('')}
-    </div>
-    <div class="match-rule-grid">
-      <div><span>基準価格</span><strong>${current.deadlineText}</strong><small>${current.basePriceText}</small></div>
-      <div><span>集計価格</span><strong>${current.durationText}</strong><small>${current.resultText}</small></div>
-      <div><span>勝敗判定</span><strong>ポジション加重リターン</strong><small>${current.ruleText}</small></div>
-    </div>
-    <p class="match-rule-note">${current.strategyText}</p>
+    <span>大会タイプ</span>
+    ${MATCH_RULES.map((rule) => `
+      <button type="button" class="match-type-chip ${rule.id === current.id ? 'selected' : ''}" data-match-type="${rule.id}" title="${rule.label}：${rule.strategyText}">
+        <strong>${rule.compactLabel}</strong><small>${rule.shortLabel}</small>
+      </button>
+    `).join('')}
+    <em>${current.deadlineText}。${current.resultText}。</em>
   `;
 
   container.querySelectorAll<HTMLButtonElement>('[data-match-type]').forEach((button) => {
@@ -114,24 +101,32 @@ function renderRulePanel(container: HTMLElement, current: MatchRule, onSelect: (
 
 function getInitialRule(): MatchRule {
   const pageText = document.body.textContent ?? '';
+  if (pageText.includes('3か月') || pageText.includes('3ヶ月')) return MATCH_RULES[2];
+  if (pageText.includes('1か月') || pageText.includes('1ヶ月')) return MATCH_RULES[1];
   if (pageText.includes('1週間')) return MATCH_RULES[0];
-  if (pageText.includes('1か月')) return MATCH_RULES[1];
   return MATCH_RULES[2];
 }
 
 function mountMatchDurationRules() {
-  const matchStrip = document.querySelector('.match-strip');
-  if (!matchStrip || document.querySelector('.match-duration-rules-card')) return false;
+  const matchStrip = document.querySelector('.match-strip') as HTMLElement | null;
+  if (!matchStrip) return false;
+
+  document.querySelector('.match-duration-rules-card')?.remove();
+  matchStrip.classList.add('match-strip-duration-enabled');
 
   let current = getInitialRule();
-  const panel = document.createElement('section');
-  panel.className = 'card match-duration-rules-card';
-  matchStrip.insertAdjacentElement('afterend', panel);
+  let selector = matchStrip.querySelector<HTMLElement>('.match-type-inline');
+  if (!selector) {
+    selector = document.createElement('div');
+    selector.className = 'match-type-inline';
+    selector.setAttribute('aria-label', '大会タイプ選択');
+    matchStrip.appendChild(selector);
+  }
 
   const apply = (rule: MatchRule) => {
     current = rule;
     updateExistingTournamentCopy(current);
-    renderRulePanel(panel, current, apply);
+    renderCompactSelector(selector, current, apply);
   };
 
   apply(current);
