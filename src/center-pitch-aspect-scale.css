@@ -7,7 +7,7 @@
   }
 
   .dashboard-grid {
-    grid-template-columns: 165px minmax(680px, 1fr) 270px;
+    grid-template-columns: 165px minmax(700px, 1fr) 270px;
     gap: 14px;
   }
 
@@ -20,17 +20,18 @@
   }
 
   .pitch-stage {
-    aspect-ratio: 10 / 7;
-    min-height: auto;
+    /* Preserve the original tall pitch feeling while scaling both axes together. */
+    aspect-ratio: 4 / 5;
+    min-height: 880px;
     height: auto;
-    padding: 14px 16px;
+    padding: 22px 18px 26px;
   }
 
   .pitch-players {
-    min-height: 0;
-    height: 100%;
-    grid-template-rows: 1fr 1fr 1.1fr .86fr;
-    gap: clamp(10px, 1.15vw, 18px);
+    min-height: 100%;
+    height: auto;
+    grid-template-rows: 1fr 1fr 1.2fr .92fr;
+    gap: clamp(34px, 3vw, 54px);
   }
 }
 
@@ -44,7 +45,8 @@
   }
 
   .pitch-stage {
-    aspect-ratio: 10 / 7;
+    aspect-ratio: 4 / 5;
+    min-height: 940px;
   }
 }
 
@@ -55,5 +57,9 @@
 
   .dashboard-grid {
     grid-template-columns: 165px minmax(820px, 1fr) 270px;
+  }
+
+  .pitch-stage {
+    min-height: 980px;
   }
 }
