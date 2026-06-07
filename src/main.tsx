@@ -25,6 +25,7 @@ import './lower-layout-fixes.css';
 import './team-name-suffix-preview.css';
 import './match-duration-rules.css';
 import './contest-list-page.css';
+import './center-pitch-aspect-scale.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

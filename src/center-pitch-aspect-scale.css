@@ -1,0 +1,59 @@
+/* Keep the central pitch proportional while giving it more room on desktop.
+   Scope: large dashboard pitch only. Do not affect the mini formation pitch. */
+
+@media (min-width: 1321px) {
+  .main {
+    width: min(100%, 1360px);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 165px minmax(680px, 1fr) 270px;
+    gap: 14px;
+  }
+
+  .center-panel {
+    min-width: 0;
+  }
+
+  .pitch-card {
+    padding: 10px;
+  }
+
+  .pitch-stage {
+    aspect-ratio: 10 / 7;
+    min-height: auto;
+    height: auto;
+    padding: 14px 16px;
+  }
+
+  .pitch-players {
+    min-height: 0;
+    height: 100%;
+    grid-template-rows: 1fr 1fr 1.1fr .86fr;
+    gap: clamp(10px, 1.15vw, 18px);
+  }
+}
+
+@media (min-width: 1600px) {
+  .main {
+    width: min(100%, 1460px);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 165px minmax(760px, 1fr) 270px;
+  }
+
+  .pitch-stage {
+    aspect-ratio: 10 / 7;
+  }
+}
+
+@media (min-width: 1760px) {
+  .main {
+    width: min(100%, 1520px);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 165px minmax(820px, 1fr) 270px;
+  }
+}
