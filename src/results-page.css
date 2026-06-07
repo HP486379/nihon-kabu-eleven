@@ -64,6 +64,10 @@
   padding: 20px;
 }
 
+.results-champion-card.results-champion-empty {
+  background: linear-gradient(135deg, #27415f, #385f8e 55%, #5e8ed3);
+}
+
 .results-cup {
   align-items: center;
   background: rgba(255, 255, 255, 0.13);
@@ -282,6 +286,43 @@
 .negative {
   color: #d33b3b;
   font-weight: 900;
+}
+
+.results-loading-state,
+.results-empty-state,
+.results-error-state {
+  align-items: center;
+  color: #607490;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-height: 86px;
+  text-align: center;
+}
+
+.results-empty-podium {
+  background: #ffffff;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  grid-column: 1 / -1;
+  padding: 20px;
+}
+
+.results-empty-state strong,
+.results-error-state strong {
+  color: #0b2a55;
+  font-size: 15px;
+}
+
+.results-error-state strong {
+  color: #d33b3b;
+}
+
+.results-error-state span {
+  color: #8a4b4b;
+  font-weight: 700;
+  max-width: 680px;
 }
 
 .results-note {
