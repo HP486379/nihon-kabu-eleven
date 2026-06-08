@@ -47,6 +47,12 @@ export type ParticipantItem = {
 };
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeContestId(value: unknown) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return UUID_PATTERN.test(text) ? text : DEV_CONTEST_ID;
+}
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -105,9 +111,9 @@ async function parseApiResponse(response: Response): Promise<ParticipantsApiResu
   return result;
 }
 
-export async function fetchParticipants(contestId = DEV_CONTEST_ID): Promise<ParticipantItem[]> {
+export async function fetchParticipants(contestId: unknown = DEV_CONTEST_ID): Promise<ParticipantItem[]> {
   const url = new URL(`${API_BASE}/api/entries`);
-  url.searchParams.set('contestId', contestId);
+  url.searchParams.set('contestId', normalizeContestId(contestId));
 
   const response = await fetch(url.toString());
   const result = await parseApiResponse(response);
