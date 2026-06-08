@@ -1,4 +1,4 @@
-import { DEV_CONTEST_ID, buildEntryPayload, submitEntry } from './lib/entryApi';
+import { DEV_CONTEST_ID, buildEntryPayload, cancelEntry, submitEntry } from './lib/entryApi';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -108,16 +108,42 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
+function isCancelAction(label: string) {
+  return label.includes('取り消') || label.includes('解除');
+}
+
 function isEntryAction(label: string) {
-  return label.includes('チームを確定') || label.includes('エントリー');
+  return !isCancelAction(label) && (label.includes('チームを確定') || label.includes('エントリー'));
 }
 
 function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
 }
 
+async function handleCancelClick(button: HTMLButtonElement) {
+  if (isSubmitting) return;
+
+  try {
+    isSubmitting = true;
+    setStatus(button, 'エントリー取消をAPIに送信しています。', 'saving');
+    await cancelEntry(DEV_CONTEST_ID);
+    setStatus(button, 'エントリーを取り消しました。参加チーム一覧から外れます。', 'saved');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setStatus(button, `エントリー取消に失敗しました：${message}`, 'error');
+  } finally {
+    isSubmitting = false;
+  }
+}
+
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
+
+  if (isCancelAction(label)) {
+    void handleCancelClick(button);
+    return;
+  }
+
   if (!isEntryAction(label)) return;
 
   event.preventDefault();
