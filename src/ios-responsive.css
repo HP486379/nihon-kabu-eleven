@@ -1,0 +1,325 @@
+/* iOS / mobile WebView responsive foundation
+   Keep the pitch internals intact; only adapt the surrounding layout. */
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  .sidebar {
+    border-bottom: 1px solid #e6edf6;
+    border-right: 0;
+    gap: 12px;
+    padding: 12px 12px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .brand-block {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    border-radius: 12px;
+    height: 42px;
+    width: 42px;
+  }
+
+  .brand-logo span { left: 11px; height: 12px; width: 4px; }
+  .brand-logo i { left: 19px; height: 18px; width: 4px; }
+  .brand-logo b { left: 27px; height: 23px; width: 4px; }
+  .brand-logo::before { font-size: 6px; left: 6px; top: 6px; }
+
+  .brand-text {
+    font-size: 16px;
+    letter-spacing: -0.03em;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-nav a {
+    border: 1px solid #e6edf6;
+    flex: 0 0 auto;
+    font-size: 12px;
+    gap: 6px;
+    padding: 9px 11px;
+    white-space: nowrap;
+  }
+
+  .sidebar-nav a.active {
+    border-color: #1462d5;
+  }
+
+  .sidebar-nav a span {
+    width: auto;
+  }
+
+  .help-link {
+    display: none;
+  }
+
+  .main {
+    gap: 12px;
+    padding: 12px;
+    width: 100%;
+  }
+
+  .page-header {
+    border-radius: 16px;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .header-main h1 {
+    font-size: clamp(28px, 9vw, 40px);
+    line-height: 1.08;
+  }
+
+  .header-subline {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .header-subline span,
+  .team-chip {
+    font-size: 12px;
+  }
+
+  .header-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .metric-card {
+    padding: 12px;
+  }
+
+  .metric-card:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metric-card:nth-child(1),
+  .metric-card:nth-child(2) {
+    border-bottom: 1px solid #e6edf6;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .left-panel,
+  .right-panel {
+    gap: 12px;
+  }
+
+  .side-card,
+  .chart-card,
+  .ranking-card,
+  .editor-card,
+  .stock-list-card,
+  .pitch-card {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .pitch-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pitch-stage {
+    min-height: 620px;
+    min-width: 720px;
+    padding: 14px;
+  }
+
+  .pitch-players {
+    min-height: 590px;
+    gap: 18px;
+  }
+
+  .player-card {
+    width: 118px;
+    min-height: 148px;
+    padding: 9px 8px 10px;
+  }
+
+  .player-card strong {
+    font-size: 12px;
+  }
+
+  .player-card small {
+    font-size: 11px;
+  }
+
+  .player-change {
+    font-size: 15px;
+    margin-top: 8px;
+  }
+
+  .sparkline {
+    display: none;
+  }
+
+  .pitch-legend {
+    min-width: 720px;
+  }
+
+  .editor-grid,
+  .stock-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-row,
+  .position-buttons,
+  .tabs-row,
+  .mini-scores {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-row button,
+  .position-buttons button,
+  .tab,
+  .mini-scores span {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .contest-list-page,
+  .formation-page,
+  .participants-page,
+  .results-page {
+    border-radius: 16px;
+    margin: 12px 0 18px;
+    padding: 16px;
+  }
+
+  .contest-list-hero,
+  .formation-page-hero,
+  .participants-page-hero,
+  .results-page-hero {
+    align-items: stretch;
+    display: grid;
+    gap: 12px;
+  }
+
+  .contest-list-back,
+  .formation-page-back,
+  .participants-page-back,
+  .results-page-back,
+  .results-calculate-button,
+  .results-calculate-disabled {
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+  }
+
+  .contest-list-grid,
+  .formation-page-grid,
+  .participants-summary-grid,
+  .results-summary-grid,
+  .results-podium {
+    grid-template-columns: 1fr;
+  }
+
+  .participants-toolbar,
+  .results-toolbar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .participants-toolbar span,
+  .results-toolbar span,
+  .participants-toolbar strong,
+  .results-toolbar strong {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .participants-table-wrap,
+  .results-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .participants-table,
+  .results-table {
+    min-width: 760px;
+  }
+
+  .chart-box {
+    height: 220px;
+  }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding: 10px;
+  }
+
+  .page-header {
+    padding: 15px;
+  }
+
+  .header-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .metric-card span {
+    font-size: 11px;
+  }
+
+  .metric-card strong {
+    font-size: 15px;
+  }
+
+  .pitch-stage {
+    min-width: 660px;
+  }
+
+  .pitch-legend {
+    min-width: 660px;
+  }
+
+  .player-card {
+    width: 108px;
+  }
+
+  .contest-list-page,
+  .formation-page,
+  .participants-page,
+  .results-page {
+    padding: 14px;
+  }
+
+  .contest-list-card,
+  .formation-page-card {
+    padding: 13px;
+  }
+}
