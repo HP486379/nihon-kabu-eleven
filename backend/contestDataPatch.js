@@ -33,10 +33,10 @@ function dateLabel(value) {
 function inferContestType(contest) {
   const text = `${contest?.name || ''}`.toLowerCase();
 
-  if (/(デイリー|デイリーカップ|一日|1\s*日|1\s*day|daily|1d)/.test(text)) {
+  if (/(デイリー|デイリーカップ|デイリーマッチ|一日|1\s*日|1\s*day|daily|1d)/.test(text)) {
     return {
       contestType: 'daily',
-      contestTypeLabel: 'デイリーカップ',
+      contestTypeLabel: 'デイリーマッチ',
       durationDays: 1,
       durationSource: 'name',
     };
@@ -75,7 +75,7 @@ function inferContestType(contest) {
 
   return {
     contestType: fallbackDays <= 1 ? 'daily' : fallbackDays >= 90 ? 'three_month' : fallbackDays >= 30 ? 'one_month' : 'one_week',
-    contestTypeLabel: fallbackDays <= 1 ? 'デイリーカップ' : fallbackDays >= 90 ? '3か月マッチ' : fallbackDays >= 30 ? '1か月マッチ' : '1週間マッチ',
+    contestTypeLabel: fallbackDays <= 1 ? 'デイリーマッチ' : fallbackDays >= 90 ? '3か月マッチ' : fallbackDays >= 30 ? '1か月マッチ' : '1週間マッチ',
     durationDays: fallbackDays,
     durationSource: 'default',
   };
