@@ -28,7 +28,6 @@ const FORMATION_CONFIGS: Record<string, FormationConfig> = {
 
 let isInitialized = false;
 let isSubmitting = false;
-let allowReactLockOnce = false;
 
 function getText(selector: string) {
   return document.querySelector<HTMLElement>(selector)?.textContent?.trim() || '';
@@ -109,48 +108,17 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
-function isCancelAction(label: string) {
-  return label.includes('取り消') || label.includes('解除');
+function isEntryAction(label: string) {
+  return label.includes('チームを確定') || label.includes('エントリー');
 }
 
 function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
 }
 
-async function handleCancelClick(button: HTMLButtonElement) {
-  if (isSubmitting) return;
-
-  const originalText = button.textContent || '編成を解除する';
-
-  isSubmitting = true;
-  button.disabled = true;
-  button.textContent = '編成解除中...';
-  setStatus(button, '保存済みチームは残したまま、編成画面に戻します。', 'saving');
-
-  allowReactLockOnce = true;
-  button.disabled = false;
-  button.textContent = originalText;
-  button.click();
-
-  setStatus(button, '保存済みチームは参加チーム一覧に残っています。続けて別チームを作成できます。', 'saved');
-  isSubmitting = false;
-}
-
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
-  if (allowReactLockOnce) {
-    allowReactLockOnce = false;
-    return;
-  }
-
   const label = button.textContent?.trim() || '';
-  if (isCancelAction(label)) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    await handleCancelClick(button);
-    return;
-  }
-
-  if (!label.includes('チームを確定') && !label.includes('エントリー')) return;
+  if (!isEntryAction(label)) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -187,15 +155,13 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
 
     await submitEntry(payload);
 
-    setStatus(button, 'エントリー完了。大会に保存しました。', 'saved');
-    allowReactLockOnce = true;
+    setStatus(button, 'エントリー完了。保存済みチームは参加チーム一覧に残ります。続けて別チームも保存できます。', 'saved');
     button.disabled = false;
     button.textContent = originalText;
-    button.click();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isAlreadyEnteredError(message)) {
-      setStatus(button, 'この大会には既にエントリー済みです。APIとSupabaseの重複チェックは正常に動いています。', 'warning');
+      setStatus(button, 'この大会には既にエントリー済みです。', 'warning');
     } else {
       setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
     }
