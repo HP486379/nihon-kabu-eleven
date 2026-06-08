@@ -2,10 +2,19 @@ import express from 'express';
 import fetch from 'node-fetch';
 import { requireSupabaseAdmin } from './supabaseAdmin.js';
 
+const DEV_CONTEST_ID = String(process.env.DEV_CONTEST_ID || '5345b8eb-e9ec-4b4b-9549-35b3c4135003').trim();
 const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 const nowIso = () => new Date().toISOString();
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || ''));
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+const optionalContestId = (value) => {
+  const text = String(value || '').trim();
+  return isUuid(text) ? text : '';
+};
+const requiredContestId = (value) => {
+  const text = String(value || '').trim();
+  return isUuid(text) ? text : DEV_CONTEST_ID;
+};
 const symbolOf = (value) => {
   const upper = String(value || '').trim().toUpperCase();
   if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
@@ -341,10 +350,10 @@ async function calculateEntryResult(entry, members, contest, resultDate) {
 
 async function calculateContestResults(contestId, resultDateInput) {
   const supabase = requireSupabaseAdmin();
-  if (!isUuid(contestId)) throw httpError(400, 'contestId must be a valid UUID');
+  const safeContestId = requiredContestId(contestId);
 
-  const contest = await loadContest(supabase, contestId);
-  const entries = await loadEntriesForCalculation(supabase, contestId);
+  const contest = await loadContest(supabase, safeContestId);
+  const entries = await loadEntriesForCalculation(supabase, safeContestId);
   if (!entries.length) throw httpError(404, 'No active entries were found for this contest');
 
   const resultDate = resultDateInput || nowIso();
@@ -357,7 +366,7 @@ async function calculateContestResults(contestId, resultDateInput) {
   const { error: deleteError } = await supabase
     .from('entry_results')
     .delete()
-    .eq('contest_id', contestId)
+    .eq('contest_id', safeContestId)
     .in('entry_id', ranked.map((item) => item.entryId));
 
   if (deleteError) throw httpError(500, 'Failed to clear previous entry results', deleteError.message);
@@ -451,15 +460,8 @@ express.application.listen = function patchedListen(...args) {
     this.__entryRoutesReady = true;
 
     this.get('/api/entries', async (req, res) => {
-      const contestId = String(req.query?.contestId || req.query?.contest_id || '').trim();
-
-      if (contestId && !isUuid(contestId)) {
-        return res.status(400).json({
-          ok: false,
-          error: 'contestId must be a valid UUID',
-          tsServer: nowIso(),
-        });
-      }
+      const rawContestId = req.query?.contestId || req.query?.contest_id || '';
+      const contestId = optionalContestId(rawContestId);
 
       try {
         const entries = await listEntries(contestId);
@@ -468,6 +470,7 @@ express.application.listen = function patchedListen(...args) {
           entries,
           participants: entries,
           count: entries.length,
+          contestId: contestId || null,
           tsServer: nowIso(),
         });
       } catch (err) {
@@ -481,7 +484,8 @@ express.application.listen = function patchedListen(...args) {
     });
 
     this.post('/api/results/calculate', async (req, res) => {
-      const contestId = String(req.body?.contestId || req.body?.contest_id || req.query?.contestId || req.query?.contest_id || '').trim();
+      const rawContestId = req.body?.contestId || req.body?.contest_id || req.query?.contestId || req.query?.contest_id || '';
+      const contestId = requiredContestId(rawContestId);
       const resultDate = String(req.body?.resultDate || req.body?.result_date || req.query?.resultDate || req.query?.result_date || '').trim() || null;
 
       try {
