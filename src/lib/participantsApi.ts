@@ -57,6 +57,7 @@ export type CancelParticipantEntryResult = {
 };
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -72,6 +73,15 @@ function firstText(...values: unknown[]) {
   return typeof found === 'string' ? found.trim() : '';
 }
 
+function validUuid(value: unknown) {
+  const text = firstText(value);
+  return UUID_PATTERN.test(text) ? text : '';
+}
+
+function getEntryId(entry: ParticipantApiEntry) {
+  return validUuid(entry.entryId) || validUuid(entry.entry_id) || validUuid(entry.id);
+}
+
 function normalizeEntries(result: ParticipantsApiResult): ParticipantApiEntry[] {
   if (Array.isArray(result.entries)) return result.entries;
   if (Array.isArray(result.participants)) return result.participants;
@@ -83,7 +93,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
 
   return {
-    id: firstText(entry.id, entry.entryId, entry.entry_id),
+    id: getEntryId(entry),
     rank: typeof entry.rank === 'number' && Number.isFinite(entry.rank) ? entry.rank : index + 1,
     team: firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`,
     owner: firstText(entry.owner, entry.userName, entry.user_name) || '参加チーム',
@@ -125,6 +135,10 @@ export async function fetchParticipants(): Promise<ParticipantItem[]> {
 }
 
 export async function cancelParticipantEntry(entryId: string): Promise<CancelParticipantEntryResult> {
+  if (!UUID_PATTERN.test(entryId)) {
+    throw new Error(`entryId が不正です: ${entryId || '(empty)'}`);
+  }
+
   const response = await fetch(`${API_BASE}/api/entries/${encodeURIComponent(entryId)}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
