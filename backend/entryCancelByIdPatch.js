@@ -2,10 +2,15 @@ import express from 'express';
 import { requireSupabaseAdmin } from './supabaseAdmin.js';
 
 const nowIso = () => new Date().toISOString();
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 
 function isUuid(value) {
   return UUID_PATTERN.test(String(value || ''));
+}
+
+function text(value) {
+  return String(value || '').trim();
 }
 
 function httpError(status, message, details = null) {
@@ -15,26 +20,57 @@ function httpError(status, message, details = null) {
   return error;
 }
 
-async function cancelEntryById(entryId) {
-  const supabase = requireSupabaseAdmin();
-  const safeEntryId = String(entryId || '').trim();
+async function loadEntryByTarget(supabase, target) {
+  const entryId = text(target?.entryId || target?.entry_id || target?.id);
 
-  if (!isUuid(safeEntryId)) {
-    throw httpError(400, 'entryId must be a valid UUID');
+  if (isUuid(entryId)) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id,status,contest_id,user_id,team_name,formation,created_at,locked_at,updated_at')
+      .eq('id', entryId)
+      .maybeSingle();
+
+    if (error) throw httpError(500, 'Failed to load entry', error.message);
+    if (!data) throw httpError(404, 'Entry was not found', { entryId });
+    return data;
   }
 
-  const { data: existingEntry, error: findError } = await supabase
+  const teamName = text(target?.teamName || target?.team_name);
+  const formation = text(target?.formation);
+  const createdAt = text(target?.createdAt || target?.created_at);
+
+  if (!teamName || !createdAt) {
+    throw httpError(400, 'entryId or teamName + createdAt is required', { entryId, teamName, formation, createdAt });
+  }
+
+  let query = supabase
     .from('entries')
     .select('id,status,contest_id,user_id,team_name,formation,created_at,locked_at,updated_at')
-    .eq('id', safeEntryId)
-    .maybeSingle();
+    .eq('team_name', teamName)
+    .eq('created_at', createdAt)
+    .in('status', ACTIVE_ENTRY_STATUSES)
+    .order('created_at', { ascending: false })
+    .limit(2);
 
-  if (findError) {
-    throw httpError(500, 'Failed to load entry', findError.message);
-  }
+  if (formation) query = query.eq('formation', formation);
 
-  if (!existingEntry) {
-    throw httpError(404, 'Entry was not found');
+  const { data, error } = await query;
+  if (error) throw httpError(500, 'Failed to load entry by fallback target', error.message);
+
+  const rows = data || [];
+  if (!rows.length) throw httpError(404, 'Entry was not found by fallback target', { teamName, formation, createdAt });
+  if (rows.length > 1) throw httpError(409, 'Entry target is ambiguous', { teamName, formation, createdAt, count: rows.length });
+
+  return rows[0];
+}
+
+async function cancelEntryTarget(target) {
+  const supabase = requireSupabaseAdmin();
+  const existingEntry = await loadEntryByTarget(supabase, target);
+  const safeEntryId = existingEntry.id;
+
+  if (!isUuid(safeEntryId)) {
+    throw httpError(500, 'Loaded entry id is not a valid UUID', { entryId: safeEntryId });
   }
 
   if (existingEntry.status === 'cancelled') {
@@ -67,30 +103,50 @@ async function cancelEntryById(entryId) {
   return cancelledEntry;
 }
 
+function sendError(res, err) {
+  return res.status(err.status || 500).json({
+    ok: false,
+    error: err.message,
+    details: err.details || null,
+    tsServer: nowIso(),
+  });
+}
+
 const originalListen = express.application.listen;
 
 express.application.listen = function entryCancelByIdListenPatch(...args) {
   if (!this.__entryCancelByIdRoutesReady) {
     this.__entryCancelByIdRoutesReady = true;
 
-    this.post('/api/entries/:entryId/cancel', async (req, res) => {
-      const entryId = req.params?.entryId || req.body?.entryId || req.body?.entry_id || '';
-
+    this.post('/api/entries/cancel-selected', async (req, res) => {
       try {
-        const entry = await cancelEntryById(entryId);
+        const entry = await cancelEntryTarget(req.body || {});
         return res.json({
           ok: true,
           status: 'cancelled',
           entry,
+          entryId: entry.id,
+          entry_id: entry.id,
           tsServer: nowIso(),
         });
       } catch (err) {
-        return res.status(err.status || 500).json({
-          ok: false,
-          error: err.message,
-          details: err.details || null,
+        return sendError(res, err);
+      }
+    });
+
+    this.post('/api/entries/:entryId/cancel', async (req, res) => {
+      try {
+        const entry = await cancelEntryTarget({ ...req.body, entryId: req.params?.entryId });
+        return res.json({
+          ok: true,
+          status: 'cancelled',
+          entry,
+          entryId: entry.id,
+          entry_id: entry.id,
           tsServer: nowIso(),
         });
+      } catch (err) {
+        return sendError(res, err);
       }
     });
   }

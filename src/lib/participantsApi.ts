@@ -45,15 +45,25 @@ export type ParticipantItem = {
   returnPct: number | null;
   status: string;
   style: string;
+  createdAt: string;
+};
+
+export type CancelParticipantEntryTarget = {
+  entryId?: string;
+  teamName: string;
+  formation: string;
+  createdAt: string;
 };
 
 export type CancelParticipantEntryResult = {
   ok?: boolean;
   status?: string;
   entry?: unknown;
+  entryId?: string;
+  entry_id?: string;
   message?: string;
   error?: string;
-  details?: string | null;
+  details?: string | Record<string, unknown> | null;
 };
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
@@ -102,6 +112,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
     returnPct,
     status: firstText(entry.status) || '確定済み',
     style: firstText(entry.style) || '実データ',
+    createdAt: firstText(entry.createdAt, entry.created_at),
   };
 }
 
@@ -116,11 +127,21 @@ function sortParticipants(participants: ParticipantItem[]): ParticipantItem[] {
   return sorted.map((participant, index) => ({ ...participant, rank: index + 1 }));
 }
 
-async function parseApiResponse<T extends { ok?: boolean; message?: string; error?: string; details?: string | null }>(response: Response, fallbackLabel: string): Promise<T> {
+function stringifyDetails(details: unknown) {
+  if (!details) return '';
+  if (typeof details === 'string') return details;
+  try {
+    return JSON.stringify(details);
+  } catch (_error) {
+    return String(details);
+  }
+}
+
+async function parseApiResponse<T extends { ok?: boolean; message?: string; error?: string; details?: unknown }>(response: Response, fallbackLabel: string): Promise<T> {
   const result = await response.json().catch(() => ({})) as T;
 
   if (!response.ok || result.ok === false) {
-    const detailText = typeof result.details === 'string' ? result.details : '';
+    const detailText = stringifyDetails(result.details);
     const baseMessage = result.message || result.error || `${fallbackLabel} ${response.status}`;
     throw new Error(detailText ? `${baseMessage}: ${detailText}` : baseMessage);
   }
@@ -134,14 +155,11 @@ export async function fetchParticipants(): Promise<ParticipantItem[]> {
   return sortParticipants(normalizeEntries(result).map(normalizeParticipant));
 }
 
-export async function cancelParticipantEntry(entryId: string): Promise<CancelParticipantEntryResult> {
-  if (!UUID_PATTERN.test(entryId)) {
-    throw new Error(`entryId が不正です: ${entryId || '(empty)'}`);
-  }
-
-  const response = await fetch(`${API_BASE}/api/entries/${encodeURIComponent(entryId)}/cancel`, {
+export async function cancelParticipantEntry(target: CancelParticipantEntryTarget): Promise<CancelParticipantEntryResult> {
+  const response = await fetch(`${API_BASE}/api/entries/cancel-selected`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(target),
   });
 
   return parseApiResponse<CancelParticipantEntryResult>(response, 'entry cancel api');
