@@ -13,6 +13,18 @@ type ContestItem = {
 
 const CONTESTS: ContestItem[] = [
   {
+    id: 'daily',
+    title: '日本株代表カップ デイリーカップ',
+    type: 'デイリーカップ',
+    badge: '即日決戦',
+    status: '準備中',
+    entryDeadline: '運営設定の締切日時',
+    resultDate: '翌営業日の終値で集計',
+    rule: '締切日の終値を基準価格、翌営業日の終値を集計価格として、ポジション加重リターンで順位を決定します。',
+    description: '今日の布陣がすぐ勝負になる、お祭り枠の超短期大会です。',
+    recommended: 'まず試してみたい人・毎日参加したい人向け',
+  },
+  {
     id: 'weekly',
     title: '日本株代表カップ 1週間マッチ',
     type: '1週間マッチ',
@@ -22,7 +34,7 @@ const CONTESTS: ContestItem[] = [
     resultDate: '締切1週間後の終値で集計',
     rule: '締切日の終値を基準価格、締切1週間後の終値を集計価格として、ポジション加重リターンで順位を決定します。',
     description: '決算、材料、テーマ株が動きやすいライト参加向けの短期大会です。',
-    recommended: 'すぐ結果を見たい人向け',
+    recommended: '短期で結果を見たい人向け',
   },
   {
     id: 'monthly',
@@ -65,7 +77,7 @@ function createContestListPage() {
       <div>
         <p class="contest-list-kicker">MATCH MODE</p>
         <h2>大会一覧</h2>
-        <p>1週間・1か月・3か月の大会から、自分のチームに合う勝負を選びます。</p>
+        <p>デイリー・1週間・1か月・3か月の大会から、自分のチームに合う勝負を選びます。</p>
       </div>
       <button type="button" class="contest-list-back">ダッシュボードへ戻る</button>
     </div>
@@ -90,7 +102,7 @@ function createContestListPage() {
     </div>
     <div class="contest-list-note">
       <strong>共通ルール</strong>
-      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。</span>
+      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。デイリーカップは翌営業日の終値で集計します。</span>
     </div>
   `;
   return section;
@@ -118,7 +130,7 @@ function applyContestHeader() {
   if (title) title.textContent = '試合モード / 大会一覧';
   if (subline) {
     subline.innerHTML = `
-      <span>🏆 1週間・1か月・3か月マッチ</span>
+      <span>🏆 デイリー・1週間・1か月・3か月マッチ</span>
       <span>📅 締切後の終値で集計</span>
       <span>📈 ポジション加重リターンで判定</span>
     `;
