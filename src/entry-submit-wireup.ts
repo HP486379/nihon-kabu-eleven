@@ -1,4 +1,4 @@
-import { DEV_CONTEST_ID, buildEntryPayload, submitEntry, cancelEntry } from './lib/entryApi';
+import { DEV_CONTEST_ID, buildEntryPayload, submitEntry } from './lib/entryApi';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -117,45 +117,23 @@ function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
 }
 
-function isNoActiveEntryError(message: string) {
-  return message.includes('Active entry was not found') || message.includes('not found');
-}
-
 async function handleCancelClick(button: HTMLButtonElement) {
   if (isSubmitting) return;
 
-  const originalText = button.textContent || 'エントリーを取り消す';
+  const originalText = button.textContent || '編成を解除する';
 
-  try {
-    isSubmitting = true;
-    button.disabled = true;
-    button.textContent = '取り消し中...';
-    setStatus(button, '保存済みエントリーを取り消しています。', 'saving');
+  isSubmitting = true;
+  button.disabled = true;
+  button.textContent = '編成解除中...';
+  setStatus(button, '保存済みチームは残したまま、編成画面に戻します。', 'saving');
 
-    await cancelEntry(DEV_CONTEST_ID);
+  allowReactLockOnce = true;
+  button.disabled = false;
+  button.textContent = originalText;
+  button.click();
 
-    setStatus(button, 'エントリーを取り消しました。再エントリーできます。', 'saved');
-    allowReactLockOnce = true;
-    button.disabled = false;
-    button.textContent = originalText;
-    button.click();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (isNoActiveEntryError(message)) {
-      setStatus(button, '取り消し対象のエントリーは見つかりませんでした。画面表示だけ解除します。', 'warning');
-      allowReactLockOnce = true;
-      button.disabled = false;
-      button.textContent = originalText;
-      button.click();
-      return;
-    }
-
-    setStatus(button, `エントリー取り消しに失敗しました：${message}`, 'error');
-    button.disabled = false;
-    button.textContent = originalText;
-  } finally {
-    isSubmitting = false;
-  }
+  setStatus(button, '保存済みチームは参加チーム一覧に残っています。続けて別チームを作成できます。', 'saved');
+  isSubmitting = false;
 }
 
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
