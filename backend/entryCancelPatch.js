@@ -7,7 +7,7 @@ const DEFAULT_CONTEST_DURATION_DAYS = Number(process.env.DEFAULT_CONTEST_DURATIO
 const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 const nowIso = () => new Date().toISOString();
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || ''));
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 const optionalContestId = (value) => {
   const text = String(value || '').trim();
   return isUuid(text) ? text : '';
@@ -63,6 +63,7 @@ function dateLabel(value) {
 function inferContestDurationDays(contest) {
   const text = `${contest?.name || ''}`.toLowerCase();
 
+  if (/デイリー|一日|1\s*(日|day)|1d|daily/.test(text)) return 1;
   if (/3\s*(か月|ヶ月|ヵ月|month|months)|3m/.test(text)) return 90;
   if (/1\s*(か月|ヶ月|ヵ月|month)|1m/.test(text)) return 30;
   if (/1\s*(週間|週|week)|1w/.test(text)) return 7;
@@ -105,7 +106,7 @@ function assertContestResultReady(contest, resultDateValue) {
       entryDeadline: dateLabel(contest?.entry_deadline),
       earliestResultDate: dateLabel(earliest),
       resultDate: dateLabel(resultDate),
-      rule: 'Use the contest deadline close as the base price, then calculate after the contest duration has elapsed. Existing contests without an explicit type use a 7-day minimum duration.',
+      rule: 'Use the contest deadline close as the base price, then calculate after the contest duration has elapsed. Daily cups use a 1-day duration. Existing contests without an explicit type use the default duration.',
     });
   }
 }
