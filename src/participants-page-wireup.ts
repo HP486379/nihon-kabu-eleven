@@ -1,4 +1,4 @@
-import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
+import { cancelParticipantEntry, fetchParticipants, type ParticipantItem } from './lib/participantsApi';
 
 const ROOT_ID = 'participants-page';
 const ACTIVE_CLASS = 'participants-page-mode';
@@ -47,7 +47,7 @@ function renderRows(participants: ParticipantItem[]) {
   if (participants.length === 0) {
     return `
       <tr>
-        <td colspan="6">
+        <td colspan="7">
           <div class="participants-empty-state">
             <strong>まだ参加チームがありません</strong>
             <span>チームを確定すると、この一覧にAPI経由で表示されます。</span>
@@ -59,8 +59,9 @@ function renderRows(participants: ParticipantItem[]) {
 
   return participants.map((team) => {
     const locked = isLockedStatus(team.status);
+    const disabled = team.id ? '' : 'disabled';
     return `
-      <tr>
+      <tr data-entry-id="${escapeHtml(team.id)}">
         <td><span class="participants-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
         <td>
           <strong>${escapeHtml(team.team)}</strong>
@@ -70,9 +71,17 @@ function renderRows(participants: ParticipantItem[]) {
         <td>${escapeHtml(team.matchType)}</td>
         <td><span class="participants-status ${locked ? 'locked' : 'editing'}">${escapeHtml(team.status)}</span></td>
         <td class="participants-return ${getReturnClass(team.returnPct)}">${formatReturn(team.returnPct)}</td>
+        <td><button type="button" class="participants-cancel-button" data-entry-id="${escapeHtml(team.id)}" ${disabled}>取消</button></td>
       </tr>
     `;
   }).join('');
+}
+
+function setParticipantsMessage(page: HTMLElement, message: string, type: 'idle' | 'success' | 'error') {
+  const messageBox = page.querySelector<HTMLElement>('[data-participants-message]');
+  if (!messageBox) return;
+  messageBox.textContent = message;
+  messageBox.dataset.messageType = type;
 }
 
 function renderParticipants(page: HTMLElement, participants: ParticipantItem[]) {
@@ -85,7 +94,7 @@ function renderParticipants(page: HTMLElement, participants: ParticipantItem[]) 
   if (body) body.innerHTML = renderRows(participants);
   if (toolbarStatus) toolbarStatus.textContent = 'API実データを表示中';
   if (note) {
-    note.innerHTML = '<strong>表示ルール</strong><span>API / Supabase に保存されたエントリーを取得し、ポジション加重リターン順に表示します。未集計のチームは「集計待ち」として表示します。</span>';
+    note.innerHTML = '<strong>表示ルール</strong><span>API / Supabase に保存されたエントリーを取得し、ポジション加重リターン順に表示します。未集計のチームは「集計待ち」として表示します。不要なテストチームは「取消」で一覧から外せます。</span>';
   }
 }
 
@@ -98,7 +107,7 @@ function renderParticipantsError(page: HTMLElement, message: string) {
   if (body) {
     body.innerHTML = `
       <tr>
-        <td colspan="6">
+        <td colspan="7">
           <div class="participants-error-state">
             <strong>参加チームの取得に失敗しました</strong>
             <span>${escapeHtml(message)}</span>
@@ -120,6 +129,43 @@ async function loadParticipants(page: HTMLElement) {
     const message = error instanceof Error ? error.message : String(error);
     renderParticipantsError(page, message);
   }
+}
+
+async function handleCancelEntry(page: HTMLElement, button: HTMLButtonElement) {
+  const entryId = button.dataset.entryId || '';
+  const row = button.closest('tr');
+  const teamName = row?.querySelector('td:nth-child(2) strong')?.textContent?.trim() || 'このチーム';
+
+  if (!entryId) {
+    setParticipantsMessage(page, 'entryId が取得できないため取消できません。', 'error');
+    return;
+  }
+
+  const ok = window.confirm(`${teamName} を参加チーム一覧から取り消しますか？`);
+  if (!ok) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = '取消中...';
+    setParticipantsMessage(page, `${teamName} を取消中です。`, 'idle');
+    await cancelParticipantEntry(entryId);
+    setParticipantsMessage(page, `${teamName} を取消しました。`, 'success');
+    await loadParticipants(page);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    button.disabled = false;
+    button.textContent = '取消';
+    setParticipantsMessage(page, `取消に失敗しました：${message}`, 'error');
+  }
+}
+
+function bindCancelButtons(page: HTMLElement) {
+  page.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.participants-cancel-button');
+    if (!button) return;
+    event.preventDefault();
+    void handleCancelEntry(page, button);
+  });
 }
 
 function createParticipantsPage() {
@@ -152,6 +198,8 @@ function createParticipantsPage() {
       <strong data-participants-source>APIから取得中...</strong>
     </div>
 
+    <div class="participants-message" data-participants-message data-message-type="idle"></div>
+
     <div class="participants-table-wrap">
       <table class="participants-table">
         <thead>
@@ -162,11 +210,12 @@ function createParticipantsPage() {
             <th>大会</th>
             <th>状態</th>
             <th>暫定リターン</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody data-participants-body>
           <tr>
-            <td colspan="6">
+            <td colspan="7">
               <div class="participants-loading-state">参加チームを読み込んでいます...</div>
             </td>
           </tr>
@@ -247,6 +296,7 @@ function showParticipantsPage() {
     main.appendChild(page);
   }
   page.querySelector('.participants-page-back')?.addEventListener('click', showDashboard);
+  bindCancelButtons(page);
 
   shell.classList.remove(CONTEST_ACTIVE_CLASS);
   shell.classList.remove(FORMATION_ACTIVE_CLASS);

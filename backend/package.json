@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --import ./contestDataPatch.js --import ./resultCalcGuard.js --import ./entryCancelPatch.js server.js"
+    "start": "node --import ./contestDataPatch.js --import ./resultCalcGuard.js --import ./entryCancelPatch.js --import ./entryCancelByIdPatch.js server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

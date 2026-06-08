@@ -1,6 +1,7 @@
 export type ParticipantApiEntry = {
   id?: string;
   entryId?: string;
+  entry_id?: string;
   rank?: number | null;
   teamName?: string | null;
   team_name?: string | null;
@@ -31,9 +32,11 @@ export type ParticipantsApiResult = {
   data?: ParticipantApiEntry[];
   message?: string;
   error?: string;
+  details?: string | null;
 };
 
 export type ParticipantItem = {
+  id: string;
   rank: number;
   team: string;
   owner: string;
@@ -42,6 +45,15 @@ export type ParticipantItem = {
   returnPct: number | null;
   status: string;
   style: string;
+};
+
+export type CancelParticipantEntryResult = {
+  ok?: boolean;
+  status?: string;
+  entry?: unknown;
+  message?: string;
+  error?: string;
+  details?: string | null;
 };
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
@@ -71,6 +83,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
 
   return {
+    id: firstText(entry.id, entry.entryId, entry.entry_id),
     rank: typeof entry.rank === 'number' && Number.isFinite(entry.rank) ? entry.rank : index + 1,
     team: firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`,
     owner: firstText(entry.owner, entry.userName, entry.user_name) || '参加チーム',
@@ -86,18 +99,20 @@ function sortParticipants(participants: ParticipantItem[]): ParticipantItem[] {
   const sorted = [...participants].sort((a, b) => {
     const aValue = a.returnPct ?? Number.NEGATIVE_INFINITY;
     const bValue = b.returnPct ?? Number.NEGATIVE_INFINITY;
-    return bValue - aValue;
+    if (aValue !== bValue) return bValue - aValue;
+    return b.rank - a.rank;
   });
 
   return sorted.map((participant, index) => ({ ...participant, rank: index + 1 }));
 }
 
-async function parseApiResponse(response: Response): Promise<ParticipantsApiResult> {
-  const result = await response.json().catch(() => ({})) as ParticipantsApiResult;
+async function parseApiResponse<T extends { ok?: boolean; message?: string; error?: string; details?: string | null }>(response: Response, fallbackLabel: string): Promise<T> {
+  const result = await response.json().catch(() => ({})) as T;
 
   if (!response.ok || result.ok === false) {
-    const message = result.message || result.error || `participants api ${response.status}`;
-    throw new Error(message);
+    const detailText = typeof result.details === 'string' ? result.details : '';
+    const baseMessage = result.message || result.error || `${fallbackLabel} ${response.status}`;
+    throw new Error(detailText ? `${baseMessage}: ${detailText}` : baseMessage);
   }
 
   return result;
@@ -105,6 +120,15 @@ async function parseApiResponse(response: Response): Promise<ParticipantsApiResu
 
 export async function fetchParticipants(): Promise<ParticipantItem[]> {
   const response = await fetch(`${API_BASE}/api/entries`);
-  const result = await parseApiResponse(response);
+  const result = await parseApiResponse<ParticipantsApiResult>(response, 'participants api');
   return sortParticipants(normalizeEntries(result).map(normalizeParticipant));
+}
+
+export async function cancelParticipantEntry(entryId: string): Promise<CancelParticipantEntryResult> {
+  const response = await fetch(`${API_BASE}/api/entries/${encodeURIComponent(entryId)}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  return parseApiResponse<CancelParticipantEntryResult>(response, 'entry cancel api');
 }
