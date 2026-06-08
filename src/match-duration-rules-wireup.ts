@@ -1,4 +1,4 @@
-type MatchType = 'weekly' | 'monthly' | 'quarterly';
+type MatchType = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 
 type MatchRule = {
   id: MatchType;
@@ -13,6 +13,17 @@ type MatchRule = {
 };
 
 const MATCH_RULES: MatchRule[] = [
+  {
+    id: 'daily',
+    label: 'デイリーマッチ',
+    shortLabel: '即日決戦',
+    compactLabel: 'デイリー',
+    durationText: '翌営業日の終値で決着',
+    deadlineText: '締切日の終値を基準価格にします',
+    resultText: '翌営業日が休場日の場合は、直後の取引日の終値で集計します',
+    strategyText: '即日決戦。まず試したい人・毎日参加したい人向けです。',
+    ruleText: '締切日の終値と、翌営業日の終値を比較し、ポジション加重リターンで順位を決定します。',
+  },
   {
     id: 'weekly',
     label: '1週間マッチ',
@@ -101,10 +112,11 @@ function renderCompactSelector(container: HTMLElement, current: MatchRule, onSel
 
 function getInitialRule(): MatchRule {
   const pageText = document.body.textContent ?? '';
-  if (pageText.includes('3か月') || pageText.includes('3ヶ月')) return MATCH_RULES[2];
-  if (pageText.includes('1か月') || pageText.includes('1ヶ月')) return MATCH_RULES[1];
-  if (pageText.includes('1週間')) return MATCH_RULES[0];
-  return MATCH_RULES[2];
+  if (pageText.includes('デイリー')) return MATCH_RULES[0];
+  if (pageText.includes('3か月') || pageText.includes('3ヶ月')) return MATCH_RULES[3];
+  if (pageText.includes('1か月') || pageText.includes('1ヶ月')) return MATCH_RULES[2];
+  if (pageText.includes('1週間')) return MATCH_RULES[1];
+  return MATCH_RULES[3];
 }
 
 function mountMatchDurationRules() {
