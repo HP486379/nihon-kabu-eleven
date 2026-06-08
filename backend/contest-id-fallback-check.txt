@@ -1,0 +1,1 @@
+Backend contestId fallback patch is loaded via bootstrap.js.
