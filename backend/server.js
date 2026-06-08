@@ -39,7 +39,6 @@ const FORMATION_COUNTS = {
 };
 
 const POSITIONS = ['FW', 'MF', 'DF', 'GK'];
-const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 
 const nowIso = () => new Date().toISOString();
 const normalizeText = (value) => String(value || '')
@@ -414,81 +413,22 @@ async function persistEntry(entry) {
     throw httpError(409, 'Contest entry deadline has passed');
   }
 
-  const { data: existingEntry, error: existingError } = await supabase
-    .from('entries')
-    .select('id,status')
-    .eq('contest_id', entry.contestId)
-    .eq('user_id', userId)
-    .in('status', ACTIVE_ENTRY_STATUSES)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingError) {
-    throw httpError(500, 'Failed to check existing entry', existingError.message);
-  }
-
   const lockedAt = nowIso();
-  let savedEntry;
-  let saveMode = 'created';
+  const { data: savedEntry, error: entryError } = await supabase
+    .from('entries')
+    .insert({
+      contest_id: entry.contestId,
+      user_id: userId,
+      team_name: entry.teamName,
+      formation: entry.formation,
+      status: 'entered',
+      locked_at: lockedAt,
+    })
+    .select('id,contest_id,user_id,team_name,formation,status,locked_at,created_at')
+    .single();
 
-  if (existingEntry) {
-    const { data: updatedEntry, error: updateError } = await supabase
-      .from('entries')
-      .update({
-        team_name: entry.teamName,
-        formation: entry.formation,
-        status: 'entered',
-        locked_at: lockedAt,
-        updated_at: lockedAt,
-      })
-      .eq('id', existingEntry.id)
-      .select('id,contest_id,user_id,team_name,formation,status,locked_at,created_at,updated_at')
-      .single();
-
-    if (updateError) {
-      throw httpError(500, 'Failed to update existing entry', updateError.message);
-    }
-
-    const { error: deleteResultsError } = await supabase
-      .from('entry_results')
-      .delete()
-      .eq('entry_id', existingEntry.id);
-
-    if (deleteResultsError) {
-      throw httpError(500, 'Failed to clear stale entry results', deleteResultsError.message);
-    }
-
-    const { error: deleteMembersError } = await supabase
-      .from('entry_members')
-      .delete()
-      .eq('entry_id', existingEntry.id);
-
-    if (deleteMembersError) {
-      throw httpError(500, 'Failed to clear existing entry members', deleteMembersError.message);
-    }
-
-    savedEntry = updatedEntry;
-    saveMode = 'updated';
-  } else {
-    const { data: insertedEntry, error: entryError } = await supabase
-      .from('entries')
-      .insert({
-        contest_id: entry.contestId,
-        user_id: userId,
-        team_name: entry.teamName,
-        formation: entry.formation,
-        status: 'entered',
-        locked_at: lockedAt,
-      })
-      .select('id,contest_id,user_id,team_name,formation,status,locked_at,created_at')
-      .single();
-
-    if (entryError) {
-      throw httpError(500, 'Failed to save entry', entryError.message);
-    }
-
-    savedEntry = insertedEntry;
+  if (entryError) {
+    throw httpError(500, 'Failed to save entry', entryError.message);
   }
 
   const memberRows = entry.members.map((member) => ({
@@ -506,15 +446,12 @@ async function persistEntry(entry) {
     .insert(memberRows);
 
   if (membersError) {
-    if (saveMode === 'created') {
-      await supabase.from('entries').delete().eq('id', savedEntry.id);
-    }
     throw httpError(500, 'Failed to save entry members', membersError.message);
   }
 
   return {
     ...savedEntry,
-    saveMode,
+    saveMode: 'created',
     membersCount: memberRows.length,
   };
 }
@@ -533,9 +470,9 @@ app.post('/api/entries', async (req, res) => {
   try {
     const savedEntry = await persistEntry(validation.normalized);
 
-    return res.status(savedEntry.saveMode === 'updated' ? 200 : 201).json({
+    return res.status(201).json({
       ok: true,
-      status: savedEntry.saveMode === 'updated' ? 'updated' : 'saved',
+      status: 'saved',
       entryId: savedEntry.id,
       entry: savedEntry,
       tsServer: nowIso(),
