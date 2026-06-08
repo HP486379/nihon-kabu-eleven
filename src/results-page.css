@@ -73,6 +73,18 @@
   opacity: 0.62;
 }
 
+.results-calculate-disabled {
+  background: #edf2f7;
+  border: 1px solid #d8e3ef;
+  border-radius: 999px;
+  color: #607490;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
 .results-calculate-status {
   background: #fff8e8;
   border: 1px solid #ffe0a3;
@@ -101,6 +113,12 @@
   background: #fff1f1;
   border-color: #ffd0d0;
   color: #d33b3b;
+}
+
+.results-calculate-status[data-status="disabled"] {
+  background: #f5f8fc;
+  border-color: #d8e3ef;
+  color: #607490;
 }
 
 .results-champion-card {
@@ -424,7 +442,8 @@
 
   .results-page-actions,
   .results-page-back,
-  .results-calculate-button {
+  .results-calculate-button,
+  .results-calculate-disabled {
     width: 100%;
   }
 
