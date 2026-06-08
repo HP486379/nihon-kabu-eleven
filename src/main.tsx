@@ -32,6 +32,7 @@ import './contest-list-page.css';
 import './formation-page.css';
 import './participants-page.css';
 import './results-page.css';
+import './ios-responsive.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
