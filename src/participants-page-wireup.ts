@@ -145,9 +145,10 @@ function createParticipantsPage() {
     </div>
 
     <div class="participants-toolbar">
-      <span>3か月マッチ</span>
-      <span>1か月マッチ</span>
+      <span>デイリーマッチ</span>
       <span>1週間マッチ</span>
+      <span>1か月マッチ</span>
+      <span>3か月マッチ</span>
       <strong data-participants-source>APIから取得中...</strong>
     </div>
 
