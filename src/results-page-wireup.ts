@@ -12,12 +12,19 @@ type ResultItem = {
   highlight: string;
 };
 
+type ResultPageEnv = {
+  DEV?: boolean;
+  VITE_ENABLE_RESULT_CALC?: string;
+};
+
 const ROOT_ID = 'results-page';
 const ACTIVE_CLASS = 'results-page-mode';
 const CONTEST_ACTIVE_CLASS = 'contest-list-mode';
 const FORMATION_ACTIVE_CLASS = 'formation-page-mode';
 const PARTICIPANTS_ACTIVE_CLASS = 'participants-page-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
+const APP_ENV = (import.meta as ImportMeta & { env?: ResultPageEnv }).env;
+const RESULT_CALC_ENABLED = APP_ENV?.DEV === true || String(APP_ENV?.VITE_ENABLE_RESULT_CALC || '').toLowerCase() === 'true';
 
 function escapeHtml(value: string) {
   return value
@@ -210,7 +217,7 @@ async function loadResults(page: HTMLElement) {
   }
 }
 
-function setCalculateStatus(page: HTMLElement, message: string, type: 'idle' | 'loading' | 'success' | 'error' = 'idle') {
+function setCalculateStatus(page: HTMLElement, message: string, type: 'idle' | 'loading' | 'success' | 'error' | 'disabled' = 'idle') {
   const status = page.querySelector<HTMLElement>('[data-results-calculate-status]');
   if (!status) return;
   status.textContent = message;
@@ -218,6 +225,11 @@ function setCalculateStatus(page: HTMLElement, message: string, type: 'idle' | '
 }
 
 async function handleCalculateResults(page: HTMLElement) {
+  if (!RESULT_CALC_ENABLED) {
+    setCalculateStatus(page, '集計実行は管理者/開発環境でのみ利用できます。', 'disabled');
+    return;
+  }
+
   const button = page.querySelector<HTMLButtonElement>('[data-results-calculate-button]');
   if (!button) return;
 
@@ -236,6 +248,30 @@ async function handleCalculateResults(page: HTMLElement) {
   }
 }
 
+function renderCalculateAction() {
+  if (RESULT_CALC_ENABLED) {
+    return '<button type="button" class="results-calculate-button" data-results-calculate-button>集計を実行</button>';
+  }
+
+  return '<span class="results-calculate-disabled">集計実行は管理者/開発環境のみ</span>';
+}
+
+function renderCalculateStatus() {
+  if (RESULT_CALC_ENABLED) {
+    return `
+      <div class="results-calculate-status" data-results-calculate-status data-status="idle">
+        集計結果が空の場合は「集計を実行」を押してください。
+      </div>
+    `;
+  }
+
+  return `
+    <div class="results-calculate-status" data-results-calculate-status data-status="disabled">
+      通常公開画面では集計実行は無効です。結果表示のみ行います。
+    </div>
+  `;
+}
+
 function createResultsPage() {
   const section = document.createElement('section');
   section.id = ROOT_ID;
@@ -249,14 +285,12 @@ function createResultsPage() {
         <p>大会終了後の順位、優勝チーム、ポジション加重リターンを確認できます。</p>
       </div>
       <div class="results-page-actions">
-        <button type="button" class="results-calculate-button" data-results-calculate-button>集計を実行</button>
+        ${renderCalculateAction()}
         <button type="button" class="results-page-back">ダッシュボードへ戻る</button>
       </div>
     </div>
 
-    <div class="results-calculate-status" data-results-calculate-status data-status="idle">
-      集計結果が空の場合は「集計を実行」を押してください。
-    </div>
+    ${renderCalculateStatus()}
 
     <div data-results-champion>
       <div class="results-champion-card results-champion-empty">
