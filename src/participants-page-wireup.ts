@@ -59,9 +59,15 @@ function renderRows(participants: ParticipantItem[]) {
 
   return participants.map((team) => {
     const locked = isLockedStatus(team.status);
-    const disabled = team.id ? '' : 'disabled';
+    const hasTarget = Boolean(team.id || (team.team && team.createdAt));
+    const disabled = hasTarget ? '' : 'disabled';
     return `
-      <tr data-entry-id="${escapeHtml(team.id)}">
+      <tr
+        data-entry-id="${escapeHtml(team.id)}"
+        data-team-name="${escapeHtml(team.team)}"
+        data-formation="${escapeHtml(team.formation)}"
+        data-created-at="${escapeHtml(team.createdAt)}"
+      >
         <td><span class="participants-rank rank-${team.rank <= 3 ? team.rank : 'other'}">${team.rank}</span></td>
         <td>
           <strong>${escapeHtml(team.team)}</strong>
@@ -132,12 +138,14 @@ async function loadParticipants(page: HTMLElement) {
 }
 
 async function handleCancelEntry(page: HTMLElement, button: HTMLButtonElement) {
-  const entryId = button.dataset.entryId || '';
   const row = button.closest('tr');
-  const teamName = row?.querySelector('td:nth-child(2) strong')?.textContent?.trim() || 'このチーム';
+  const entryId = button.dataset.entryId || row?.dataset.entryId || '';
+  const teamName = row?.dataset.teamName || row?.querySelector('td:nth-child(2) strong')?.textContent?.trim() || 'このチーム';
+  const formation = row?.dataset.formation || '';
+  const createdAt = row?.dataset.createdAt || '';
 
-  if (!entryId) {
-    setParticipantsMessage(page, 'entryId が取得できないため取消できません。', 'error');
+  if (!entryId && (!teamName || !createdAt)) {
+    setParticipantsMessage(page, `取消対象を特定できません。entryId=${entryId || '(empty)'} / team=${teamName || '(empty)'} / createdAt=${createdAt || '(empty)'}`, 'error');
     return;
   }
 
@@ -148,7 +156,7 @@ async function handleCancelEntry(page: HTMLElement, button: HTMLButtonElement) {
     button.disabled = true;
     button.textContent = '取消中...';
     setParticipantsMessage(page, `${teamName} を取消中です。`, 'idle');
-    await cancelParticipantEntry(entryId);
+    await cancelParticipantEntry({ entryId, teamName, formation, createdAt });
     setParticipantsMessage(page, `${teamName} を取消しました。`, 'success');
     await loadParticipants(page);
   } catch (error) {
