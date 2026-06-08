@@ -35,6 +35,7 @@ export type SubmitEntryResult = {
   entryId?: string;
   message?: string;
   error?: string;
+  details?: string | null;
 };
 
 export type CancelEntryResult = {
@@ -43,6 +44,7 @@ export type CancelEntryResult = {
   entry?: unknown;
   message?: string;
   error?: string;
+  details?: string | null;
 };
 
 export const DEV_CONTEST_ID = '5345b8eb-e9ec-4b4b-9549-35b3c4135003';
@@ -56,10 +58,16 @@ function getMemberWeight(formation: FormationForEntry, position: Position) {
 }
 
 async function parseApiResponse<T>(response: Response, fallbackLabel: string): Promise<T> {
-  const result = await response.json().catch(() => ({})) as T & { ok?: boolean; message?: string; error?: string };
+  const result = await response.json().catch(() => ({})) as T & { ok?: boolean; message?: string; error?: string; details?: string | null; errors?: string[] };
 
   if (!response.ok || result.ok === false) {
-    const message = result.message || result.error || `${fallbackLabel} ${response.status}`;
+    const detailText = Array.isArray(result.errors)
+      ? result.errors.join(' / ')
+      : typeof result.details === 'string'
+        ? result.details
+        : '';
+    const baseMessage = result.message || result.error || `${fallbackLabel} ${response.status}`;
+    const message = detailText ? `${baseMessage}: ${detailText}` : baseMessage;
     throw new Error(message);
   }
 
