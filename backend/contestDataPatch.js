@@ -33,7 +33,7 @@ function dateLabel(value) {
 function inferContestType(contest) {
   const text = `${contest?.name || ''}`.toLowerCase();
 
-  if (/デイリー|一日|1\s*(日|day)|1d|daily/.test(text)) {
+  if (/(デイリー|デイリーカップ|一日|1\s*日|1\s*day|daily|1d)/.test(text)) {
     return {
       contestType: 'daily',
       contestTypeLabel: 'デイリーカップ',
