@@ -14,8 +14,8 @@ type ContestItem = {
 const CONTESTS: ContestItem[] = [
   {
     id: 'daily',
-    title: '日本株代表カップ デイリーカップ',
-    type: 'デイリーカップ',
+    title: '日本株代表カップ デイリーマッチ',
+    type: 'デイリーマッチ',
     badge: '即日決戦',
     status: '準備中',
     entryDeadline: '運営設定の締切日時',
@@ -102,7 +102,7 @@ function createContestListPage() {
     </div>
     <div class="contest-list-note">
       <strong>共通ルール</strong>
-      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。デイリーカップは翌営業日の終値で集計します。</span>
+      <span>締切日または集計日が休場日の場合は、直後の取引日の終値を使用します。デイリーマッチは翌営業日の終値で集計します。</span>
     </div>
   `;
   return section;
@@ -130,7 +130,7 @@ function applyContestHeader() {
   if (title) title.textContent = '試合モード / 大会一覧';
   if (subline) {
     subline.innerHTML = `
-      <span>🏆 デイリー・1週間・1か月・3か月マッチ</span>
+      <span>🏆 デイリーマッチ・1週間・1か月・3か月マッチ</span>
       <span>📅 締切後の終値で集計</span>
       <span>📈 ポジション加重リターンで判定</span>
     `;
