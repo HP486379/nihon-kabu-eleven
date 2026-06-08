@@ -18,6 +18,7 @@ import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
 import './dashboard-polish.css';
+import './entry-actions.css';
 import './formation-mini-rows.css';
 import './position-control-fixes.css';
 import './pitch-drag-drop.css';
