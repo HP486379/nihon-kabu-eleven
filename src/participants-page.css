@@ -104,6 +104,34 @@
   color: #9a6500;
 }
 
+.participants-message {
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  min-height: 0;
+  padding: 0;
+}
+
+.participants-message:not(:empty) {
+  padding: 10px 12px;
+}
+
+.participants-message[data-message-type="idle"]:not(:empty) {
+  background: #eef7ff;
+  color: #234466;
+}
+
+.participants-message[data-message-type="success"]:not(:empty) {
+  background: #e9f9ef;
+  color: #039855;
+}
+
+.participants-message[data-message-type="error"]:not(:empty) {
+  background: #fff1f1;
+  color: #d33b3b;
+}
+
 .participants-table-wrap {
   background: #ffffff;
   border: 1px solid #dce8f6;
@@ -200,6 +228,27 @@
   color: #7a8ca5;
 }
 
+.participants-cancel-button {
+  background: #fff1f1;
+  border: 1px solid #ffc9c9;
+  border-radius: 999px;
+  color: #d33b3b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 7px 11px;
+  white-space: nowrap;
+}
+
+.participants-cancel-button:hover:not(:disabled) {
+  background: #ffe1e1;
+}
+
+.participants-cancel-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .participants-loading-state,
 .participants-empty-state,
 .participants-error-state {
@@ -257,7 +306,7 @@
   }
 
   .participants-table {
-    min-width: 760px;
+    min-width: 860px;
   }
 }
 
