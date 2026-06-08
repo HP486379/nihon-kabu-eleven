@@ -5,7 +5,7 @@ import { requireSupabaseAdmin } from './supabaseAdmin.js';
 const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 const nowIso = () => new Date().toISOString();
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || ''));
 const symbolOf = (value) => {
   const upper = String(value || '').trim().toUpperCase();
   if (!upper || upper.startsWith('^') || upper.includes('.')) return upper;
@@ -28,16 +28,51 @@ function toNumber(value) {
   return null;
 }
 
+function toDate(value) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
 function toTimestampSeconds(value) {
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return null;
-  return Math.floor(time / 1000);
+  const date = toDate(value);
+  if (!date) return null;
+  return Math.floor(date.getTime() / 1000);
 }
 
 function addDays(value, days) {
   const date = new Date(value);
   date.setUTCDate(date.getUTCDate() + days);
   return date;
+}
+
+function dateLabel(value) {
+  const date = toDate(value);
+  return date ? date.toISOString().slice(0, 10) : String(value || '-');
+}
+
+function chooseBaseDate(contest, entry, resultDate) {
+  const result = toDate(resultDate);
+  if (!result) throw httpError(400, 'Invalid resultDate');
+
+  const candidates = [
+    { label: 'contest.entry_deadline', value: contest.entry_deadline },
+    { label: 'entry.locked_at', value: entry.locked_at },
+    { label: 'entry.created_at', value: entry.created_at },
+  ]
+    .map((candidate) => ({ ...candidate, date: toDate(candidate.value) }))
+    .filter((candidate) => candidate.date);
+
+  if (!candidates.length) {
+    throw httpError(400, `Base date was not found for entry: ${entry.id}`);
+  }
+
+  const usable = candidates.find((candidate) => candidate.date.getTime() <= result.getTime());
+  if (usable) return usable.value;
+
+  throw httpError(409, `Calculation date is before all available base dates: ${entry.id}`, {
+    resultDate: dateLabel(resultDate),
+    candidates: candidates.map((candidate) => ({ label: candidate.label, date: dateLabel(candidate.value) })),
+  });
 }
 
 function displayStatus(status) {
@@ -198,9 +233,20 @@ async function loadMembersForEntries(supabase, entryIds) {
 }
 
 async function fetchDailyCloses(symbol, startDate, endDate) {
-  const period1 = toTimestampSeconds(addDays(startDate, -7));
-  const period2 = toTimestampSeconds(addDays(endDate, 7));
+  const start = toDate(startDate);
+  const end = toDate(endDate);
+  if (!start || !end) throw httpError(400, 'Invalid calculation date');
+  if (end.getTime() < start.getTime()) {
+    throw httpError(409, `Calculation date is before base date: ${symbol}`, {
+      baseDate: dateLabel(startDate),
+      resultDate: dateLabel(endDate),
+    });
+  }
+
+  const period1 = toTimestampSeconds(addDays(start, -10));
+  let period2 = toTimestampSeconds(addDays(end, 10));
   if (period1 === null || period2 === null) throw httpError(400, 'Invalid calculation date');
+  if (period2 <= period1) period2 = period1 + 30 * 24 * 60 * 60;
 
   const params = new URLSearchParams({
     interval: '1d',
@@ -208,8 +254,19 @@ async function fetchDailyCloses(symbol, startDate, endDate) {
     period2: String(period2),
   });
 
-  const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`, { headers: HEADERS });
-  if (!res.ok) throw httpError(502, `Yahoo chart fetch failed: ${symbol} ${res.status}`);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`;
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw httpError(502, `Yahoo chart fetch failed: ${symbol} ${res.status}`, {
+      symbol,
+      baseDate: dateLabel(startDate),
+      resultDate: dateLabel(endDate),
+      period1,
+      period2,
+      body: body.slice(0, 300),
+    });
+  }
 
   const data = await res.json();
   const result = data?.chart?.result?.[0];
@@ -224,7 +281,7 @@ async function fetchDailyCloses(symbol, startDate, endDate) {
 
 function pickCloseOnOrAfter(points, targetDate) {
   const target = new Date(targetDate).getTime();
-  return points.find((point) => point.date.getTime() >= target) || null;
+  return points.find((point) => point.date.getTime() >= target) || points[0] || null;
 }
 
 function pickCloseOnOrBefore(points, targetDate) {
@@ -239,7 +296,11 @@ async function calculateMemberReturn(member, baseDate, resultDate) {
   const result = pickCloseOnOrBefore(points, resultDate);
 
   if (!base || !result || !base.close) {
-    throw httpError(502, `Price data was not enough: ${symbol}`);
+    throw httpError(502, `Price data was not enough: ${symbol}`, {
+      symbol,
+      baseDate: dateLabel(baseDate),
+      resultDate: dateLabel(resultDate),
+    });
   }
 
   return {
@@ -257,8 +318,7 @@ async function calculateMemberReturn(member, baseDate, resultDate) {
 }
 
 async function calculateEntryResult(entry, members, contest, resultDate) {
-  const baseDate = contest.entry_deadline || entry.locked_at || entry.created_at;
-  if (!baseDate) throw httpError(400, `Base date was not found for entry: ${entry.id}`);
+  const baseDate = chooseBaseDate(contest, entry, resultDate);
   if (members.length !== 11) throw httpError(409, `Entry must have exactly 11 members: ${entry.id}`);
 
   const memberResults = await Promise.all(members.map((member) => calculateMemberReturn(member, baseDate, resultDate)));
