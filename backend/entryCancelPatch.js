@@ -3,10 +3,11 @@ import fetch from 'node-fetch';
 import { requireSupabaseAdmin } from './supabaseAdmin.js';
 
 const DEV_CONTEST_ID = String(process.env.DEV_CONTEST_ID || '5345b8eb-e9ec-4b4b-9549-35b3c4135003').trim();
+const DEFAULT_CONTEST_DURATION_DAYS = Number(process.env.DEFAULT_CONTEST_DURATION_DAYS || 7);
 const ACTIVE_ENTRY_STATUSES = ['draft', 'entered', 'locked'];
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 const nowIso = () => new Date().toISOString();
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || ''));
 const optionalContestId = (value) => {
   const text = String(value || '').trim();
   return isUuid(text) ? text : '';
@@ -59,29 +60,64 @@ function dateLabel(value) {
   return date ? date.toISOString().slice(0, 10) : String(value || '-');
 }
 
-function chooseBaseDate(contest, entry, resultDate) {
-  const result = toDate(resultDate);
-  if (!result) throw httpError(400, 'Invalid resultDate');
+function inferContestDurationDays(contest) {
+  const text = `${contest?.name || ''}`.toLowerCase();
 
-  const candidates = [
-    { label: 'contest.entry_deadline', value: contest.entry_deadline },
-    { label: 'entry.locked_at', value: entry.locked_at },
-    { label: 'entry.created_at', value: entry.created_at },
-  ]
-    .map((candidate) => ({ ...candidate, date: toDate(candidate.value) }))
-    .filter((candidate) => candidate.date);
+  if (/3\s*(か月|ヶ月|ヵ月|month|months)|3m/.test(text)) return 90;
+  if (/1\s*(か月|ヶ月|ヵ月|month)|1m/.test(text)) return 30;
+  if (/1\s*(週間|週|week)|1w/.test(text)) return 7;
 
-  if (!candidates.length) {
-    throw httpError(400, `Base date was not found for entry: ${entry.id}`);
+  return Number.isFinite(DEFAULT_CONTEST_DURATION_DAYS) && DEFAULT_CONTEST_DURATION_DAYS > 0
+    ? DEFAULT_CONTEST_DURATION_DAYS
+    : 7;
+}
+
+function getContestEntryDeadline(contest) {
+  return toDate(contest?.entry_deadline);
+}
+
+function getContestEarliestResultDate(contest) {
+  const deadline = getContestEntryDeadline(contest);
+  if (!deadline) return null;
+  return addDays(deadline, inferContestDurationDays(contest));
+}
+
+function isContestResultReady(contest, resultDateValue = nowIso()) {
+  const earliest = getContestEarliestResultDate(contest);
+  if (!earliest) return true;
+
+  const resultDate = toDate(resultDateValue);
+  if (!resultDate) return false;
+  return resultDate.getTime() >= earliest.getTime();
+}
+
+function assertContestResultReady(contest, resultDateValue) {
+  const earliest = getContestEarliestResultDate(contest);
+  if (!earliest) return;
+
+  const resultDate = toDate(resultDateValue);
+  if (!resultDate) throw httpError(400, 'Invalid resultDate');
+
+  if (resultDate.getTime() < earliest.getTime()) {
+    throw httpError(409, 'Contest result date has not arrived', {
+      contestId: contest?.id || null,
+      contestName: contest?.name || null,
+      entryDeadline: dateLabel(contest?.entry_deadline),
+      earliestResultDate: dateLabel(earliest),
+      resultDate: dateLabel(resultDate),
+      rule: 'Use the contest deadline close as the base price, then calculate after the contest duration has elapsed. Existing contests without an explicit type use a 7-day minimum duration.',
+    });
   }
+}
 
-  const usable = candidates.find((candidate) => candidate.date.getTime() <= result.getTime());
-  if (usable) return usable.value;
+function chooseBaseDate(contest, entry) {
+  const contestDeadline = contest?.entry_deadline;
+  if (toDate(contestDeadline)) return contestDeadline;
 
-  throw httpError(409, `Calculation date is before all available base dates: ${entry.id}`, {
-    resultDate: dateLabel(resultDate),
-    candidates: candidates.map((candidate) => ({ label: candidate.label, date: dateLabel(candidate.value) })),
-  });
+  const fallback = entry.locked_at || entry.created_at;
+  if (toDate(fallback)) return fallback;
+
+  throw httpError(400, `Base date was not found for entry: ${entry.id}`);
 }
 
 function displayStatus(status) {
@@ -127,7 +163,7 @@ async function loadContestsById(supabase, contestIds) {
 
   const { data, error } = await supabase
     .from('contests')
-    .select('id,name,status')
+    .select('id,name,status,entry_deadline')
     .in('id', ids);
 
   if (error) {
@@ -139,8 +175,9 @@ async function loadContestsById(supabase, contestIds) {
 }
 
 function toParticipant(entry, result, contest, fallbackRank) {
-  const weightedReturn = toNumber(result?.team_return);
-  const resultRank = Number.isInteger(result?.rank) ? result.rank : null;
+  const showResult = result && isContestResultReady(contest);
+  const weightedReturn = showResult ? toNumber(result?.team_return) : null;
+  const resultRank = showResult && Number.isInteger(result?.rank) ? result.rank : null;
 
   return {
     id: entry.id,
@@ -165,8 +202,8 @@ function toParticipant(entry, result, contest, fallbackRank) {
     created_at: entry.created_at,
     lockedAt: entry.locked_at,
     locked_at: entry.locked_at,
-    calculatedAt: result?.calculated_at || null,
-    calculated_at: result?.calculated_at || null,
+    calculatedAt: showResult ? result?.calculated_at || null : null,
+    calculated_at: showResult ? result?.calculated_at || null : null,
   };
 }
 
@@ -293,16 +330,11 @@ function pickCloseOnOrAfter(points, targetDate) {
   return points.find((point) => point.date.getTime() >= target) || points[0] || null;
 }
 
-function pickCloseOnOrBefore(points, targetDate) {
-  const target = new Date(targetDate).getTime();
-  return [...points].reverse().find((point) => point.date.getTime() <= target) || points.at(-1) || null;
-}
-
 async function calculateMemberReturn(member, baseDate, resultDate) {
   const symbol = symbolOf(member.stock_code);
   const points = await fetchDailyCloses(symbol, baseDate, resultDate);
   const base = pickCloseOnOrAfter(points, baseDate);
-  const result = pickCloseOnOrBefore(points, resultDate);
+  const result = pickCloseOnOrAfter(points, resultDate);
 
   if (!base || !result || !base.close) {
     throw httpError(502, `Price data was not enough: ${symbol}`, {
@@ -327,7 +359,7 @@ async function calculateMemberReturn(member, baseDate, resultDate) {
 }
 
 async function calculateEntryResult(entry, members, contest, resultDate) {
-  const baseDate = chooseBaseDate(contest, entry, resultDate);
+  const baseDate = chooseBaseDate(contest, entry);
   if (members.length !== 11) throw httpError(409, `Entry must have exactly 11 members: ${entry.id}`);
 
   const memberResults = await Promise.all(members.map((member) => calculateMemberReturn(member, baseDate, resultDate)));
@@ -353,10 +385,12 @@ async function calculateContestResults(contestId, resultDateInput) {
   const safeContestId = requiredContestId(contestId);
 
   const contest = await loadContest(supabase, safeContestId);
+  const resultDate = resultDateInput || nowIso();
+  assertContestResultReady(contest, resultDate);
+
   const entries = await loadEntriesForCalculation(supabase, safeContestId);
   if (!entries.length) throw httpError(404, 'No active entries were found for this contest');
 
-  const resultDate = resultDateInput || nowIso();
   const membersByEntryId = await loadMembersForEntries(supabase, entries.map((entry) => entry.id));
   const calculated = await Promise.all(entries.map((entry) => calculateEntryResult(entry, membersByEntryId.get(entry.id) || [], contest, resultDate)));
   const ranked = [...calculated]
@@ -391,6 +425,11 @@ async function calculateContestResults(contestId, resultDateInput) {
     contest,
     count: ranked.length,
     calculatedAt,
+    resultWindow: {
+      entryDeadline: dateLabel(contest.entry_deadline),
+      earliestResultDate: dateLabel(getContestEarliestResultDate(contest)),
+      resultDate: dateLabel(resultDate),
+    },
     results: ranked.map((item) => ({
       entryId: item.entryId,
       contestId: item.contestId,
