@@ -39,16 +39,68 @@
   margin: 0;
 }
 
-.results-page-back {
-  background: #1462d5;
+.results-page-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.results-page-back,
+.results-calculate-button {
   border: 0;
   border-radius: 999px;
-  box-shadow: 0 12px 24px rgba(20, 98, 213, 0.20);
   color: #fff;
   cursor: pointer;
   font-weight: 800;
   padding: 11px 16px;
   white-space: nowrap;
+}
+
+.results-page-back {
+  background: #1462d5;
+  box-shadow: 0 12px 24px rgba(20, 98, 213, 0.20);
+}
+
+.results-calculate-button {
+  background: #0f9f6e;
+  box-shadow: 0 12px 24px rgba(15, 159, 110, 0.20);
+}
+
+.results-calculate-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.results-calculate-status {
+  background: #fff8e8;
+  border: 1px solid #ffe0a3;
+  border-radius: 14px;
+  color: #9a6500;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.6;
+  margin: -4px 0 14px;
+  padding: 10px 12px;
+}
+
+.results-calculate-status[data-status="loading"] {
+  background: #edf4ff;
+  border-color: #cfe3ff;
+  color: #1462d5;
+}
+
+.results-calculate-status[data-status="success"] {
+  background: #e9f9ef;
+  border-color: #bcebd0;
+  color: #039855;
+}
+
+.results-calculate-status[data-status="error"] {
+  background: #fff1f1;
+  border-color: #ffd0d0;
+  color: #d33b3b;
 }
 
 .results-champion-card {
@@ -370,7 +422,9 @@
     flex-direction: column;
   }
 
-  .results-page-back {
+  .results-page-actions,
+  .results-page-back,
+  .results-calculate-button {
     width: 100%;
   }
 

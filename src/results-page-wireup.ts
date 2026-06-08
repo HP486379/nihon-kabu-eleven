@@ -1,4 +1,5 @@
 import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
+import { calculateResults } from './lib/resultsApi';
 
 type ResultItem = {
   rank: number;
@@ -209,6 +210,32 @@ async function loadResults(page: HTMLElement) {
   }
 }
 
+function setCalculateStatus(page: HTMLElement, message: string, type: 'idle' | 'loading' | 'success' | 'error' = 'idle') {
+  const status = page.querySelector<HTMLElement>('[data-results-calculate-status]');
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.status = type;
+}
+
+async function handleCalculateResults(page: HTMLElement) {
+  const button = page.querySelector<HTMLButtonElement>('[data-results-calculate-button]');
+  if (!button) return;
+
+  button.disabled = true;
+  setCalculateStatus(page, '集計を実行中です。数十秒かかる場合があります。', 'loading');
+
+  try {
+    const result = await calculateResults();
+    setCalculateStatus(page, `集計完了：${result.count ?? 0}チームの結果を保存しました。`, 'success');
+    await loadResults(page);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setCalculateStatus(page, `集計失敗：${message}`, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function createResultsPage() {
   const section = document.createElement('section');
   section.id = ROOT_ID;
@@ -221,7 +248,14 @@ function createResultsPage() {
         <h2>結果発表</h2>
         <p>大会終了後の順位、優勝チーム、ポジション加重リターンを確認できます。</p>
       </div>
-      <button type="button" class="results-page-back">ダッシュボードへ戻る</button>
+      <div class="results-page-actions">
+        <button type="button" class="results-calculate-button" data-results-calculate-button>集計を実行</button>
+        <button type="button" class="results-page-back">ダッシュボードへ戻る</button>
+      </div>
+    </div>
+
+    <div class="results-calculate-status" data-results-calculate-status data-status="idle">
+      集計結果が空の場合は「集計を実行」を押してください。
     </div>
 
     <div data-results-champion>
@@ -349,6 +383,9 @@ function showResultsPage() {
     main.appendChild(page);
   }
   page.querySelector('.results-page-back')?.addEventListener('click', showDashboard);
+  page.querySelector('[data-results-calculate-button]')?.addEventListener('click', () => {
+    void handleCalculateResults(page);
+  });
 
   shell.classList.remove(CONTEST_ACTIVE_CLASS);
   shell.classList.remove(FORMATION_ACTIVE_CLASS);
