@@ -1,4 +1,4 @@
-import { DEV_CONTEST_ID, buildEntryPayload, cancelEntry, submitEntry } from './lib/entryApi';
+import { DEV_CONTEST_ID, buildEntryPayload, submitEntry } from './lib/entryApi';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -116,45 +116,16 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
-function isCancelAction(label: string) {
-  return label.includes('取り消');
-}
-
 function isCreateAnotherAction(button: HTMLButtonElement, label: string) {
   return button.dataset.entryAction === 'create-another' || label.includes('別チームを作る');
 }
 
 function isEntryAction(label: string) {
-  return !isCancelAction(label) && !label.includes('別チームを作る') && (label.includes('チームを確定') || label.includes('エントリー'));
+  return !label.includes('別チームを作る') && !label.includes('取り消') && (label.includes('チームを確定') || label.includes('エントリー'));
 }
 
 function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
-}
-
-async function handleCancelClick(button: HTMLButtonElement, statusButton: HTMLButtonElement = button) {
-  if (isSubmitting) return;
-
-  const confirmed = window.confirm('このエントリーを取り消しますか？保存済みチームは参加チーム一覧から外れます。');
-  if (!confirmed) return;
-
-  const originalText = button.textContent || 'エントリーを取り消す';
-
-  try {
-    isSubmitting = true;
-    button.disabled = true;
-    button.textContent = '取り消し中...';
-    setStatus(statusButton, 'エントリー取消をAPIに送信しています。', 'saving');
-    await cancelEntry(DEV_CONTEST_ID);
-    setStatus(statusButton, 'エントリーを取り消しました。参加チーム一覧から外れます。別チーム作成はそのまま続けられます。', 'saved');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    setStatus(statusButton, `エントリー取消に失敗しました：${message}`, 'error');
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-    isSubmitting = false;
-  }
 }
 
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
@@ -162,13 +133,6 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
 
   if (isCreateAnotherAction(button, label)) {
     clearStatus(button);
-    return;
-  }
-
-  if (isCancelAction(label)) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    await handleCancelClick(button);
     return;
   }
 
@@ -231,29 +195,6 @@ function removeCancelButton(lockButton: HTMLButtonElement) {
   parent?.querySelector<HTMLButtonElement>('.cancel-entry-button')?.remove();
 }
 
-function ensureCancelButton(lockButton: HTMLButtonElement) {
-  const parent = lockButton.parentElement;
-  if (!parent) return;
-
-  let cancelButton = parent.querySelector<HTMLButtonElement>('.cancel-entry-button');
-  if (!cancelButton) {
-    cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'cancel-entry-button';
-    cancelButton.textContent = 'エントリーを取り消す';
-    parent.appendChild(cancelButton);
-  }
-
-  if (cancelButton.dataset.entryCancelReady === 'true') return;
-
-  cancelButton.dataset.entryCancelReady = 'true';
-  cancelButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void handleCancelClick(cancelButton, lockButton);
-  }, true);
-}
-
 function syncEntryActionButtons(button: HTMLButtonElement) {
   const label = button.textContent?.trim() || '';
 
@@ -278,7 +219,7 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
     button.textContent = '別チームを作る';
   }
   clearStatus(button);
-  ensureCancelButton(button);
+  removeCancelButton(button);
 }
 
 function setupEntryButton() {
