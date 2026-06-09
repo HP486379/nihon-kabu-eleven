@@ -38,10 +38,6 @@ function getTeamName() {
   return chipText.split('｜')[0]?.trim() || 'ゲストジャパン';
 }
 
-function isEditingMode() {
-  return getText('.team-chip').includes('編成中');
-}
-
 function getFormationConfig() {
   const key = getText('.formation-number');
   return FORMATION_CONFIGS[key] || null;
@@ -137,7 +133,6 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
 
   if (isCreateAnotherAction(button, label)) {
     clearStatus(button);
-    window.setTimeout(setupEntryButton, 0);
     return;
   }
 
@@ -200,30 +195,18 @@ function removeCancelButton(lockButton: HTMLButtonElement) {
   parent?.querySelector<HTMLButtonElement>('.cancel-entry-button')?.remove();
 }
 
-function restoreEntryButton(button: HTMLButtonElement) {
-  button.dataset.entryAction = 'entry';
-  button.classList.remove('create-another-team-button');
-  removeCancelButton(button);
-  clearStatus(button);
-  if (button.textContent?.trim() !== 'チームを確定') {
-    button.textContent = 'チームを確定';
-  }
-}
-
 function syncEntryActionButtons(button: HTMLButtonElement) {
   const label = button.textContent?.trim() || '';
 
-  if (isEditingMode()) {
-    restoreEntryButton(button);
-    return;
-  }
-
   if (label.includes('チームを確定')) {
-    restoreEntryButton(button);
+    button.dataset.entryAction = 'entry';
+    button.classList.remove('create-another-team-button');
+    removeCancelButton(button);
     return;
   }
 
-  const shouldShowCreateAnother = label.includes('別チームを作る')
+  const shouldShowCreateAnother = button.dataset.entryAction === 'create-another'
+    || label.includes('別チームを作る')
     || label.includes('エントリーを取り消す')
     || label.includes('確定を解除')
     || label.includes('解除');
