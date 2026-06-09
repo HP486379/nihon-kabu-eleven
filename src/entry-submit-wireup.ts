@@ -1,4 +1,4 @@
-import { DEV_CONTEST_ID, buildEntryPayload, cancelEntry, submitEntry } from './lib/entryApi';
+import { DEV_CONTEST_ID, buildEntryPayload, submitEntry } from './lib/entryApi';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -81,6 +81,14 @@ function ensureStatusElement(button: HTMLButtonElement) {
   return element;
 }
 
+function clearStatus(button: HTMLButtonElement) {
+  const parent = button.parentElement;
+  const existing = parent?.querySelector<HTMLElement>('.entry-submit-status');
+  if (!existing) return;
+  existing.textContent = '';
+  delete existing.dataset.status;
+}
+
 function setStatus(button: HTMLButtonElement, message: string, type: 'idle' | 'saving' | 'saved' | 'warning' | 'error') {
   const element = ensureStatusElement(button);
   if (!element) return;
@@ -108,39 +116,23 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
-function isCancelAction(label: string) {
-  return label.includes('取り消') || label.includes('解除');
+function isCreateAnotherAction(button: HTMLButtonElement, label: string) {
+  return button.dataset.entryAction === 'create-another' || label.includes('別チームを作る');
 }
 
 function isEntryAction(label: string) {
-  return !isCancelAction(label) && (label.includes('チームを確定') || label.includes('エントリー'));
+  return !label.includes('別チームを作る') && !label.includes('取り消') && (label.includes('チームを確定') || label.includes('エントリー'));
 }
 
 function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
 }
 
-async function handleCancelClick(button: HTMLButtonElement) {
-  if (isSubmitting) return;
-
-  try {
-    isSubmitting = true;
-    setStatus(button, 'エントリー取消をAPIに送信しています。', 'saving');
-    await cancelEntry(DEV_CONTEST_ID);
-    setStatus(button, 'エントリーを取り消しました。参加チーム一覧から外れます。', 'saved');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    setStatus(button, `エントリー取消に失敗しました：${message}`, 'error');
-  } finally {
-    isSubmitting = false;
-  }
-}
-
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
-  if (isCancelAction(label)) {
-    void handleCancelClick(button);
+  if (isCreateAnotherAction(button, label)) {
+    clearStatus(button);
     return;
   }
 
@@ -198,9 +190,45 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   }
 }
 
+function removeCancelButton(lockButton: HTMLButtonElement) {
+  const parent = lockButton.parentElement;
+  parent?.querySelector<HTMLButtonElement>('.cancel-entry-button')?.remove();
+}
+
+function syncEntryActionButtons(button: HTMLButtonElement) {
+  const label = button.textContent?.trim() || '';
+
+  if (label.includes('チームを確定')) {
+    button.dataset.entryAction = 'entry';
+    button.classList.remove('create-another-team-button');
+    removeCancelButton(button);
+    return;
+  }
+
+  const shouldShowCreateAnother = button.dataset.entryAction === 'create-another'
+    || label.includes('別チームを作る')
+    || label.includes('エントリーを取り消す')
+    || label.includes('確定を解除')
+    || label.includes('解除');
+
+  if (!shouldShowCreateAnother) return;
+
+  button.dataset.entryAction = 'create-another';
+  button.classList.add('create-another-team-button');
+  if (label !== '別チームを作る') {
+    button.textContent = '別チームを作る';
+  }
+  clearStatus(button);
+  removeCancelButton(button);
+}
+
 function setupEntryButton() {
   const button = document.querySelector<HTMLButtonElement>('.lock-button');
-  if (!button || button.dataset.entrySubmitReady === 'true') return;
+  if (!button) return;
+
+  syncEntryActionButtons(button);
+
+  if (button.dataset.entrySubmitReady === 'true') return;
 
   button.dataset.entrySubmitReady = 'true';
   button.addEventListener('click', (event) => {
@@ -213,6 +241,6 @@ export function initEntrySubmit() {
   isInitialized = true;
 
   const observer = new MutationObserver(setupEntryButton);
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   window.setTimeout(setupEntryButton, 0);
 }
