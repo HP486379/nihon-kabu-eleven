@@ -28,6 +28,7 @@ const FORMATION_CONFIGS: Record<string, FormationConfig> = {
 
 let isInitialized = false;
 let isSubmitting = false;
+let allowReactUnlockOnce = false;
 
 function getText(selector: string) {
   return document.querySelector<HTMLElement>(selector)?.textContent?.trim() || '';
@@ -124,6 +125,10 @@ function isAlreadyEnteredError(message: string) {
   return message.includes('Active entry already exists') || message.includes('already exists');
 }
 
+function getLockButton() {
+  return document.querySelector<HTMLButtonElement>('.lock-button');
+}
+
 async function handleCancelClick(button: HTMLButtonElement, statusButton: HTMLButtonElement = button) {
   if (isSubmitting) return;
 
@@ -149,11 +154,26 @@ async function handleCancelClick(button: HTMLButtonElement, statusButton: HTMLBu
   }
 }
 
+function unlockForAnotherTeam(button: HTMLButtonElement) {
+  if (isSubmitting) return;
+
+  setStatus(button, '保存済みチームは参加チーム一覧に残ります。新しいチームを編成できます。', 'saved');
+  allowReactUnlockOnce = true;
+  button.click();
+}
+
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
+  if (allowReactUnlockOnce) {
+    allowReactUnlockOnce = false;
+    return;
+  }
+
   const label = button.textContent?.trim() || '';
 
   if (isCreateAnotherAction(button, label)) {
-    setStatus(button, '保存済みチームは参加チーム一覧に残ります。新しいチームを編成できます。', 'saved');
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    unlockForAnotherTeam(button);
     return;
   }
 
@@ -236,14 +256,7 @@ function ensureCancelButton(lockButton: HTMLButtonElement) {
     parent.appendChild(cancelButton);
   }
 
-  if (cancelButton.dataset.entryCancelReady === 'true') return;
-
   cancelButton.dataset.entryCancelReady = 'true';
-  cancelButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void handleCancelClick(cancelButton, lockButton);
-  }, true);
 }
 
 function syncEntryActionButtons(button: HTMLButtonElement) {
@@ -273,8 +286,23 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
   ensureCancelButton(button);
 }
 
+function handleDelegatedCancelClick(event: MouseEvent) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+
+  const cancelButton = target.closest<HTMLButtonElement>('.cancel-entry-button');
+  if (!cancelButton) return;
+
+  const lockButton = getLockButton();
+  if (!lockButton) return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  void handleCancelClick(cancelButton, lockButton);
+}
+
 function setupEntryButton() {
-  const button = document.querySelector<HTMLButtonElement>('.lock-button');
+  const button = getLockButton();
   if (!button) return;
 
   syncEntryActionButtons(button);
@@ -290,6 +318,8 @@ function setupEntryButton() {
 export function initEntrySubmit() {
   if (isInitialized) return;
   isInitialized = true;
+
+  document.addEventListener('click', handleDelegatedCancelClick, true);
 
   const observer = new MutationObserver(setupEntryButton);
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
