@@ -81,6 +81,14 @@ function ensureStatusElement(button: HTMLButtonElement) {
   return element;
 }
 
+function clearStatus(button: HTMLButtonElement) {
+  const parent = button.parentElement;
+  const existing = parent?.querySelector<HTMLElement>('.entry-submit-status');
+  if (!existing) return;
+  existing.textContent = '';
+  delete existing.dataset.status;
+}
+
 function setStatus(button: HTMLButtonElement, message: string, type: 'idle' | 'saving' | 'saved' | 'warning' | 'error') {
   const element = ensureStatusElement(button);
   if (!element) return;
@@ -153,7 +161,7 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
   if (isCreateAnotherAction(button, label)) {
-    setStatus(button, '保存済みチームは参加チーム一覧に残ります。新しいチームを編成できます。', 'saved');
+    clearStatus(button);
     return;
   }
 
@@ -259,8 +267,6 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
   const shouldShowCreateAnother = button.dataset.entryAction === 'create-another'
     || label.includes('別チームを作る')
     || label.includes('確定を解除')
-    || label.includes('エントリーを取り消す')
-    || label.includes('取り消')
     || label.includes('解除');
 
   if (!shouldShowCreateAnother) return;
@@ -270,6 +276,7 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
   if (label !== '別チームを作る') {
     button.textContent = '別チームを作る';
   }
+  clearStatus(button);
   ensureCancelButton(button);
 }
 
