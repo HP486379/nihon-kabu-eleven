@@ -266,6 +266,7 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
 
   const shouldShowCreateAnother = button.dataset.entryAction === 'create-another'
     || label.includes('別チームを作る')
+    || label.includes('エントリーを取り消す')
     || label.includes('確定を解除')
     || label.includes('解除');
 
