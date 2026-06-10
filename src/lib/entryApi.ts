@@ -29,10 +29,25 @@ export type EntryPayload = {
   members: EntryMemberPayload[];
 };
 
+export type SubmittedEntryRecord = {
+  id?: string;
+  entryId?: string;
+  entry_id?: string;
+  teamName?: string | null;
+  team_name?: string | null;
+  formation?: string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
+};
+
 export type SubmitEntryResult = {
   ok?: boolean;
   status?: string;
   entryId?: string;
+  entry_id?: string;
+  entry?: SubmittedEntryRecord;
+  createdAt?: string | null;
+  created_at?: string | null;
   message?: string;
   error?: string;
   details?: string | null;
