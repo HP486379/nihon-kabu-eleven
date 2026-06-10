@@ -66,25 +66,7 @@ export type CancelParticipantEntryResult = {
   details?: string | Record<string, unknown> | null;
 };
 
-export type RememberSubmittedParticipantInput = {
-  entryId?: string;
-  teamName: string;
-  formation: string;
-  createdAt?: string | null;
-  status?: string;
-  matchType?: string;
-};
-
-type LocalSubmittedEntry = ParticipantApiEntry & {
-  remembered_at?: string;
-  expires_at?: string;
-};
-
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LOCAL_SUBMITTED_ENTRIES_KEY = 'nihon-kabu-eleven:submitted-participants';
-const LOCAL_SUBMITTED_ENTRY_TTL_MS = 60 * 60 * 1000;
-const MAX_LOCAL_SUBMITTED_ENTRIES = 20;
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -100,51 +82,15 @@ function firstText(...values: unknown[]) {
   return typeof found === 'string' ? found.trim() : '';
 }
 
-function validUuid(value: unknown) {
-  const text = firstText(value);
-  return UUID_PATTERN.test(text) ? text : '';
-}
-
-function getEntryId(entry: ParticipantApiEntry) {
-  return validUuid(entry.entryId) || validUuid(entry.entry_id) || validUuid(entry.id);
-}
-
-function getEntryTeamName(entry: ParticipantApiEntry) {
-  return firstText(entry.teamName, entry.team_name);
-}
-
-function getEntryFormation(entry: ParticipantApiEntry) {
-  return firstText(entry.formation);
-}
-
-function getEntryCreatedAt(entry: ParticipantApiEntry) {
-  return firstText(entry.createdAt, entry.created_at);
-}
-
-function getEntryIdentity(entry: ParticipantApiEntry) {
-  const id = getEntryId(entry);
-  if (id) return `id:${id}`;
-
-  const teamName = getEntryTeamName(entry);
-  const formation = getEntryFormation(entry);
-  const createdAt = getEntryCreatedAt(entry);
-  if (teamName && createdAt) return `fallback:${teamName}|${formation}|${createdAt}`;
-  if (teamName && formation) return `team:${teamName}|${formation}`;
-  return '';
-}
-
-function hasSameTeamAndFormation(left: ParticipantApiEntry, right: ParticipantApiEntry) {
-  const leftTeam = getEntryTeamName(left);
-  const rightTeam = getEntryTeamName(right);
-  if (!leftTeam || !rightTeam || leftTeam !== rightTeam) return false;
-  return getEntryFormation(left) === getEntryFormation(right);
-}
-
 function normalizeEntries(result: ParticipantsApiResult): ParticipantApiEntry[] {
   if (Array.isArray(result.entries)) return result.entries;
   if (Array.isArray(result.participants)) return result.participants;
   if (Array.isArray(result.data)) return result.data;
   return [];
+}
+
+function getEntryId(entry: ParticipantApiEntry) {
+  return firstText(entry.entryId, entry.entry_id, entry.id);
 }
 
 function normalizeParticipant(entry: ParticipantApiEntry, index: number): ParticipantItem {
@@ -185,103 +131,12 @@ function stringifyDetails(details: unknown) {
   }
 }
 
-function readLocalSubmittedEntries(): LocalSubmittedEntry[] {
-  if (typeof window === 'undefined') return [];
-
+function clearLocalSubmittedEntries() {
   try {
-    const raw = window.localStorage.getItem(LOCAL_SUBMITTED_ENTRIES_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw) as LocalSubmittedEntry[];
-    if (!Array.isArray(parsed)) return [];
-
-    const now = Date.now();
-    return parsed.filter((entry) => {
-      const expiresAt = firstText(entry.expires_at);
-      if (!expiresAt) return true;
-      const expiresTime = Date.parse(expiresAt);
-      return !Number.isFinite(expiresTime) || expiresTime > now;
-    });
+    window.localStorage.removeItem('nihon-kabu-eleven:submitted-participants');
   } catch (_error) {
-    return [];
+    // localStorage cleanup is best-effort only.
   }
-}
-
-function writeLocalSubmittedEntries(entries: LocalSubmittedEntry[]) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    if (entries.length === 0) {
-      window.localStorage.removeItem(LOCAL_SUBMITTED_ENTRIES_KEY);
-      return;
-    }
-
-    window.localStorage.setItem(LOCAL_SUBMITTED_ENTRIES_KEY, JSON.stringify(entries.slice(0, MAX_LOCAL_SUBMITTED_ENTRIES)));
-  } catch (_error) {
-    // localStorage is best-effort only.
-  }
-}
-
-function mergeLocalSubmittedEntries(apiEntries: ParticipantApiEntry[]) {
-  const localEntries = readLocalSubmittedEntries();
-  if (localEntries.length === 0) return apiEntries;
-
-  const apiIdentities = new Set(apiEntries.map(getEntryIdentity).filter(Boolean));
-  const localOnly = localEntries.filter((entry) => {
-    const identity = getEntryIdentity(entry);
-    if (identity && apiIdentities.has(identity)) return false;
-    return !apiEntries.some((apiEntry) => hasSameTeamAndFormation(entry, apiEntry));
-  });
-
-  return [...apiEntries, ...localOnly];
-}
-
-export function rememberSubmittedParticipant(input: RememberSubmittedParticipantInput) {
-  const teamName = firstText(input.teamName);
-  const formation = firstText(input.formation);
-  if (!teamName || !formation) return;
-
-  const now = new Date();
-  const createdAt = firstText(input.createdAt) || now.toISOString();
-  const nextEntry: LocalSubmittedEntry = {
-    id: firstText(input.entryId),
-    entryId: firstText(input.entryId),
-    teamName,
-    team_name: teamName,
-    formation,
-    matchType: firstText(input.matchType) || '第1回 日本株代表イレブン杯',
-    match_type: firstText(input.matchType) || '第1回 日本株代表イレブン杯',
-    status: firstText(input.status) || '確定済み',
-    style: '参加チーム / 集計待ち',
-    createdAt,
-    created_at: createdAt,
-    remembered_at: now.toISOString(),
-    expires_at: new Date(now.getTime() + LOCAL_SUBMITTED_ENTRY_TTL_MS).toISOString(),
-  };
-
-  const current = readLocalSubmittedEntries().filter((entry) => !hasSameTeamAndFormation(entry, nextEntry));
-  writeLocalSubmittedEntries([nextEntry, ...current]);
-}
-
-function forgetSubmittedParticipant(target: CancelParticipantEntryTarget) {
-  const current = readLocalSubmittedEntries();
-  if (current.length === 0) return false;
-
-  const before = current.length;
-  const next = current.filter((entry) => {
-    const targetEntry: ParticipantApiEntry = {
-      id: target.entryId,
-      entryId: target.entryId,
-      teamName: target.teamName,
-      formation: target.formation,
-      createdAt: target.createdAt,
-    };
-
-    return getEntryIdentity(entry) !== getEntryIdentity(targetEntry) && !hasSameTeamAndFormation(entry, targetEntry);
-  });
-
-  writeLocalSubmittedEntries(next);
-  return next.length !== before;
 }
 
 async function parseApiResponse<T extends { ok?: boolean; message?: string; error?: string; details?: unknown }>(response: Response, fallbackLabel: string): Promise<T> {
@@ -297,28 +152,25 @@ async function parseApiResponse<T extends { ok?: boolean; message?: string; erro
 }
 
 export async function fetchParticipants(): Promise<ParticipantItem[]> {
-  const response = await fetch(`${API_BASE}/api/entries`);
+  clearLocalSubmittedEntries();
+  const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
   const result = await parseApiResponse<ParticipantsApiResult>(response, 'participants api');
-  const entries = mergeLocalSubmittedEntries(normalizeEntries(result));
+  const entries = normalizeEntries(result);
   return sortParticipants(entries.map(normalizeParticipant));
 }
 
 export async function cancelParticipantEntry(target: CancelParticipantEntryTarget): Promise<CancelParticipantEntryResult> {
-  try {
-    const response = await fetch(`${API_BASE}/api/entries/cancel-selected`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(target),
-    });
+  const response = await fetch(`${API_BASE}/api/entries/cancel-selected`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(target),
+  });
 
-    const result = await parseApiResponse<CancelParticipantEntryResult>(response, 'entry cancel api');
-    forgetSubmittedParticipant(target);
-    return result;
-  } catch (error) {
-    const removedLocalEntry = forgetSubmittedParticipant(target);
-    if (removedLocalEntry && !validUuid(target.entryId)) {
-      return { ok: true, status: 'cancelled', message: 'locally remembered entry removed' };
-    }
-    throw error;
-  }
+  return parseApiResponse<CancelParticipantEntryResult>(response, 'entry cancel api');
 }
