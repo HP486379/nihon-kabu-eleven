@@ -34,12 +34,91 @@ import './formation-page.css';
 import './participants-page.css';
 import './results-page.css';
 
+const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
+
+function normalizeUserName(value: string) {
+  return value.trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function isValidUserName(value: string) {
+  return /^[a-z0-9_-]{3,24}$/.test(value);
+}
+
+function readUserName() {
+  try {
+    return normalizeUserName(window.localStorage.getItem(USER_NAME_STORAGE_KEY) || '');
+  } catch (_error) {
+    return '';
+  }
+}
+
+function writeUserName(value: string) {
+  try {
+    window.localStorage.setItem(USER_NAME_STORAGE_KEY, value);
+  } catch (_error) {
+    // localStorage is best-effort only.
+  }
+}
+
+function setEntryGuardStatus(button: HTMLButtonElement, message: string, type: 'warning' | 'error') {
+  const parent = button.parentElement;
+  if (!parent) return;
+
+  let status = parent.querySelector<HTMLElement>('.entry-submit-status');
+  if (!status) {
+    status = document.createElement('p');
+    status.className = 'entry-submit-status helper-text';
+    status.setAttribute('aria-live', 'polite');
+    parent.appendChild(status);
+  }
+
+  status.textContent = message;
+  status.dataset.status = type;
+  status.style.margin = '8px 0 0';
+  status.style.fontWeight = '700';
+}
+
+function initUserNameEntryGuard() {
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest<HTMLButtonElement>('.lock-button') : null;
+    if (!button || button.disabled) return;
+
+    const label = button.textContent?.trim() || '';
+    const isEntryAction = !label.includes('別チームを作る')
+      && !label.includes('チームを作り直す')
+      && !label.includes('取り消')
+      && (label.includes('チームを確定') || label.includes('エントリー'));
+    if (!isEntryAction || isValidUserName(readUserName())) return;
+
+    const raw = window.prompt('ユーザーネームを登録してください。半角英数字・ハイフン・アンダースコアで3〜24文字です。例：Taro');
+    if (raw === null) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setEntryGuardStatus(button, 'ユーザーネーム登録が必要です。キャンセルしたため、エントリーは保存していません。', 'warning');
+      return;
+    }
+
+    const normalized = normalizeUserName(raw);
+    if (!isValidUserName(normalized)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setEntryGuardStatus(button, 'ユーザーネームは半角英数字・ハイフン・アンダースコアで3〜24文字にしてください。', 'error');
+      return;
+    }
+
+    writeUserName(normalized);
+  }, true);
+}
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 );
 
+initUserNameEntryGuard();
 initPitchDragDrop();
 initMemberLabelOverrides();
 initEntrySubmit();
