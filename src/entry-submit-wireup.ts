@@ -15,6 +15,24 @@ type SelectedMember = {
   position: Position;
 };
 
+type EntryListItem = {
+  id?: string;
+  entryId?: string;
+  entry_id?: string;
+  teamName?: string | null;
+  team_name?: string | null;
+  formation?: string | null;
+};
+
+type EntryListResult = {
+  ok?: boolean;
+  entries?: EntryListItem[];
+  participants?: EntryListItem[];
+  data?: EntryListItem[];
+  message?: string;
+  error?: string;
+};
+
 const FORMATION_CONFIGS: Record<string, FormationConfig> = {
   '4-3-3': { key: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, weights: { FW: 0.35, MF: 0.30, DF: 0.25, GK: 0.10 } },
   '4-2-3-1': { key: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 } },
@@ -25,6 +43,8 @@ const FORMATION_CONFIGS: Record<string, FormationConfig> = {
   '3-4-2-1': { key: '3-4-2-1', counts: { FW: 1, MF: 6, DF: 3, GK: 1 }, weights: { FW: 0.28, MF: 0.42, DF: 0.20, GK: 0.10 } },
   '5-4-1': { key: '5-4-1', counts: { FW: 1, MF: 4, DF: 5, GK: 1 }, weights: { FW: 0.20, MF: 0.30, DF: 0.40, GK: 0.10 } },
 };
+
+const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
 let isInitialized = false;
 let isSubmitting = false;
@@ -136,6 +156,48 @@ function getSavedEntryId(result: SubmitEntryResult) {
   return result.entryId || result.entry_id || result.entry?.id || result.entry?.entryId || result.entry?.entry_id || '';
 }
 
+function firstText(...values: unknown[]) {
+  const found = values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  return typeof found === 'string' ? found.trim() : '';
+}
+
+function normalizeEntryList(result: EntryListResult): EntryListItem[] {
+  if (Array.isArray(result.entries)) return result.entries;
+  if (Array.isArray(result.participants)) return result.participants;
+  if (Array.isArray(result.data)) return result.data;
+  return [];
+}
+
+function entryMatches(entry: EntryListItem, entryId: string, teamName: string, formation: string) {
+  const listedId = firstText(entry.entryId, entry.entry_id, entry.id);
+  const listedTeam = firstText(entry.teamName, entry.team_name);
+  const listedFormation = firstText(entry.formation);
+  return (entryId && listedId === entryId) || (listedTeam === teamName && listedFormation === formation);
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function confirmEntryVisible(entryId: string, teamName: string, formation: string) {
+  const delays = [0, 300, 800, 1500, 2500];
+  for (const delay of delays) {
+    if (delay) await wait(delay);
+    const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+    if (!response.ok) continue;
+    const result = await response.json().catch(() => ({})) as EntryListResult;
+    const entries = normalizeEntryList(result);
+    if (entries.some((entry) => entryMatches(entry, entryId, teamName, formation))) return true;
+  }
+  return false;
+}
+
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
@@ -194,7 +256,13 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
       throw new Error('保存結果に entryId がありません。');
     }
 
-    setStatus(button, 'エントリー完了。参加チーム一覧に反映します。続けて別チームも保存できます。', 'saved');
+    setStatus(button, '保存結果を参加チーム一覧で確認しています。', 'saving');
+    const visible = await confirmEntryVisible(savedEntryId, payload.teamName, payload.formation);
+    if (!visible) {
+      throw new Error('保存APIは応答しましたが、参加チーム一覧のAPIで新チームを確認できませんでした。');
+    }
+
+    setStatus(button, 'エントリー完了。参加チーム一覧に反映済みです。続けて別チームも保存できます。', 'saved');
     button.disabled = false;
     showCreateAnotherButton(button);
     window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, entryId: savedEntryId } }));
