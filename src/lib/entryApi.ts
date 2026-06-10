@@ -25,6 +25,8 @@ export type EntryMemberPayload = {
 export type EntryPayload = {
   contestId: string;
   teamName: string;
+  userName: string;
+  ownerKey: string;
   formation: string;
   members: EntryMemberPayload[];
 };
@@ -35,6 +37,11 @@ export type SubmittedEntryRecord = {
   entry_id?: string;
   teamName?: string | null;
   team_name?: string | null;
+  userName?: string | null;
+  user_name?: string | null;
+  owner?: string | null;
+  ownerKey?: string | null;
+  owner_key?: string | null;
   formation?: string | null;
   createdAt?: string | null;
   created_at?: string | null;
@@ -92,17 +99,23 @@ async function parseApiResponse<T>(response: Response, fallbackLabel: string): P
 export function buildEntryPayload({
   contestId = DEV_CONTEST_ID,
   teamName,
+  userName,
+  ownerKey,
   formation,
   selected,
 }: {
   contestId?: string;
   teamName: string;
+  userName: string;
+  ownerKey: string;
   formation: FormationForEntry;
   selected: SelectedEntryStock[];
 }): EntryPayload {
   return {
     contestId,
     teamName,
+    userName,
+    ownerKey,
     formation: formation.key,
     members: selected.map((stock, index) => {
       const position = stock.position || 'MF';
