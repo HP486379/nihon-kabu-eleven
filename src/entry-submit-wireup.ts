@@ -21,7 +21,14 @@ type EntryListItem = {
   entry_id?: string;
   teamName?: string | null;
   team_name?: string | null;
+  userName?: string | null;
+  user_name?: string | null;
+  owner?: string | null;
+  ownerKey?: string | null;
+  owner_key?: string | null;
   formation?: string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
 };
 
 type EntryListResult = {
@@ -45,6 +52,9 @@ const FORMATION_CONFIGS: Record<string, FormationConfig> = {
 };
 
 const API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
+const OWNER_KEY_STORAGE_KEY = 'nihon-kabu-eleven:owner-key';
+const ENTRY_ID_STORAGE_PREFIX = 'nihon-kabu-eleven:entry-id:';
 
 let isInitialized = false;
 let isSubmitting = false;
@@ -141,11 +151,14 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
 }
 
 function isCreateAnotherAction(button: HTMLButtonElement, label: string) {
-  return button.dataset.entryAction === 'create-another' || label.includes('別チームを作る');
+  return button.dataset.entryAction === 'create-another' || label.includes('別チームを作る') || label.includes('チームを作り直す');
 }
 
 function isEntryAction(label: string) {
-  return !label.includes('別チームを作る') && !label.includes('取り消') && (label.includes('チームを確定') || label.includes('エントリー'));
+  return !label.includes('別チームを作る')
+    && !label.includes('チームを作り直す')
+    && !label.includes('取り消')
+    && (label.includes('チームを確定') || label.includes('エントリー'));
 }
 
 function isAlreadyEnteredError(message: string) {
@@ -173,27 +186,154 @@ function entryMatches(entry: EntryListItem, entryId: string) {
   return Boolean(entryId) && listedId === entryId;
 }
 
+function getEntryId(entry: EntryListItem) {
+  return firstText(entry.entryId, entry.entry_id, entry.id);
+}
+
+function getEntryUserName(entry: EntryListItem) {
+  return firstText(entry.userName, entry.user_name, entry.owner);
+}
+
+function getEntryOwnerKey(entry: EntryListItem) {
+  return firstText(entry.ownerKey, entry.owner_key);
+}
+
+function normalizeUserName(value: string) {
+  return value.trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function isValidUserName(value: string) {
+  return /^[a-z0-9_-]{3,24}$/.test(value);
+}
+
+function readStorage(key: string) {
+  try {
+    return window.localStorage.getItem(key) || '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (_error) {
+    // localStorage is best-effort only.
+  }
+}
+
+function getOrCreateOwnerKey() {
+  const existing = readStorage(OWNER_KEY_STORAGE_KEY);
+  if (existing) return existing;
+
+  const generated = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `owner-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  writeStorage(OWNER_KEY_STORAGE_KEY, generated);
+  return generated;
+}
+
+function getEntryStorageKey(userName: string) {
+  return `${ENTRY_ID_STORAGE_PREFIX}${userName}`;
+}
+
+function getStoredEntryId(userName: string) {
+  return readStorage(getEntryStorageKey(userName));
+}
+
+function rememberEntryId(userName: string, entryId: string) {
+  writeStorage(getEntryStorageKey(userName), entryId);
+}
+
+function getOrRegisterUserName() {
+  const stored = normalizeUserName(readStorage(USER_NAME_STORAGE_KEY));
+  if (isValidUserName(stored)) return stored;
+
+  const raw = window.prompt('ユーザーネームを登録してください。半角英数字・ハイフン・アンダースコアで3〜24文字です。例：tsuyoshi');
+  if (raw === null) return null;
+
+  const normalized = normalizeUserName(raw);
+  if (!isValidUserName(normalized)) {
+    throw new Error('ユーザーネームは半角英数字・ハイフン・アンダースコアで3〜24文字にしてください。');
+  }
+
+  writeStorage(USER_NAME_STORAGE_KEY, normalized);
+  return normalized;
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function fetchEntryList() {
+  const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
+  if (!response.ok) return [];
+  const result = await response.json().catch(() => ({})) as EntryListResult;
+  return normalizeEntryList(result);
+}
+
+function findUserNameConflict(entries: EntryListItem[], userName: string, ownerKey: string, previousEntryId: string) {
+  return entries.find((entry) => {
+    const entryUserName = normalizeUserName(getEntryUserName(entry));
+    if (!entryUserName || entryUserName !== userName) return false;
+
+    const entryId = getEntryId(entry);
+    if (previousEntryId && entryId === previousEntryId) return false;
+
+    const entryOwnerKey = getEntryOwnerKey(entry);
+    if (entryOwnerKey && entryOwnerKey === ownerKey) return false;
+
+    return true;
+  });
+}
+
+async function cancelEntryById(entryId: string, entry?: EntryListItem) {
+  if (!entryId) return;
+
+  const response = await fetch(`${API_BASE}/api/entries/cancel-selected`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      entryId,
+      teamName: firstText(entry?.teamName, entry?.team_name),
+      formation: firstText(entry?.formation),
+      createdAt: firstText(entry?.createdAt, entry?.created_at),
+    }),
+  });
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({})) as { message?: string; error?: string; details?: string };
+    throw new Error(result.message || result.error || `entry cancel api ${response.status}`);
+  }
 }
 
 async function confirmEntryVisible(entryId: string) {
   const delays = [0, 300, 800, 1500, 2500];
   for (const delay of delays) {
     if (delay) await wait(delay);
-    const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
-    });
-    if (!response.ok) continue;
-    const result = await response.json().catch(() => ({})) as EntryListResult;
-    const entries = normalizeEntryList(result);
+    const entries = await fetchEntryList();
     if (entries.some((entry) => entryMatches(entry, entryId))) return true;
   }
   return false;
+}
+
+async function submitReplacingPrevious(payload: ReturnType<typeof buildEntryPayload>, previousEntryId: string, entriesBefore: EntryListItem[]) {
+  try {
+    return await submitEntry(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!isAlreadyEnteredError(message) || !previousEntryId) throw error;
+
+    const previousEntry = entriesBefore.find((entry) => entryMatches(entry, previousEntryId));
+    await cancelEntryById(previousEntryId, previousEntry);
+    return submitEntry(payload);
+  }
 }
 
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
@@ -241,17 +381,40 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     button.textContent = 'エントリー保存中...';
     setStatus(button, '大会エントリーを保存しています。', 'saving');
 
+    const userName = getOrRegisterUserName();
+    if (!userName) {
+      setStatus(button, 'ユーザーネーム登録をキャンセルしました。', 'warning');
+      button.disabled = false;
+      button.textContent = originalText;
+      return;
+    }
+
+    const ownerKey = getOrCreateOwnerKey();
+    const previousEntryId = getStoredEntryId(userName);
+    const entriesBefore = await fetchEntryList();
+    const conflict = findUserNameConflict(entriesBefore, userName, ownerKey, previousEntryId);
+    if (conflict) {
+      throw new Error(`ユーザーネーム「${userName}」は既に使われています。別のユーザーネームを登録してください。`);
+    }
+
     const payload = buildEntryPayload({
       contestId: DEV_CONTEST_ID,
       teamName: getTeamName(),
+      userName,
+      ownerKey,
       formation,
       selected: members,
     });
 
-    const result = await submitEntry(payload);
+    const result = await submitReplacingPrevious(payload, previousEntryId, entriesBefore);
     const savedEntryId = getSavedEntryId(result);
     if (!savedEntryId) {
       throw new Error('保存結果に entryId がありません。');
+    }
+
+    if (previousEntryId && previousEntryId !== savedEntryId) {
+      const previousEntry = entriesBefore.find((entry) => entryMatches(entry, previousEntryId));
+      await cancelEntryById(previousEntryId, previousEntry).catch(() => undefined);
     }
 
     setStatus(button, '保存結果を参加チーム一覧で確認しています。', 'saving');
@@ -260,18 +423,15 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
       throw new Error('保存APIは応答しましたが、参加チーム一覧のAPIで新チームを確認できませんでした。');
     }
 
-    setStatus(button, 'エントリー完了。参加チーム一覧に反映済みです。続けて別チームも保存できます。', 'saved');
+    rememberEntryId(userName, savedEntryId);
+    setStatus(button, `エントリー完了。ユーザーネーム「${userName}」の1チームとして保存しました。`, 'saved');
     button.disabled = false;
     showCreateAnotherButton(button);
-    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, entryId: savedEntryId } }));
+    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, userName, entryId: savedEntryId } }));
     window.setTimeout(setupEntryButton, 0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (isAlreadyEnteredError(message)) {
-      setStatus(button, 'この大会には既にエントリー済みです。', 'warning');
-    } else {
-      setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
-    }
+    setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
     button.disabled = false;
     button.textContent = originalText;
   } finally {
@@ -296,8 +456,8 @@ function restoreEntryButton(button: HTMLButtonElement) {
 function showCreateAnotherButton(button: HTMLButtonElement) {
   button.dataset.entryAction = 'create-another';
   button.classList.add('create-another-team-button');
-  if (button.textContent?.trim() !== '別チームを作る') {
-    button.textContent = '別チームを作る';
+  if (button.textContent?.trim() !== 'チームを作り直す') {
+    button.textContent = 'チームを作り直す';
   }
   removeCancelButton(button);
 }
@@ -311,6 +471,7 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
   }
 
   const shouldShowCreateAnother = label.includes('別チームを作る')
+    || label.includes('チームを作り直す')
     || label.includes('エントリーを取り消す')
     || label.includes('確定を解除')
     || label.includes('解除');
