@@ -1,5 +1,4 @@
 import { DEV_CONTEST_ID, buildEntryPayload, submitEntry, type SubmitEntryResult } from './lib/entryApi';
-import { rememberSubmittedParticipant } from './lib/participantsApi';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -137,10 +136,6 @@ function getSavedEntryId(result: SubmitEntryResult) {
   return result.entryId || result.entry_id || result.entry?.id || result.entry?.entryId || result.entry?.entry_id || '';
 }
 
-function getSavedCreatedAt(result: SubmitEntryResult) {
-  return result.createdAt || result.created_at || result.entry?.createdAt || result.entry?.created_at || null;
-}
-
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
@@ -194,20 +189,15 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     });
 
     const result = await submitEntry(payload);
-
-    rememberSubmittedParticipant({
-      entryId: getSavedEntryId(result),
-      teamName: payload.teamName,
-      formation: payload.formation,
-      createdAt: getSavedCreatedAt(result),
-      status: '確定済み',
-      matchType: '第1回 日本株代表イレブン杯',
-    });
+    const savedEntryId = getSavedEntryId(result);
+    if (!savedEntryId) {
+      throw new Error('保存結果に entryId がありません。');
+    }
 
     setStatus(button, 'エントリー完了。参加チーム一覧に反映します。続けて別チームも保存できます。', 'saved');
     button.disabled = false;
     showCreateAnotherButton(button);
-    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, entryId: getSavedEntryId(result) } }));
+    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, entryId: savedEntryId } }));
     window.setTimeout(setupEntryButton, 0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
