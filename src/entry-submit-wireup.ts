@@ -38,6 +38,10 @@ function getTeamName() {
   return chipText.split('｜')[0]?.trim() || 'ゲストジャパン';
 }
 
+function isReactLockedMode() {
+  return getText('.team-chip').includes('チーム確定済み');
+}
+
 function getFormationConfig() {
   const key = getText('.formation-number');
   return FORMATION_CONFIGS[key] || null;
@@ -132,7 +136,16 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
   if (isCreateAnotherAction(button, label)) {
+    const shouldLetReactUnlock = isReactLockedMode();
     clearStatus(button);
+    restoreEntryButton(button);
+
+    if (!shouldLetReactUnlock) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+
+    window.setTimeout(setupEntryButton, 0);
     return;
   }
 
@@ -175,7 +188,9 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
 
     setStatus(button, 'エントリー完了。保存済みチームは参加チーム一覧に残ります。続けて別チームも保存できます。', 'saved');
     button.disabled = false;
-    button.textContent = originalText;
+    showCreateAnotherButton(button);
+    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: getTeamName() } }));
+    window.setTimeout(setupEntryButton, 0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isAlreadyEnteredError(message)) {
@@ -195,31 +210,40 @@ function removeCancelButton(lockButton: HTMLButtonElement) {
   parent?.querySelector<HTMLButtonElement>('.cancel-entry-button')?.remove();
 }
 
+function restoreEntryButton(button: HTMLButtonElement) {
+  button.dataset.entryAction = 'entry';
+  button.classList.remove('create-another-team-button');
+  removeCancelButton(button);
+  if (button.textContent?.trim() !== 'チームを確定') {
+    button.textContent = 'チームを確定';
+  }
+}
+
+function showCreateAnotherButton(button: HTMLButtonElement) {
+  button.dataset.entryAction = 'create-another';
+  button.classList.add('create-another-team-button');
+  if (button.textContent?.trim() !== '別チームを作る') {
+    button.textContent = '別チームを作る';
+  }
+  removeCancelButton(button);
+}
+
 function syncEntryActionButtons(button: HTMLButtonElement) {
   const label = button.textContent?.trim() || '';
 
   if (label.includes('チームを確定')) {
-    button.dataset.entryAction = 'entry';
-    button.classList.remove('create-another-team-button');
-    removeCancelButton(button);
+    restoreEntryButton(button);
     return;
   }
 
-  const shouldShowCreateAnother = button.dataset.entryAction === 'create-another'
-    || label.includes('別チームを作る')
+  const shouldShowCreateAnother = label.includes('別チームを作る')
     || label.includes('エントリーを取り消す')
     || label.includes('確定を解除')
     || label.includes('解除');
 
   if (!shouldShowCreateAnother) return;
 
-  button.dataset.entryAction = 'create-another';
-  button.classList.add('create-another-team-button');
-  if (label !== '別チームを作る') {
-    button.textContent = '別チームを作る';
-  }
-  clearStatus(button);
-  removeCancelButton(button);
+  showCreateAnotherButton(button);
 }
 
 function setupEntryButton() {
