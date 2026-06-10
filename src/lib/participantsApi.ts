@@ -153,7 +153,13 @@ async function parseApiResponse<T extends { ok?: boolean; message?: string; erro
 
 export async function fetchParticipants(): Promise<ParticipantItem[]> {
   clearLocalSubmittedEntries();
-  const response = await fetch(`${API_BASE}/api/entries`);
+  const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
   const result = await parseApiResponse<ParticipantsApiResult>(response, 'participants api');
   const entries = normalizeEntries(result);
   return sortParticipants(entries.map(normalizeParticipant));
