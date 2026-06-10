@@ -168,18 +168,16 @@ function normalizeEntryList(result: EntryListResult): EntryListItem[] {
   return [];
 }
 
-function entryMatches(entry: EntryListItem, entryId: string, teamName: string, formation: string) {
+function entryMatches(entry: EntryListItem, entryId: string) {
   const listedId = firstText(entry.entryId, entry.entry_id, entry.id);
-  const listedTeam = firstText(entry.teamName, entry.team_name);
-  const listedFormation = firstText(entry.formation);
-  return (entryId && listedId === entryId) || (listedTeam === teamName && listedFormation === formation);
+  return Boolean(entryId) && listedId === entryId;
 }
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function confirmEntryVisible(entryId: string, teamName: string, formation: string) {
+async function confirmEntryVisible(entryId: string) {
   const delays = [0, 300, 800, 1500, 2500];
   for (const delay of delays) {
     if (delay) await wait(delay);
@@ -193,7 +191,7 @@ async function confirmEntryVisible(entryId: string, teamName: string, formation:
     if (!response.ok) continue;
     const result = await response.json().catch(() => ({})) as EntryListResult;
     const entries = normalizeEntryList(result);
-    if (entries.some((entry) => entryMatches(entry, entryId, teamName, formation))) return true;
+    if (entries.some((entry) => entryMatches(entry, entryId))) return true;
   }
   return false;
 }
@@ -257,7 +255,7 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     }
 
     setStatus(button, '保存結果を参加チーム一覧で確認しています。', 'saving');
-    const visible = await confirmEntryVisible(savedEntryId, payload.teamName, payload.formation);
+    const visible = await confirmEntryVisible(savedEntryId);
     if (!visible) {
       throw new Error('保存APIは応答しましたが、参加チーム一覧のAPIで新チームを確認できませんでした。');
     }
