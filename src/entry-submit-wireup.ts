@@ -249,7 +249,7 @@ function getOrRegisterUserName() {
   const stored = normalizeUserName(readStorage(USER_NAME_STORAGE_KEY));
   if (isValidUserName(stored)) return stored;
 
-  const raw = window.prompt('ユーザーネームを登録してください。半角英数字・ハイフン・アンダースコアで3〜24文字です。例：tsuyoshi');
+  const raw = window.prompt('ユーザーネームを登録してください。半角英数字・ハイフン・アンダースコアで3〜24文字です。例：Taro');
   if (raw === null) return null;
 
   const normalized = normalizeUserName(raw);
@@ -342,13 +342,16 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   if (isCreateAnotherAction(button, label)) {
     const shouldLetReactUnlock = isReactLockedMode();
     clearStatus(button);
-    restoreEntryButton(button);
 
-    if (!shouldLetReactUnlock) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
+    if (shouldLetReactUnlock) {
+      button.dataset.entryAction = 'unlocking';
+      window.setTimeout(setupEntryButton, 0);
+      return;
     }
 
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    restoreEntryButton(button);
     window.setTimeout(setupEntryButton, 0);
     return;
   }
