@@ -68,10 +68,6 @@ function getTeamName() {
   return chipText.split('｜')[0]?.trim() || 'ゲストジャパン';
 }
 
-function isReactLockedMode() {
-  return getText('.team-chip').includes('チーム確定済み');
-}
-
 function getFormationConfig() {
   const key = getText('.formation-number');
   return FORMATION_CONFIGS[key] || null;
@@ -150,8 +146,13 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
   return null;
 }
 
-function isCreateAnotherAction(button: HTMLButtonElement, label: string) {
-  return button.dataset.entryAction === 'create-another' || label.includes('別チームを作る') || label.includes('チームを作り直す');
+function isPostEntryAction(button: HTMLButtonElement, label: string) {
+  return button.dataset.entryAction === 'post-entry'
+    || label.includes('別チームを作る')
+    || label.includes('チームを作り直す')
+    || label.includes('エントリーを取り消す')
+    || label.includes('確定を解除')
+    || label.includes('解除');
 }
 
 function isEntryAction(label: string) {
@@ -339,20 +340,10 @@ async function submitReplacingPrevious(payload: ReturnType<typeof buildEntryPayl
 async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   const label = button.textContent?.trim() || '';
 
-  if (isCreateAnotherAction(button, label)) {
-    const shouldLetReactUnlock = isReactLockedMode();
-    clearStatus(button);
-
-    if (shouldLetReactUnlock) {
-      button.dataset.entryAction = 'unlocking';
-      window.setTimeout(setupEntryButton, 0);
-      return;
-    }
-
+  if (isPostEntryAction(button, label)) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    restoreEntryButton(button);
-    window.setTimeout(setupEntryButton, 0);
+    hidePostEntryButton(button);
     return;
   }
 
@@ -428,10 +419,8 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
 
     rememberEntryId(userName, savedEntryId);
     setStatus(button, `エントリー完了。ユーザーネーム「${userName}」の1チームとして保存しました。`, 'saved');
-    button.disabled = false;
-    showCreateAnotherButton(button);
     window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, userName, entryId: savedEntryId } }));
-    window.setTimeout(setupEntryButton, 0);
+    hidePostEntryButton(button);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setStatus(button, `エントリー保存に失敗しました：${message}`, 'error');
@@ -450,18 +439,21 @@ function removeCancelButton(lockButton: HTMLButtonElement) {
 function restoreEntryButton(button: HTMLButtonElement) {
   button.dataset.entryAction = 'entry';
   button.classList.remove('create-another-team-button');
+  button.hidden = false;
+  button.style.display = '';
+  button.disabled = false;
   removeCancelButton(button);
   if (button.textContent?.trim() !== 'チームを確定') {
     button.textContent = 'チームを確定';
   }
 }
 
-function showCreateAnotherButton(button: HTMLButtonElement) {
-  button.dataset.entryAction = 'create-another';
-  button.classList.add('create-another-team-button');
-  if (button.textContent?.trim() !== 'チームを作り直す') {
-    button.textContent = 'チームを作り直す';
-  }
+function hidePostEntryButton(button: HTMLButtonElement) {
+  button.dataset.entryAction = 'post-entry';
+  button.classList.remove('create-another-team-button');
+  button.disabled = true;
+  button.hidden = true;
+  button.style.display = 'none';
   removeCancelButton(button);
 }
 
@@ -473,15 +465,9 @@ function syncEntryActionButtons(button: HTMLButtonElement) {
     return;
   }
 
-  const shouldShowCreateAnother = label.includes('別チームを作る')
-    || label.includes('チームを作り直す')
-    || label.includes('エントリーを取り消す')
-    || label.includes('確定を解除')
-    || label.includes('解除');
-
-  if (!shouldShowCreateAnother) return;
-
-  showCreateAnotherButton(button);
+  if (isPostEntryAction(button, label)) {
+    hidePostEntryButton(button);
+  }
 }
 
 function setupEntryButton() {
