@@ -1,4 +1,5 @@
-import { DEV_CONTEST_ID, buildEntryPayload, submitEntry, type SubmitEntryResult } from './lib/entryApi';
+import { buildEntryPayload, submitEntry, type SubmitEntryResult } from './lib/entryApi';
+import { entryMatchesContest, getCurrentContestContext, withContestQuery } from './lib/contestContext';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -19,6 +20,9 @@ type EntryListItem = {
   id?: string;
   entryId?: string;
   entry_id?: string;
+  contestId?: string | null;
+  contest_id?: string | null;
+  contest?: { id?: string | null } | null;
   teamName?: string | null;
   team_name?: string | null;
   userName?: string | null;
@@ -88,12 +92,7 @@ function readSelectedMembers(): SelectedMember[] {
     const code = card.querySelector('small')?.textContent?.trim() || '';
     const name = card.querySelector('strong')?.textContent?.trim() || code;
 
-    return {
-      code,
-      name,
-      market: getMarketByCode(code),
-      position,
-    };
+    return { code, name, market: getMarketByCode(code), position };
   }).filter((member) => Boolean(member.code));
 }
 
@@ -111,18 +110,9 @@ function ensureStatusElement(button: HTMLButtonElement) {
   return element;
 }
 
-function clearStatus(button: HTMLButtonElement) {
-  const parent = button.parentElement;
-  const existing = parent?.querySelector<HTMLElement>('.entry-submit-status');
-  if (!existing) return;
-  existing.textContent = '';
-  delete existing.dataset.status;
-}
-
-function setStatus(button: HTMLButtonElement, message: string, type: 'idle' | 'saving' | 'saved' | 'warning' | 'error') {
+function setStatus(button: HTMLButtonElement, message: string, type: 'saving' | 'saved' | 'warning' | 'error') {
   const element = ensureStatusElement(button);
   if (!element) return;
-
   element.textContent = message;
   element.dataset.status = type;
   element.style.margin = '8px 0 0';
@@ -142,7 +132,6 @@ function validateMembers(members: SelectedMember[], formation: FormationConfig) 
 
   const uniqueCodes = new Set(members.map((member) => member.code));
   if (uniqueCodes.size !== members.length) return '同じ銘柄が重複しています。';
-
   return null;
 }
 
@@ -234,16 +223,16 @@ function getOrCreateOwnerKey() {
   return generated;
 }
 
-function getEntryStorageKey(userName: string) {
-  return `${ENTRY_ID_STORAGE_PREFIX}${userName}`;
+function getEntryStorageKey(userName: string, contestId: string) {
+  return `${ENTRY_ID_STORAGE_PREFIX}${contestId}:${userName}`;
 }
 
-function getStoredEntryId(userName: string) {
-  return readStorage(getEntryStorageKey(userName));
+function getStoredEntryId(userName: string, contestId: string) {
+  return readStorage(getEntryStorageKey(userName, contestId));
 }
 
-function rememberEntryId(userName: string, entryId: string) {
-  writeStorage(getEntryStorageKey(userName), entryId);
+function rememberEntryId(userName: string, contestId: string, entryId: string) {
+  writeStorage(getEntryStorageKey(userName, contestId), entryId);
 }
 
 function getOrRegisterUserName() {
@@ -266,8 +255,8 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function fetchEntryList() {
-  const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+async function fetchEntryList(contestId = getCurrentContestContext().contestId) {
+  const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, contestId), {
     cache: 'no-store',
     headers: {
       'Cache-Control': 'no-cache',
@@ -276,7 +265,7 @@ async function fetchEntryList() {
   });
   if (!response.ok) return [];
   const result = await response.json().catch(() => ({})) as EntryListResult;
-  return normalizeEntryList(result);
+  return normalizeEntryList(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, contestId));
 }
 
 function findUserNameConflict(entries: EntryListItem[], userName: string, ownerKey: string, previousEntryId: string) {
@@ -314,11 +303,11 @@ async function cancelEntryById(entryId: string, entry?: EntryListItem) {
   }
 }
 
-async function confirmEntryVisible(entryId: string) {
+async function confirmEntryVisible(entryId: string, contestId: string) {
   const delays = [0, 300, 800, 1500, 2500];
   for (const delay of delays) {
     if (delay) await wait(delay);
-    const entries = await fetchEntryList();
+    const entries = await fetchEntryList(contestId);
     if (entries.some((entry) => entryMatches(entry, entryId))) return true;
   }
   return false;
@@ -368,12 +357,13 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   }
 
   const originalText = button.textContent || 'チームを確定';
+  const contest = getCurrentContestContext();
 
   try {
     isSubmitting = true;
     button.disabled = true;
     button.textContent = 'エントリー保存中...';
-    setStatus(button, '大会エントリーを保存しています。', 'saving');
+    setStatus(button, `${contest.label} のエントリーを保存しています。`, 'saving');
 
     const userName = getOrRegisterUserName();
     if (!userName) {
@@ -384,15 +374,15 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     }
 
     const ownerKey = getOrCreateOwnerKey();
-    const previousEntryId = getStoredEntryId(userName);
-    const entriesBefore = await fetchEntryList();
+    const previousEntryId = getStoredEntryId(userName, contest.contestId);
+    const entriesBefore = await fetchEntryList(contest.contestId);
     const conflict = findUserNameConflict(entriesBefore, userName, ownerKey, previousEntryId);
     if (conflict) {
-      throw new Error(`ユーザーネーム「${userName}」は既に使われています。別のユーザーネームを登録してください。`);
+      throw new Error(`この大会ではユーザーネーム「${userName}」は既に使われています。`);
     }
 
     const payload = buildEntryPayload({
-      contestId: DEV_CONTEST_ID,
+      contestId: contest.contestId,
       teamName: getTeamName(),
       userName,
       ownerKey,
@@ -412,14 +402,14 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     }
 
     setStatus(button, '保存結果を参加チーム一覧で確認しています。', 'saving');
-    const visible = await confirmEntryVisible(savedEntryId);
+    const visible = await confirmEntryVisible(savedEntryId, contest.contestId);
     if (!visible) {
-      throw new Error('保存APIは応答しましたが、参加チーム一覧のAPIで新チームを確認できませんでした。');
+      throw new Error('保存APIは応答しましたが、選択中の大会の参加チーム一覧で新チームを確認できませんでした。');
     }
 
-    rememberEntryId(userName, savedEntryId);
-    setStatus(button, `エントリー完了。ユーザーネーム「${userName}」の1チームとして保存しました。`, 'saved');
-    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, userName, entryId: savedEntryId } }));
+    rememberEntryId(userName, contest.contestId, savedEntryId);
+    setStatus(button, `エントリー完了。${contest.label}でユーザーネーム「${userName}」の1チームとして保存しました。`, 'saved');
+    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, userName, entryId: savedEntryId, contestId: contest.contestId, matchType: contest.matchType } }));
     hidePostEntryButton(button);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -459,15 +449,11 @@ function hidePostEntryButton(button: HTMLButtonElement) {
 
 function syncEntryActionButtons(button: HTMLButtonElement) {
   const label = button.textContent?.trim() || '';
-
   if (label.includes('チームを確定')) {
     restoreEntryButton(button);
     return;
   }
-
-  if (isPostEntryAction(button, label)) {
-    hidePostEntryButton(button);
-  }
+  if (isPostEntryAction(button, label)) hidePostEntryButton(button);
 }
 
 function setupEntryButton() {
@@ -475,7 +461,6 @@ function setupEntryButton() {
   if (!button) return;
 
   syncEntryActionButtons(button);
-
   if (button.dataset.entrySubmitReady === 'true') return;
 
   button.dataset.entrySubmitReady = 'true';
