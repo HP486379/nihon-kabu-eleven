@@ -87,16 +87,39 @@
 }
 
 .participants-toolbar span,
-.participants-toolbar strong {
+.participants-toolbar strong,
+.participants-toolbar .participants-match-tab {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
   padding: 6px 10px;
 }
 
-.participants-toolbar span {
+.participants-toolbar span,
+.participants-toolbar .participants-match-tab {
   background: #edf4ff;
   color: #1462d5;
+}
+
+.participants-toolbar .participants-match-tab {
+  border: 0;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.participants-toolbar .participants-match-tab:hover {
+  background: #dcecff;
+}
+
+.participants-toolbar .participants-match-tab.selected {
+  background: #1462d5;
+  box-shadow: 0 10px 18px rgba(20, 98, 213, 0.22);
+  color: #fff;
+}
+
+.participants-toolbar .participants-match-tab:focus-visible {
+  outline: 3px solid rgba(20, 98, 213, 0.25);
+  outline-offset: 2px;
 }
 
 .participants-toolbar strong {
