@@ -90,21 +90,60 @@ function setMessage(page: HTMLElement, message: string, type: 'idle' | 'error') 
   box.dataset.messageType = type;
 }
 
-function renderTabs(page: HTMLElement) {
-  const toolbar = page.querySelector<HTMLElement>('.participants-toolbar');
-  if (!toolbar || toolbar.dataset.matchTabsReady === 'true') return;
+function getToolbar(page: HTMLElement) {
+  return page.querySelector<HTMLElement>('.participants-toolbar');
+}
+
+function buildTabHtml(current: MatchType) {
+  return MATCH_TABS.map((tab) => `
+    <button
+      type="button"
+      class="participants-match-tab ${tab.type === current ? 'selected' : ''}"
+      data-match-type="${tab.type}"
+      aria-pressed="${tab.type === current ? 'true' : 'false'}"
+    >${tab.label}</button>
+  `).join('');
+}
+
+function ensureToolbarMarkup(page: HTMLElement) {
+  const toolbar = getToolbar(page);
+  if (!toolbar) return;
 
   const current = getCurrentMatchType();
-  const source = toolbar.querySelector('[data-participants-source]')?.outerHTML || '<strong data-participants-source>APIから取得中...</strong>';
-  toolbar.innerHTML = `${MATCH_TABS.map((tab) => `
-    <button type="button" class="participants-match-tab ${tab.type === current ? 'selected' : ''}" data-match-type="${tab.type}">${tab.label}</button>
-  `).join('')}${source}`;
-  toolbar.dataset.matchTabsReady = 'true';
+  const source = toolbar.querySelector<HTMLElement>('[data-participants-source]');
+  const sourceText = source?.textContent?.trim() || 'APIから取得中...';
+
+  const hasExpectedTabs = MATCH_TABS.every((tab) => toolbar.querySelector(`[data-match-type="${tab.type}"]`));
+  const hasOnlyExpectedActiveDisplay = toolbar.querySelectorAll('.participants-match-current, .match-type-chip, [data-current-match-type]').length === 0;
+
+  if (!hasExpectedTabs || !hasOnlyExpectedActiveDisplay) {
+    toolbar.innerHTML = `${buildTabHtml(current)}<strong data-participants-source>${escapeHtml(sourceText)}</strong>`;
+    return;
+  }
+
+  updateTabSelection(page, current);
+}
+
+function updateTabSelection(page: HTMLElement, current: MatchType = getCurrentMatchType()) {
+  const toolbar = getToolbar(page);
+  if (!toolbar) return;
+
+  toolbar.querySelectorAll<HTMLButtonElement>('.participants-match-tab').forEach((button) => {
+    const selected = button.dataset.matchType === current;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
+}
+
+function renderTabs(page: HTMLElement) {
+  ensureToolbarMarkup(page);
+  updateTabSelection(page);
 }
 
 async function refreshParticipants(page: HTMLElement) {
   if (loading) return;
   loading = true;
+  renderTabs(page);
   const source = page.querySelector<HTMLElement>('[data-participants-source]');
   if (source) source.textContent = 'APIから取得中...';
   try {
@@ -134,7 +173,7 @@ function bindPage(page: HTMLElement) {
     if (!button || !type) return;
     event.preventDefault();
     setCurrentMatchType(type);
-    page.querySelectorAll('.participants-match-tab').forEach((tab) => tab.classList.toggle('selected', tab === button));
+    updateTabSelection(page, type);
     void refreshParticipants(page);
   });
 }
