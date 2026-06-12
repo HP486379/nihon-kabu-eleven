@@ -15,16 +15,19 @@ const MATCH_LABELS: Record<MatchType, string> = {
   quarterly: '3か月マッチ',
 };
 
-// Supabase 側の contest_id が uuid 型でも通るよう、各大会タイプに固定UUIDを割り当てる。
-// daily は既存データとの互換性のため、従来の DEV_CONTEST_ID をそのまま使う。
+// Render / Supabase 側に存在する大会は現状1つだけなので、APIへ送る contest_id は既存IDに固定する。
+// 大会種別の分離は userName の内部プレフィックスで行う。
+export const API_CONTEST_ID = '5345b8eb-e9ec-4b4b-9549-35b3c4135003';
+
 const CONTEST_IDS: Record<MatchType, string> = {
-  daily: '5345b8eb-e9ec-4b4b-9549-35b3c4135003',
-  weekly: '0d7f27e7-8a4f-4ac7-8d7a-1f6b6c9c3f11',
-  monthly: '8f67c66e-58c8-4d78-8c0f-3f3ed8c6b1b2',
-  quarterly: 'ee8bdc92-b0d4-4c78-8fa8-f0d9677d7c33',
+  daily: API_CONTEST_ID,
+  weekly: API_CONTEST_ID,
+  monthly: API_CONTEST_ID,
+  quarterly: API_CONTEST_ID,
 };
 
 const MATCH_TYPE_IDS: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
+const INTERNAL_USER_PREFIX_RE = /^(weekly|monthly|quarterly)__/;
 
 function isMatchType(value: string | null | undefined): value is MatchType {
   return Boolean(value && MATCH_TYPE_IDS.includes(value as MatchType));
@@ -33,6 +36,10 @@ function isMatchType(value: string | null | undefined): value is MatchType {
 function firstText(...values: unknown[]) {
   const found = values.find((value) => typeof value === 'string' && value.trim().length > 0);
   return typeof found === 'string' ? found.trim() : '';
+}
+
+function normalizeValue(value: string) {
+  return value.trim().replace(/\s+/g, '').toLowerCase();
 }
 
 function readStoredMatchType() {
@@ -107,17 +114,42 @@ export function withContestQuery(url: string, contestId = getCurrentContestConte
   return `${url}${separator}contestId=${encodeURIComponent(contestId)}`;
 }
 
-export function entryMatchesContest(entry: Record<string, unknown>, contestId = getCurrentContestContext().contestId) {
+export function toApiUserName(userName: string, matchType: MatchType = getCurrentMatchType()) {
+  const normalized = normalizeValue(userName);
+  return matchType === 'daily' ? normalized : `${matchType}__${normalized}`;
+}
+
+export function toDisplayUserName(userName: string) {
+  return normalizeValue(userName).replace(INTERNAL_USER_PREFIX_RE, '');
+}
+
+export function toApiOwnerKey(ownerKey: string, matchType: MatchType = getCurrentMatchType()) {
+  return `${ownerKey}__${matchType}`;
+}
+
+export function getVirtualContestStorageKey(matchType: MatchType = getCurrentMatchType()) {
+  return `${API_CONTEST_ID}:${matchType}`;
+}
+
+export function entryMatchesContest(entry: Record<string, unknown>, _contestId = getCurrentContestContext().contestId) {
+  const matchType = getCurrentMatchType();
+  const listedMatchType = firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type);
+
+  if (isMatchType(listedMatchType)) return listedMatchType === matchType;
+
   const listedContestId = firstText(
     entry.contestId,
     entry.contest_id,
     (entry.contest as Record<string, unknown> | undefined)?.id,
   );
 
-  if (listedContestId) return listedContestId === contestId;
+  if (listedContestId && listedContestId !== API_CONTEST_ID) return false;
 
-  // contest_id が返ってこない旧データは daily 側の既存大会として扱う。
-  return contestId === CONTEST_IDS.daily;
+  const entryUserName = normalizeValue(firstText(entry.userName, entry.user_name, entry.owner));
+  const prefixMatch = entryUserName.match(INTERNAL_USER_PREFIX_RE);
+
+  if (matchType === 'daily') return !prefixMatch;
+  return entryUserName.startsWith(`${matchType}__`);
 }
 
 export function getContestLabel(matchType: MatchType) {
