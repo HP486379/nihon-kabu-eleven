@@ -4,6 +4,7 @@ import App from './App';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
 import { initEntrySubmit } from './entry-submit-wireup';
+import { initVirtualContestEntrySubmit } from './virtual-contest-entry-submit';
 import { initPostEntryButtonRemoval } from './post-entry-button-removal';
 import { initContestTicker } from './contest-ticker-wireup';
 import { initFormationMiniLayout } from './formation-mini-layout-wireup';
@@ -121,6 +122,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
+initVirtualContestEntrySubmit();
 initUserNameEntryGuard();
 initPitchDragDrop();
 initMemberLabelOverrides();
