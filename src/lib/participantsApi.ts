@@ -1,4 +1,4 @@
-import { entryMatchesContest, getCurrentContestContext, toDisplayTeamName, toDisplayUserName, withContestQuery } from './contestContext';
+import { entryMatchesContest, getContestContext, getCurrentContestContext, toDisplayTeamName, toDisplayUserName, withContestQuery, type MatchType } from './contestContext';
 
 export type ParticipantApiEntry = {
   id?: string;
@@ -105,9 +105,9 @@ function getDisplayOwner(entry: ParticipantApiEntry) {
   return rawOwner && rawOwner !== '参加チーム' ? toDisplayUserName(rawOwner) : '参加チーム';
 }
 
-function normalizeParticipant(entry: ParticipantApiEntry, index: number): ParticipantItem {
+function normalizeParticipant(entry: ParticipantApiEntry, index: number, matchType?: MatchType): ParticipantItem {
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
-  const context = getCurrentContestContext();
+  const context = matchType ? getContestContext(matchType) : getCurrentContestContext();
 
   return {
     id: getEntryId(entry),
@@ -164,9 +164,9 @@ async function parseApiResponse<T extends { ok?: boolean; message?: string; erro
   return result;
 }
 
-export async function fetchParticipants(): Promise<ParticipantItem[]> {
+export async function fetchParticipants(matchType?: MatchType): Promise<ParticipantItem[]> {
   clearLocalSubmittedEntries();
-  const context = getCurrentContestContext();
+  const context = matchType ? getContestContext(matchType) : getCurrentContestContext();
   const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, context.contestId), {
     cache: 'no-store',
     headers: {
@@ -175,8 +175,8 @@ export async function fetchParticipants(): Promise<ParticipantItem[]> {
     },
   });
   const result = await parseApiResponse<ParticipantsApiResult>(response, 'participants api');
-  const entries = normalizeEntries(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, context.contestId));
-  return sortParticipants(entries.map(normalizeParticipant));
+  const entries = normalizeEntries(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, context.contestId, context.matchType));
+  return sortParticipants(entries.map((entry, index) => normalizeParticipant(entry, index, context.matchType)));
 }
 
 export async function cancelParticipantEntry(target: CancelParticipantEntryTarget): Promise<CancelParticipantEntryResult> {
