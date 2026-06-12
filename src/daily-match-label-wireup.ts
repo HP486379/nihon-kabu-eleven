@@ -12,8 +12,20 @@ function normalizeText(root: ParentNode) {
   });
 }
 
+function cleanupParticipantsToolbar() {
+  document.querySelectorAll<HTMLElement>('.participants-toolbar').forEach((toolbar) => {
+    if (!toolbar.querySelector('.participants-match-tab')) return;
+
+    toolbar.querySelectorAll('span').forEach((span) => {
+      if (span.textContent?.trim() === DAILY_MATCH_LABEL) span.remove();
+    });
+  });
+}
+
 function ensureChip(selector: string) {
   document.querySelectorAll<HTMLElement>(selector).forEach((toolbar) => {
+    if (toolbar.classList.contains('participants-toolbar')) return;
+
     const hasDaily = Array.from(toolbar.querySelectorAll('span')).some((span) => span.textContent?.trim() === DAILY_MATCH_LABEL);
     if (hasDaily) return;
 
@@ -25,7 +37,7 @@ function ensureChip(selector: string) {
 
 function normalizeDailyMatchLabels() {
   normalizeText(document.body);
-  ensureChip('.participants-toolbar');
+  cleanupParticipantsToolbar();
   ensureChip('.results-toolbar');
 }
 
