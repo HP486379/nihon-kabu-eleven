@@ -16,7 +16,7 @@ const MATCH_LABELS: Record<MatchType, string> = {
 };
 
 // Render / Supabase 側に存在する大会は現状1つだけなので、APIへ送る contest_id は既存IDに固定する。
-// 大会種別の分離は userName の内部プレフィックスで行う。
+// 大会種別の分離は userName / teamName の内部プレフィックスで行う。
 export const API_CONTEST_ID = '5345b8eb-e9ec-4b4b-9549-35b3c4135003';
 
 const CONTEST_IDS: Record<MatchType, string> = {
@@ -28,6 +28,7 @@ const CONTEST_IDS: Record<MatchType, string> = {
 
 const MATCH_TYPE_IDS: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
 const INTERNAL_USER_PREFIX_RE = /^(weekly|monthly|quarterly)__/;
+const INTERNAL_TEAM_PREFIX_RE = /^\[\[(weekly|monthly|quarterly)\]\]/;
 
 function isMatchType(value: string | null | undefined): value is MatchType {
   return Boolean(value && MATCH_TYPE_IDS.includes(value as MatchType));
@@ -123,6 +124,15 @@ export function toDisplayUserName(userName: string) {
   return normalizeValue(userName).replace(INTERNAL_USER_PREFIX_RE, '');
 }
 
+export function toApiTeamName(teamName: string, matchType: MatchType = getCurrentMatchType()) {
+  const trimmed = teamName.trim();
+  return matchType === 'daily' ? trimmed : `[[${matchType}]]${trimmed}`;
+}
+
+export function toDisplayTeamName(teamName: string) {
+  return teamName.trim().replace(INTERNAL_TEAM_PREFIX_RE, '');
+}
+
 export function toApiOwnerKey(ownerKey: string, matchType: MatchType = getCurrentMatchType()) {
   return `${ownerKey}__${matchType}`;
 }
@@ -146,10 +156,13 @@ export function entryMatchesContest(entry: Record<string, unknown>, _contestId =
   if (listedContestId && listedContestId !== API_CONTEST_ID) return false;
 
   const entryUserName = normalizeValue(firstText(entry.userName, entry.user_name, entry.owner));
-  const prefixMatch = entryUserName.match(INTERNAL_USER_PREFIX_RE);
+  const entryTeamName = firstText(entry.teamName, entry.team_name);
+  const userPrefix = entryUserName.match(INTERNAL_USER_PREFIX_RE)?.[1] as MatchType | undefined;
+  const teamPrefix = entryTeamName.match(INTERNAL_TEAM_PREFIX_RE)?.[1] as MatchType | undefined;
+  const entryPrefix = userPrefix || teamPrefix;
 
-  if (matchType === 'daily') return !prefixMatch;
-  return entryUserName.startsWith(`${matchType}__`);
+  if (matchType === 'daily') return !entryPrefix;
+  return entryPrefix === matchType;
 }
 
 export function getContestLabel(matchType: MatchType) {
