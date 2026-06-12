@@ -49,14 +49,25 @@ export function getStoredMatchType(defaultType: MatchType = 'quarterly'): MatchT
 }
 
 export function setCurrentMatchType(matchType: MatchType) {
+  let changed = false;
+
   try {
-    window.localStorage.setItem(MATCH_TYPE_STORAGE_KEY, matchType);
+    const current = window.localStorage.getItem(MATCH_TYPE_STORAGE_KEY);
+    if (current !== matchType) {
+      window.localStorage.setItem(MATCH_TYPE_STORAGE_KEY, matchType);
+      changed = true;
+    }
   } catch (_error) {
     // localStorage is best-effort only.
   }
 
   const matchStrip = document.querySelector<HTMLElement>('.match-strip');
-  if (matchStrip) matchStrip.dataset.matchType = matchType;
+  if (matchStrip && matchStrip.dataset.matchType !== matchType) {
+    matchStrip.dataset.matchType = matchType;
+    changed = true;
+  }
+
+  if (!changed) return;
 
   window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:contest-changed', {
     detail: getContestContext(matchType),
