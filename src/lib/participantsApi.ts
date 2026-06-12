@@ -1,4 +1,4 @@
-import { entryMatchesContest, getCurrentContestContext, toDisplayUserName, withContestQuery } from './contestContext';
+import { entryMatchesContest, getCurrentContestContext, toDisplayTeamName, toDisplayUserName, withContestQuery } from './contestContext';
 
 export type ParticipantApiEntry = {
   id?: string;
@@ -112,7 +112,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
   return {
     id: getEntryId(entry),
     rank: typeof entry.rank === 'number' && Number.isFinite(entry.rank) ? entry.rank : index + 1,
-    team: firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`,
+    team: toDisplayTeamName(firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`),
     owner: getDisplayOwner(entry),
     formation: firstText(entry.formation) || '-',
     matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || context.label,
