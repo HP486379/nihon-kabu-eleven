@@ -83,13 +83,23 @@ export function setCurrentMatchType(matchType: MatchType) {
 }
 
 export function getCurrentMatchType(): MatchType {
-  const selectedChip = document.querySelector<HTMLElement>('.match-type-chip.selected');
-  const fromChip = selectedChip?.dataset.matchType;
-  if (isMatchType(fromChip)) return fromChip;
+  // 参加チーム一覧を表示中は、その一覧内の選択タブを最優先にする。
+  // ダッシュボード側の .match-type-chip.selected がDOMに残っていても、ここで上書きされないようにする。
+  const selectedParticipantTab = document.querySelector<HTMLElement>('#participants-page .participants-match-tab.selected');
+  const fromParticipantTab = selectedParticipantTab?.dataset.matchType;
+  if (isMatchType(fromParticipantTab)) return fromParticipantTab;
 
+  // setCurrentMatchType が更新する共有状態。参加チームタブクリック後はここが正になる。
   const matchStrip = document.querySelector<HTMLElement>('.match-strip');
   const fromStrip = matchStrip?.dataset.matchType;
   if (isMatchType(fromStrip)) return fromStrip;
+
+  const stored = readStoredMatchType();
+  if (stored) return stored;
+
+  const selectedChip = document.querySelector<HTMLElement>('.match-type-chip.selected');
+  const fromChip = selectedChip?.dataset.matchType;
+  if (isMatchType(fromChip)) return fromChip;
 
   return getStoredMatchType('quarterly');
 }
