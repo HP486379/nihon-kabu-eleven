@@ -22,23 +22,9 @@ function cleanupParticipantsToolbar() {
   });
 }
 
-function ensureChip(selector: string) {
-  document.querySelectorAll<HTMLElement>(selector).forEach((toolbar) => {
-    if (toolbar.classList.contains('participants-toolbar')) return;
-
-    const hasDaily = Array.from(toolbar.querySelectorAll('span')).some((span) => span.textContent?.trim() === DAILY_MATCH_LABEL);
-    if (hasDaily) return;
-
-    const dailyChip = document.createElement('span');
-    dailyChip.textContent = DAILY_MATCH_LABEL;
-    toolbar.insertBefore(dailyChip, toolbar.querySelector('span'));
-  });
-}
-
 function normalizeDailyMatchLabels() {
   normalizeText(document.body);
   cleanupParticipantsToolbar();
-  ensureChip('.results-toolbar');
 }
 
 export function initDailyMatchLabelWireup() {
