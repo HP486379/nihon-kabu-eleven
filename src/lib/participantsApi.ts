@@ -1,4 +1,4 @@
-import { entryMatchesContest, getCurrentContestContext, withContestQuery } from './contestContext';
+import { entryMatchesContest, getCurrentContestContext, toDisplayUserName, withContestQuery } from './contestContext';
 
 export type ParticipantApiEntry = {
   id?: string;
@@ -98,6 +98,13 @@ function getEntryId(entry: ParticipantApiEntry) {
   return firstText(entry.entryId, entry.entry_id, entry.id);
 }
 
+function getDisplayOwner(entry: ParticipantApiEntry) {
+  const rawUserName = firstText(entry.userName, entry.user_name);
+  if (rawUserName) return toDisplayUserName(rawUserName);
+  const rawOwner = firstText(entry.owner);
+  return rawOwner && rawOwner !== '参加チーム' ? toDisplayUserName(rawOwner) : '参加チーム';
+}
+
 function normalizeParticipant(entry: ParticipantApiEntry, index: number): ParticipantItem {
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
   const context = getCurrentContestContext();
@@ -106,7 +113,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
     id: getEntryId(entry),
     rank: typeof entry.rank === 'number' && Number.isFinite(entry.rank) ? entry.rank : index + 1,
     team: firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`,
-    owner: firstText(entry.owner, entry.userName, entry.user_name) || '参加チーム',
+    owner: getDisplayOwner(entry),
     formation: firstText(entry.formation) || '-',
     matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || context.label,
     returnPct,
