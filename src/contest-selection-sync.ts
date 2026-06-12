@@ -6,7 +6,15 @@ function isMatchType(value: string | undefined): value is MatchType {
   return value === 'daily' || value === 'weekly' || value === 'monthly' || value === 'quarterly';
 }
 
+function isParticipantsPageActive() {
+  return document.querySelector<HTMLElement>('.app-shell')?.classList.contains('participants-page-mode') === true;
+}
+
 function syncSelectedChip() {
+  // 参加チーム一覧表示中は、一覧側のタブが大会タイプの正本。
+  // 背後に残っているダッシュボード側の selected chip で上書きしない。
+  if (isParticipantsPageActive()) return;
+
   const selected = document.querySelector<HTMLElement>('.match-type-chip.selected');
   const matchType = selected?.dataset.matchType;
   if (!isMatchType(matchType)) return;
