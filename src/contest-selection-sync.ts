@@ -28,7 +28,12 @@ export function initContestSelectionSync() {
   }, true);
 
   const observer = new MutationObserver(() => syncSelectedChip());
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-match-type'] });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 
   window.setTimeout(syncSelectedChip, 300);
   window.setTimeout(syncSelectedChip, 1200);
