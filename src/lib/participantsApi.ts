@@ -1,7 +1,12 @@
+import { entryMatchesContest, getCurrentContestContext, withContestQuery } from './contestContext';
+
 export type ParticipantApiEntry = {
   id?: string;
   entryId?: string;
   entry_id?: string;
+  contestId?: string | null;
+  contest_id?: string | null;
+  contest?: { id?: string | null } | null;
   rank?: number | null;
   teamName?: string | null;
   team_name?: string | null;
@@ -95,6 +100,7 @@ function getEntryId(entry: ParticipantApiEntry) {
 
 function normalizeParticipant(entry: ParticipantApiEntry, index: number): ParticipantItem {
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
+  const context = getCurrentContestContext();
 
   return {
     id: getEntryId(entry),
@@ -102,10 +108,10 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number): Partic
     team: firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`,
     owner: firstText(entry.owner, entry.userName, entry.user_name) || '参加チーム',
     formation: firstText(entry.formation) || '-',
-    matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || '大会未設定',
+    matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || context.label,
     returnPct,
     status: firstText(entry.status) || '確定済み',
-    style: firstText(entry.style) || '実データ',
+    style: firstText(entry.style) || '集計待ち',
     createdAt: firstText(entry.createdAt, entry.created_at),
   };
 }
@@ -153,7 +159,8 @@ async function parseApiResponse<T extends { ok?: boolean; message?: string; erro
 
 export async function fetchParticipants(): Promise<ParticipantItem[]> {
   clearLocalSubmittedEntries();
-  const response = await fetch(`${API_BASE}/api/entries?ts=${Date.now()}`, {
+  const context = getCurrentContestContext();
+  const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, context.contestId), {
     cache: 'no-store',
     headers: {
       'Cache-Control': 'no-cache',
@@ -161,7 +168,7 @@ export async function fetchParticipants(): Promise<ParticipantItem[]> {
     },
   });
   const result = await parseApiResponse<ParticipantsApiResult>(response, 'participants api');
-  const entries = normalizeEntries(result);
+  const entries = normalizeEntries(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, context.contestId));
   return sortParticipants(entries.map(normalizeParticipant));
 }
 
