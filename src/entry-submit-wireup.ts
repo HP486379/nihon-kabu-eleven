@@ -1,5 +1,15 @@
 import { buildEntryPayload, submitEntry, type SubmitEntryResult } from './lib/entryApi';
-import { entryMatchesContest, getCurrentContestContext, withContestQuery } from './lib/contestContext';
+import {
+  entryMatchesContest,
+  getCurrentContestContext,
+  getEntryContestContext,
+  toApiOwnerKey,
+  toApiTeamName,
+  toApiUserName,
+  toDisplayUserName,
+  withContestQuery,
+  type MatchType,
+} from './lib/contestContext';
 
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 
@@ -223,16 +233,16 @@ function getOrCreateOwnerKey() {
   return generated;
 }
 
-function getEntryStorageKey(userName: string, contestId: string) {
-  return `${ENTRY_ID_STORAGE_PREFIX}${contestId}:${userName}`;
+function getEntryStorageKey(userName: string, contestId: string, matchType: MatchType) {
+  return `${ENTRY_ID_STORAGE_PREFIX}${contestId}:${matchType}:${userName}`;
 }
 
-function getStoredEntryId(userName: string, contestId: string) {
-  return readStorage(getEntryStorageKey(userName, contestId));
+function getStoredEntryId(userName: string, contestId: string, matchType: MatchType) {
+  return readStorage(getEntryStorageKey(userName, contestId, matchType));
 }
 
-function rememberEntryId(userName: string, contestId: string, entryId: string) {
-  writeStorage(getEntryStorageKey(userName, contestId), entryId);
+function rememberEntryId(userName: string, contestId: string, matchType: MatchType, entryId: string) {
+  writeStorage(getEntryStorageKey(userName, contestId, matchType), entryId);
 }
 
 function getOrRegisterUserName() {
@@ -255,8 +265,11 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function fetchEntryList(contestId = getCurrentContestContext().contestId) {
-  const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, contestId), {
+async function fetchEntryList(contestId?: string, matchType?: MatchType) {
+  const context = !contestId || !matchType ? getCurrentContestContext() : null;
+  const resolvedContestId = contestId || context!.contestId;
+  const resolvedMatchType = matchType || context!.matchType;
+  const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, resolvedContestId), {
     cache: 'no-store',
     headers: {
       'Cache-Control': 'no-cache',
@@ -265,19 +278,19 @@ async function fetchEntryList(contestId = getCurrentContestContext().contestId) 
   });
   if (!response.ok) return [];
   const result = await response.json().catch(() => ({})) as EntryListResult;
-  return normalizeEntryList(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, contestId));
+  return normalizeEntryList(result).filter((entry) => entryMatchesContest(entry as Record<string, unknown>, resolvedContestId, resolvedMatchType));
 }
 
-function findUserNameConflict(entries: EntryListItem[], userName: string, ownerKey: string, previousEntryId: string) {
+function findUserNameConflict(entries: EntryListItem[], userName: string, ownerKey: string, apiOwnerKey: string, previousEntryId: string) {
   return entries.find((entry) => {
-    const entryUserName = normalizeUserName(getEntryUserName(entry));
+    const entryUserName = normalizeUserName(toDisplayUserName(getEntryUserName(entry)));
     if (!entryUserName || entryUserName !== userName) return false;
 
     const entryId = getEntryId(entry);
     if (previousEntryId && entryId === previousEntryId) return false;
 
     const entryOwnerKey = getEntryOwnerKey(entry);
-    if (entryOwnerKey && entryOwnerKey === ownerKey) return false;
+    if (entryOwnerKey && (entryOwnerKey === ownerKey || entryOwnerKey === apiOwnerKey)) return false;
 
     return true;
   });
@@ -303,11 +316,11 @@ async function cancelEntryById(entryId: string, entry?: EntryListItem) {
   }
 }
 
-async function confirmEntryVisible(entryId: string, contestId: string) {
+async function confirmEntryVisible(entryId: string, contestId: string, matchType: MatchType) {
   const delays = [0, 300, 800, 1500, 2500];
   for (const delay of delays) {
     if (delay) await wait(delay);
-    const entries = await fetchEntryList(contestId);
+    const entries = await fetchEntryList(contestId, matchType);
     if (entries.some((entry) => entryMatches(entry, entryId))) return true;
   }
   return false;
@@ -357,7 +370,7 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
   }
 
   const originalText = button.textContent || 'チームを確定';
-  const contest = getCurrentContestContext();
+  const contest = getEntryContestContext();
 
   try {
     isSubmitting = true;
@@ -373,19 +386,23 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
       return;
     }
 
+    const teamName = getTeamName();
     const ownerKey = getOrCreateOwnerKey();
-    const previousEntryId = getStoredEntryId(userName, contest.contestId);
-    const entriesBefore = await fetchEntryList(contest.contestId);
-    const conflict = findUserNameConflict(entriesBefore, userName, ownerKey, previousEntryId);
+    const apiUserName = toApiUserName(userName, contest.matchType);
+    const apiTeamName = toApiTeamName(teamName, contest.matchType);
+    const apiOwnerKey = toApiOwnerKey(ownerKey, contest.matchType);
+    const previousEntryId = getStoredEntryId(userName, contest.contestId, contest.matchType);
+    const entriesBefore = await fetchEntryList(contest.contestId, contest.matchType);
+    const conflict = findUserNameConflict(entriesBefore, userName, ownerKey, apiOwnerKey, previousEntryId);
     if (conflict) {
       throw new Error(`この大会ではユーザーネーム「${userName}」は既に使われています。`);
     }
 
     const payload = buildEntryPayload({
       contestId: contest.contestId,
-      teamName: getTeamName(),
-      userName,
-      ownerKey,
+      teamName: apiTeamName,
+      userName: apiUserName,
+      ownerKey: apiOwnerKey,
       formation,
       selected: members,
     });
@@ -402,14 +419,14 @@ async function handleEntryClick(button: HTMLButtonElement, event: MouseEvent) {
     }
 
     setStatus(button, '保存結果を参加チーム一覧で確認しています。', 'saving');
-    const visible = await confirmEntryVisible(savedEntryId, contest.contestId);
+    const visible = await confirmEntryVisible(savedEntryId, contest.contestId, contest.matchType);
     if (!visible) {
       throw new Error('保存APIは応答しましたが、選択中の大会の参加チーム一覧で新チームを確認できませんでした。');
     }
 
-    rememberEntryId(userName, contest.contestId, savedEntryId);
+    rememberEntryId(userName, contest.contestId, contest.matchType, savedEntryId);
     setStatus(button, `エントリー完了。${contest.label}でユーザーネーム「${userName}」の1チームとして保存しました。`, 'saved');
-    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName: payload.teamName, userName, entryId: savedEntryId, contestId: contest.contestId, matchType: contest.matchType } }));
+    window.dispatchEvent(new CustomEvent('nihon-kabu-eleven:entry-saved', { detail: { teamName, userName, entryId: savedEntryId, contestId: contest.contestId, matchType: contest.matchType } }));
     hidePostEntryButton(button);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
