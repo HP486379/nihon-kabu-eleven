@@ -72,6 +72,10 @@ export function initDashboardParticipantSummary() {
   scheduleRefresh(2000);
 
   window.addEventListener('nihon-kabu-eleven:entry-saved', () => scheduleRefresh(700));
+  window.addEventListener('nihon-kabu-eleven:contest-changed', () => {
+    lastSignature = '';
+    scheduleRefresh(300);
+  });
   window.addEventListener('focus', () => scheduleRefresh(300));
 
   document.addEventListener('visibilitychange', () => {
