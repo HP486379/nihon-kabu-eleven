@@ -104,6 +104,23 @@ export function getCurrentMatchType(): MatchType {
   return getStoredMatchType('quarterly');
 }
 
+export function getEntryFormMatchType(): MatchType {
+  // エントリー保存時は、参加チーム一覧側のタブ状態を絶対に参照しない。
+  // ダッシュボードで選択中の大会タイプを正本にする。
+  const selectedChip = document.querySelector<HTMLElement>('.match-type-chip.selected');
+  const fromChip = selectedChip?.dataset.matchType;
+  if (isMatchType(fromChip)) return fromChip;
+
+  const matchStrip = document.querySelector<HTMLElement>('.match-strip');
+  const fromStrip = matchStrip?.dataset.matchType;
+  if (isMatchType(fromStrip)) return fromStrip;
+
+  const stored = readStoredMatchType();
+  if (stored) return stored;
+
+  return getStoredMatchType('quarterly');
+}
+
 export function getContestId(matchType: MatchType = getCurrentMatchType()) {
   return CONTEST_IDS[matchType];
 }
@@ -118,6 +135,10 @@ export function getContestContext(matchType: MatchType = getCurrentMatchType()):
 
 export function getCurrentContestContext() {
   return getContestContext(getCurrentMatchType());
+}
+
+export function getEntryContestContext() {
+  return getContestContext(getEntryFormMatchType());
 }
 
 export function withContestQuery(url: string, contestId = getCurrentContestContext().contestId) {
@@ -151,8 +172,7 @@ export function getVirtualContestStorageKey(matchType: MatchType = getCurrentMat
   return `${API_CONTEST_ID}:${matchType}`;
 }
 
-export function entryMatchesContest(entry: Record<string, unknown>, _contestId = getCurrentContestContext().contestId) {
-  const matchType = getCurrentMatchType();
+export function entryMatchesContest(entry: Record<string, unknown>, _contestId = getCurrentContestContext().contestId, matchType = getCurrentMatchType()) {
   const listedMatchType = firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type);
 
   if (isMatchType(listedMatchType)) return listedMatchType === matchType;
