@@ -6,6 +6,8 @@ const POST_ENTRY_LABELS = [
   '解除',
 ];
 
+let isCleanupScheduled = false;
+
 function isPostEntryButton(button: HTMLButtonElement) {
   const label = button.textContent?.trim() || '';
   return button.dataset.entryAction === 'post-entry'
@@ -22,19 +24,28 @@ function removePostEntryButtons() {
   });
 }
 
+function scheduleRemovePostEntryButtons(delayMs = 0) {
+  if (isCleanupScheduled) return;
+  isCleanupScheduled = true;
+
+  window.setTimeout(() => {
+    isCleanupScheduled = false;
+    removePostEntryButtons();
+  }, delayMs);
+}
+
 export function initPostEntryButtonRemoval() {
   removePostEntryButtons();
 
-  const observer = new MutationObserver(removePostEntryButtons);
+  const observer = new MutationObserver(() => scheduleRemovePostEntryButtons(50));
   observer.observe(document.body, {
     childList: true,
     subtree: true,
-    characterData: true,
   });
 
-  window.addEventListener('nihon-kabu-eleven:entry-saved', removePostEntryButtons);
-  window.addEventListener('focus', removePostEntryButtons);
-  document.addEventListener('visibilitychange', removePostEntryButtons);
+  window.addEventListener('nihon-kabu-eleven:entry-saved', () => scheduleRemovePostEntryButtons());
+  window.addEventListener('focus', () => scheduleRemovePostEntryButtons());
+  document.addEventListener('visibilitychange', () => scheduleRemovePostEntryButtons());
   window.setTimeout(removePostEntryButtons, 0);
   window.setTimeout(removePostEntryButtons, 300);
 }
