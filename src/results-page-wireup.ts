@@ -1,5 +1,6 @@
 import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
 import { calculateResults } from './lib/resultsApi';
+import { getContestLabel, getCurrentMatchType, setCurrentMatchType, type MatchType } from './lib/contestContext';
 
 type ResultItem = {
   rank: number;
@@ -25,6 +26,8 @@ const PARTICIPANTS_ACTIVE_CLASS = 'participants-page-mode';
 const HEADER_ORIGINAL_KEY = 'contestListOriginalHtml';
 const APP_ENV = (import.meta as ImportMeta & { env?: ResultPageEnv }).env;
 const RESULT_CALC_ENABLED = APP_ENV?.DEV === true || String(APP_ENV?.VITE_ENABLE_RESULT_CALC || '').toLowerCase() === 'true';
+const RESULT_MATCH_TYPES: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
+let activeResultsMatchType: MatchType = 'daily';
 
 function escapeHtml(value: string) {
   return value
@@ -37,6 +40,10 @@ function escapeHtml(value: string) {
 
 function formatPct(value: number) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
+function isMatchType(value: string | null | undefined): value is MatchType {
+  return Boolean(value && RESULT_MATCH_TYPES.includes(value as MatchType));
 }
 
 function toResultItem(participant: ParticipantItem, index: number): ResultItem | null {
@@ -154,7 +161,7 @@ function renderRows(results: ResultItem[]) {
   `).join('');
 }
 
-function renderResults(page: HTMLElement, participants: ParticipantItem[]) {
+function renderResults(page: HTMLElement, participants: ParticipantItem[], matchType: MatchType) {
   const results = normalizeResults(participants);
   const championSlot = page.querySelector<HTMLElement>('[data-results-champion]');
   const summary = page.querySelector<HTMLElement>('.results-summary-grid');
@@ -167,9 +174,9 @@ function renderResults(page: HTMLElement, participants: ParticipantItem[]) {
   if (summary) summary.innerHTML = renderSummary(results, participants.length);
   if (podium) podium.innerHTML = renderPodium(results);
   if (body) body.innerHTML = renderRows(results);
-  if (source) source.textContent = results.length > 0 ? 'API実データを表示中' : '集計結果待ち';
+  if (source) source.textContent = results.length > 0 ? `${getContestLabel(matchType)}：API実データを表示中` : `${getContestLabel(matchType)}：集計結果待ち`;
   if (note) {
-    note.innerHTML = '<strong>集計ルール</strong><span>API / Supabase の entry_results に保存された team_return をポジション加重リターンとして表示します。未集計の場合は結果待ちとして表示します。</span>';
+    note.innerHTML = '<strong>集計ルール</strong><span>選択中の大会タイプに紐づく API / Supabase の entry_results を表示します。未集計の場合は結果待ちとして表示します。</span>';
   }
 }
 
@@ -207,10 +214,10 @@ function renderResultsError(page: HTMLElement, message: string) {
   }
 }
 
-async function loadResults(page: HTMLElement) {
+async function loadResults(page: HTMLElement, matchType: MatchType = activeResultsMatchType) {
   try {
-    const participants = await fetchParticipants();
-    renderResults(page, participants);
+    const participants = await fetchParticipants(matchType);
+    renderResults(page, participants, matchType);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     renderResultsError(page, message);
@@ -239,7 +246,7 @@ async function handleCalculateResults(page: HTMLElement) {
   try {
     const result = await calculateResults();
     setCalculateStatus(page, `集計完了：${result.count ?? 0}チームの結果を保存しました。`, 'success');
-    await loadResults(page);
+    await loadResults(page, activeResultsMatchType);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setCalculateStatus(page, `集計失敗：${message}`, 'error');
@@ -270,6 +277,35 @@ function renderCalculateStatus() {
       通常公開画面では集計実行は無効です。結果表示のみ行います。
     </div>
   `;
+}
+
+function renderResultsTabs(activeMatchType: MatchType) {
+  return RESULT_MATCH_TYPES.map((matchType) => `
+    <button
+      type="button"
+      class="results-match-tab ${matchType === activeMatchType ? 'selected' : ''}"
+      data-results-match-type="${matchType}"
+    >${getContestLabel(matchType)}</button>
+  `).join('');
+}
+
+function setResultsTabState(page: HTMLElement, activeMatchType: MatchType) {
+  page.querySelectorAll<HTMLButtonElement>('[data-results-match-type]').forEach((button) => {
+    button.classList.toggle('selected', button.dataset.resultsMatchType === activeMatchType);
+  });
+}
+
+function bindResultsTabs(page: HTMLElement) {
+  page.querySelectorAll<HTMLButtonElement>('[data-results-match-type]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const nextMatchType = button.dataset.resultsMatchType;
+      if (!isMatchType(nextMatchType)) return;
+      activeResultsMatchType = nextMatchType;
+      setCurrentMatchType(nextMatchType);
+      setResultsTabState(page, nextMatchType);
+      void loadResults(page, nextMatchType);
+    });
+  });
 }
 
 function createResultsPage() {
@@ -312,9 +348,7 @@ function createResultsPage() {
     </div>
 
     <div class="results-toolbar">
-      <span>3か月マッチ</span>
-      <span>1か月マッチ</span>
-      <span>1週間マッチ</span>
+      ${renderResultsTabs(activeResultsMatchType)}
       <strong data-results-source>APIから取得中...</strong>
     </div>
 
@@ -407,6 +441,7 @@ function showResultsPage() {
   const main = document.querySelector('main.main');
   if (!shell || !main) return;
 
+  activeResultsMatchType = getCurrentMatchType();
   document.getElementById(ROOT_ID)?.remove();
 
   const header = main.querySelector('.page-header');
@@ -420,6 +455,7 @@ function showResultsPage() {
   page.querySelector('[data-results-calculate-button]')?.addEventListener('click', () => {
     void handleCalculateResults(page);
   });
+  bindResultsTabs(page);
 
   shell.classList.remove(CONTEST_ACTIVE_CLASS);
   shell.classList.remove(FORMATION_ACTIVE_CLASS);
@@ -427,7 +463,7 @@ function showResultsPage() {
   shell.classList.add(ACTIVE_CLASS);
   applyResultsHeader();
   setActiveNav('results');
-  void loadResults(page);
+  void loadResults(page, activeResultsMatchType);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
