@@ -1,6 +1,6 @@
 type TickerItem = {
   label: string;
-  labelClass: 'entry' | 'live';
+  labelClass: 'entry' | 'live' | 'ad';
   text: string;
 };
 
@@ -20,7 +20,7 @@ function buildTickerItems(): TickerItem[] {
   const duration = subline.find((value) => value.includes('リーグ'))?.replace('🏆', '').trim() || '3か月リーグ';
   const resultDate = subline.find((value) => value.includes('結果発表'))?.replace('📅', '').trim() || '結果発表：2026/09/11';
   const chip = textOf('.team-chip');
-  const visibility = chip.split('｜').at(-1)?.trim() || '限定公開';
+  const visibility = chip.split('｜').at(-1)?.trim() || 'W杯日本初戦記念 β公開';
   const stripItems = Array.from(document.querySelectorAll<HTMLElement>('.match-strip div'));
   const deadline = stripItems
     .find((item) => item.querySelector('span')?.textContent?.includes('締切'))
@@ -38,13 +38,23 @@ function buildTickerItems(): TickerItem[] {
       labelClass: 'live',
       text: `${tournamentName}｜${resultDate}｜日次終値ベースで勝負`,
     },
+    {
+      label: '広告',
+      labelClass: 'ad',
+      text: '売り時くん｜インデックス投資の売り時をゆるく見える化',
+    },
+    {
+      label: '広告',
+      labelClass: 'ad',
+      text: '将棋戦線｜完全無料で遊べる戦略ボードゲーム',
+    },
   ];
 }
 
 function createTickerElement(items: TickerItem[]) {
   const section = document.createElement('section');
   section.className = 'contest-ticker';
-  section.setAttribute('aria-label', '現在募集中・開催中の大会');
+  section.setAttribute('aria-label', '現在募集中・開催中の大会と関連アプリ情報');
 
   const inner = document.createElement('div');
   inner.className = 'contest-ticker__inner';
