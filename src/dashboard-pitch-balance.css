@@ -1,18 +1,89 @@
 /* Dashboard pitch width balance
-   - reduce horizontal over-stretch of the central pitch on wide desktop screens
-   - keep the left/right dashboard panels and data logic untouched
+   - keep the current compact pitch ratio
+   - center the pitch block better within the dashboard area
+   - widen the left-side boards enough to reduce unused desktop whitespace
    - keep player-card / formation positioning untouched */
 
 @media (min-width: 1321px) {
+  .app-shell {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 24px 18px 14px;
+    gap: 20px;
+  }
+
+  .brand-logo {
+    width: 50px;
+    height: 56px;
+  }
+
+  .brand-text {
+    font-size: 19px;
+    line-height: 1.14;
+  }
+
+  .sidebar-nav a {
+    padding: 12px 14px;
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  .sidebar-nav a span {
+    width: 24px;
+  }
+
+  .help-link {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
   .main {
-    width: min(calc(100vw - 226px), 1440px);
+    width: min(calc(100vw - 250px), 1440px);
     max-width: 1440px;
     margin: 0 auto 0 0;
   }
 
   .dashboard-grid {
-    grid-template-columns: 175px minmax(560px, 620px) 310px;
-    justify-content: start;
+    grid-template-columns: 220px minmax(560px, 620px) 310px;
+    gap: 14px;
+    justify-content: center;
+  }
+
+  .left-panel {
+    min-width: 0;
+  }
+
+  .side-card {
+    padding: 15px;
+  }
+
+  .side-card h3 {
+    font-size: 16px;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+  .big-number {
+    font-size: 23px;
+  }
+
+  .record,
+  .loss-rate {
+    font-size: 19px;
+  }
+
+  .sub-positive,
+  .subtext {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .formation-number {
+    font-size: 32px;
   }
 
   .pitch-card {
@@ -36,11 +107,13 @@
 
 @media (min-width: 1600px) {
   .main {
-    width: min(calc(100vw - 226px), 1440px);
+    width: min(calc(100vw - 250px), 1440px);
     max-width: 1440px;
   }
 
   .dashboard-grid {
-    grid-template-columns: 175px minmax(560px, 620px) 310px;
+    grid-template-columns: 220px minmax(560px, 620px) 310px;
+    gap: 14px;
+    justify-content: center;
   }
 }
