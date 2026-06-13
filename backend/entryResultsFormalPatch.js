@@ -226,6 +226,26 @@ async function loadMembersByEntryId(supabase, entryIds) {
   return map;
 }
 
+async function loadEntryFormations(supabase, entryIds) {
+  if (!entryIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id,formation')
+    .in('id', entryIds);
+
+  if (error) throw httpError(500, 'Failed to load entry formations', error.message);
+
+  return new Map((data || []).map((entry) => [entry.id, entry.formation || null]));
+}
+
+function attachFormations(rows, formationByEntryId) {
+  return rows.map((row) => ({
+    ...row,
+    formation: row.formation || formationByEntryId.get(row.entry_id) || null,
+  }));
+}
+
 async function calculateOneEntry(entry, members, resultDate) {
   if (members.length !== 11) throw httpError(409, `Entry must have exactly 11 members: ${entry.id}`);
 
@@ -317,6 +337,7 @@ function toResultPayload(row) {
     user_name: row.display_user_name,
     teamName: row.display_team_name,
     team_name: row.display_team_name,
+    formation: row.formation || null,
     weightedReturn,
     weighted_return: weightedReturn,
     returnPct: Number((weightedReturn * 100).toFixed(6)),
@@ -352,6 +373,8 @@ async function calculateFormalResults(input) {
   const calculated = await Promise.all(entries.map((entry) => calculateOneEntry(entry, membersByEntryId.get(entry.id) || [], resultDate)));
   const ranked = assignRanks(calculated);
   const saved = await saveResults(supabase, ranked, resultStatus);
+  const formationByEntryId = new Map(ranked.map((item) => [item.entryId, item.formation || null]));
+  const rows = attachFormations(saved.rows, formationByEntryId);
 
   return {
     contestId,
@@ -359,9 +382,9 @@ async function calculateFormalResults(input) {
     periodId,
     resultStatus,
     calculationVersion: CALCULATION_VERSION,
-    count: saved.rows.length,
+    count: rows.length,
     calculatedAt: saved.calculatedAt,
-    results: saved.rows.map(toResultPayload).sort((a, b) => (a.rankOrder || 999999) - (b.rankOrder || 999999)),
+    results: rows.map(toResultPayload).sort((a, b) => (a.rankOrder || 999999) - (b.rankOrder || 999999)),
   };
 }
 
@@ -381,12 +404,16 @@ async function listFormalResults(query) {
 
   if (error) throw httpError(500, 'Failed to load entry results', error.message);
 
+  const rows = data || [];
+  const formationByEntryId = await loadEntryFormations(supabase, rows.map((row) => row.entry_id));
+  const rowsWithFormations = attachFormations(rows, formationByEntryId);
+
   return {
     contestId,
     matchType,
     periodId,
-    count: (data || []).length,
-    results: (data || []).map(toResultPayload),
+    count: rowsWithFormations.length,
+    results: rowsWithFormations.map(toResultPayload),
   };
 }
 
