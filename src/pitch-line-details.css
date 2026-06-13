@@ -1,0 +1,29 @@
+.pitch-markings {
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,.86)) 50% 50% / 100% 4px no-repeat,
+
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 18% / 44% 4px no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 28% 9% / 4px 18% no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 72% 9% / 4px 18% no-repeat,
+
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 7% / 22% 4px no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 39% 3.5% / 4px 7% no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 61% 3.5% / 4px 7% no-repeat,
+
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 82% / 44% 4px no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 28% 91% / 4px 18% no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 72% 91% / 4px 18% no-repeat,
+
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 93% / 22% 4px no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 39% 96.5% / 4px 7% no-repeat,
+    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 61% 96.5% / 4px 7% no-repeat,
+
+    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 50% / 100% 100% no-repeat,
+    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 12.5% / 100% 100% no-repeat,
+    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 87.5% / 100% 100% no-repeat;
+}
+
+.pitch-markings::after {
+  display: none;
+}
