@@ -20,7 +20,6 @@
     linear-gradient(180deg, #74bd65 0%, #65b45c 24%, #4b9849 58%, #2f7f3e 100%);
   box-shadow:
     inset 0 0 0 8px rgba(122, 177, 112, .95),
-    inset 0 0 0 12px rgba(255,255,255,.34),
     0 14px 28px rgba(20, 52, 29, .18);
 }
 
@@ -38,7 +37,7 @@
   inset: 18px 16px 24px;
   border: 0;
   border-radius: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.86)' stroke-width='0.46' stroke-linecap='round' stroke-linejoin='round'%3E%3C!-- trapezoid outer touchline --%3E%3Cpath d='M7 1.6 L93 1.6 L99 98.4 L1 98.4 Z'/%3E%3C!-- halfway --%3E%3Cpath d='M4 50 H96'/%3E%3C!-- centre circle and spot --%3E%3Cellipse cx='50' cy='50' rx='8.4' ry='8.4'/%3E%3Ccircle cx='50' cy='50' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3C!-- opponent penalty area --%3E%3Cpath d='M24 1.6 L24 19.6 L76 19.6 L76 1.6'/%3E%3Cpath d='M40 1.6 L40 8.5 L60 8.5 L60 1.6'/%3E%3Ccircle cx='50' cy='12.8' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M43 19.6 A7 7 0 0 0 57 19.6'/%3E%3C!-- own penalty area --%3E%3Cpath d='M24 98.4 L24 80.4 L76 80.4 L76 98.4'/%3E%3Cpath d='M40 98.4 L40 91.5 L60 91.5 L60 98.4'/%3E%3Ccircle cx='50' cy='87.2' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M43 80.4 A7 7 0 0 1 57 80.4'/%3E%3C!-- corner arcs --%3E%3Cpath d='M7 6.7 A5 5 0 0 0 12 1.6'/%3E%3Cpath d='M88 1.6 A5 5 0 0 0 93 6.7'/%3E%3Cpath d='M1 93.4 A5 5 0 0 1 6 98.4'/%3E%3Cpath d='M94 98.4 A5 5 0 0 1 99 93.4'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.86)' stroke-width='0.46' stroke-linecap='round' stroke-linejoin='round'%3E%3C!-- halfway --%3E%3Cpath d='M4 50 H96'/%3E%3C!-- centre circle and spot --%3E%3Cellipse cx='50' cy='50' rx='8.4' ry='8.4'/%3E%3Ccircle cx='50' cy='50' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3C!-- opponent penalty area --%3E%3Cpath d='M24 1.6 L24 19.6 L76 19.6 L76 1.6'/%3E%3Cpath d='M40 1.6 L40 8.5 L60 8.5 L60 1.6'/%3E%3Ccircle cx='50' cy='12.8' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M43 19.6 A7 7 0 0 0 57 19.6'/%3E%3C!-- own penalty area --%3E%3Cpath d='M24 98.4 L24 80.4 L76 80.4 L76 98.4'/%3E%3Cpath d='M40 98.4 L40 91.5 L60 91.5 L60 98.4'/%3E%3Ccircle cx='50' cy='87.2' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M43 80.4 A7 7 0 0 1 57 80.4'/%3E%3C!-- corner arcs only --%3E%3Cpath d='M7 6.7 A5 5 0 0 0 12 1.6'/%3E%3Cpath d='M88 1.6 A5 5 0 0 0 93 6.7'/%3E%3Cpath d='M1 93.4 A5 5 0 0 1 6 98.4'/%3E%3Cpath d='M94 98.4 A5 5 0 0 1 99 93.4'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
   background-size: 100% 100%;
