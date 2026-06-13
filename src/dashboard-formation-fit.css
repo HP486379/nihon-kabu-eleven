@@ -5,8 +5,8 @@
 
 @media (min-width: 1321px) {
   .pitch-players.formation-view-4-2-3-1 {
-    grid-template-rows: .56fr 1.26fr .78fr .44fr;
-    gap: 3px;
+    grid-template-rows: .58fr 1.22fr .78fr .46fr;
+    gap: 4px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-fw {
@@ -15,20 +15,20 @@
 
   .pitch-players.formation-view-4-2-3-1 .row-mf {
     flex-wrap: wrap;
-    max-width: 336px;
+    max-width: 340px;
     margin: 0 auto;
-    row-gap: 6px;
+    row-gap: 7px;
     column-gap: 10px;
     align-content: center;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-df {
     padding-top: 0;
-    gap: 8px;
+    gap: 10px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-gk {
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
 
   .pitch-players:has(.row-mf .player-card:nth-child(6)) {
@@ -63,15 +63,15 @@
   }
 
   .pitch-players.formation-view-4-2-3-1 {
-    min-height: 420px;
-    grid-template-rows: .46fr 1.06fr .62fr .34fr;
-    gap: 1px;
+    min-height: 435px;
+    grid-template-rows: .5fr 1.13fr .66fr .36fr;
+    gap: 3px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .player-card {
-    width: 88px;
-    min-height: 100px;
-    padding: 6px 6px 7px;
+    width: 94px;
+    min-height: 106px;
+    padding: 6px 7px 7px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .position-pill {
@@ -81,37 +81,37 @@
   }
 
   .pitch-players.formation-view-4-2-3-1 .player-card strong {
-    font-size: 9px;
+    font-size: 9.5px;
     line-height: 1.15;
   }
 
   .pitch-players.formation-view-4-2-3-1 .player-card small {
-    font-size: 8px;
+    font-size: 8.5px;
     margin-top: 1px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .player-change {
     margin-top: 3px;
-    font-size: 12px;
+    font-size: 12.5px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .sparkline {
     bottom: 6px;
-    height: 15px;
+    height: 16px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-mf {
-    max-width: 298px;
-    row-gap: 3px;
-    column-gap: 7px;
+    max-width: 322px;
+    row-gap: 5px;
+    column-gap: 8px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-df {
-    gap: 7px;
+    gap: 8px;
   }
 
   .pitch-players.formation-view-4-2-3-1 .row-gk {
-    transform: translateY(-18px);
+    transform: translateY(-12px);
   }
 
   .pitch-stage:has(.row-mf .player-card:nth-child(6)) {
