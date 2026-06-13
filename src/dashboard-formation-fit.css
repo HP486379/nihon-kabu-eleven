@@ -68,38 +68,6 @@
     gap: 3px;
   }
 
-  .pitch-players.formation-view-4-2-3-1 .player-card {
-    width: 94px;
-    min-height: 106px;
-    padding: 6px 7px 7px;
-  }
-
-  .pitch-players.formation-view-4-2-3-1 .position-pill {
-    margin-bottom: 3px;
-    padding: 1px 6px;
-    font-size: 8px;
-  }
-
-  .pitch-players.formation-view-4-2-3-1 .player-card strong {
-    font-size: 9.5px;
-    line-height: 1.15;
-  }
-
-  .pitch-players.formation-view-4-2-3-1 .player-card small {
-    font-size: 8.5px;
-    margin-top: 1px;
-  }
-
-  .pitch-players.formation-view-4-2-3-1 .player-change {
-    margin-top: 3px;
-    font-size: 12.5px;
-  }
-
-  .pitch-players.formation-view-4-2-3-1 .sparkline {
-    bottom: 6px;
-    height: 16px;
-  }
-
   .pitch-players.formation-view-4-2-3-1 .row-mf {
     max-width: 322px;
     row-gap: 5px;
@@ -123,38 +91,6 @@
     min-height: 420px;
     grid-template-rows: .5fr 1.2fr .68fr .38fr;
     gap: 2px;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .player-card {
-    width: 88px;
-    min-height: 100px;
-    padding: 6px 6px 7px;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .position-pill {
-    margin-bottom: 3px;
-    padding: 1px 6px;
-    font-size: 8px;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .player-card strong {
-    font-size: 9px;
-    line-height: 1.15;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .player-card small {
-    font-size: 8px;
-    margin-top: 1px;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .player-change {
-    margin-top: 3px;
-    font-size: 12px;
-  }
-
-  .pitch-players:has(.row-mf .player-card:nth-child(6)) .sparkline {
-    bottom: 6px;
-    height: 15px;
   }
 
   .row-mf:has(.player-card:nth-child(6)) {
