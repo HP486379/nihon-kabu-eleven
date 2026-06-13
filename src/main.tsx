@@ -38,6 +38,7 @@ import './contest-list-page.css';
 import './formation-page.css';
 import './participants-page.css';
 import './results-page.css';
+import './dashboard-layout-tuning.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
