@@ -1,8 +1,36 @@
 /* Dense formation fit tuning
-   - keep six-midfielder formations inside the desktop pitch
+   - keep dense midfielder formations inside the desktop pitch
+   - preserve formation-specific soccer-like rows
    - avoid changing entry/ranking/data logic */
 
 @media (min-width: 1321px) {
+  .pitch-players.formation-view-4-2-3-1 {
+    grid-template-rows: .56fr 1.26fr .78fr .44fr;
+    gap: 3px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-fw {
+    padding-top: 2px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-mf {
+    flex-wrap: wrap;
+    max-width: 336px;
+    margin: 0 auto;
+    row-gap: 6px;
+    column-gap: 10px;
+    align-content: center;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-df {
+    padding-top: 0;
+    gap: 8px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-gk {
+    transform: translateY(-8px);
+  }
+
   .pitch-players:has(.row-mf .player-card:nth-child(6)) {
     grid-template-rows: .58fr 1.28fr .74fr .44fr;
     gap: 3px;
@@ -29,6 +57,27 @@
 }
 
 @media (min-width: 1321px) and (max-height: 920px) {
+  .pitch-stage.formation-view-4-2-3-1 {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 {
+    min-height: 420px;
+    grid-template-rows: .48fr 1.2fr .68fr .38fr;
+    gap: 2px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-mf {
+    max-width: 314px;
+    row-gap: 4px;
+    column-gap: 8px;
+  }
+
+  .pitch-players.formation-view-4-2-3-1 .row-gk {
+    transform: translateY(-13px);
+  }
+
   .pitch-stage:has(.row-mf .player-card:nth-child(6)) {
     padding-top: 8px;
     padding-bottom: 8px;
