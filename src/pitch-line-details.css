@@ -1,54 +1,12 @@
 .pitch-markings {
   pointer-events: none;
-  background:
-    /* halfway line */
-    linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,.86)) 50% 50% / 100% 3px no-repeat,
-
-    /* opponent penalty area */
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 19% / 58% 3px no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 21% 9.5% / 3px 19% no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 79% 9.5% / 3px 19% no-repeat,
-
-    /* opponent goal area */
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 7.2% / 24% 3px no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 38% 3.6% / 3px 7.2% no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 62% 3.6% / 3px 7.2% no-repeat,
-
-    /* own penalty area */
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 81% / 58% 3px no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 21% 90.5% / 3px 19% no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 79% 90.5% / 3px 19% no-repeat,
-
-    /* own goal area */
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 92.8% / 24% 3px no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 38% 96.4% / 3px 7.2% no-repeat,
-    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 62% 96.4% / 3px 7.2% no-repeat,
-
-    /* penalty spots */
-    radial-gradient(circle, rgba(255,255,255,.9) 0 4px, transparent 5px) 50% 13% / 100% 100% no-repeat,
-    radial-gradient(circle, rgba(255,255,255,.9) 0 4px, transparent 5px) 50% 87% / 100% 100% no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.84)' stroke-width='0.46' stroke-linecap='round' stroke-linejoin='round'%3E%3C!-- halfway --%3E%3Cpath d='M0 50H100'/%3E%3C!-- centre circle and spot --%3E%3Ccircle cx='50' cy='50' r='8.5'/%3E%3Ccircle cx='50' cy='50' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3C!-- opponent penalty area --%3E%3Cpath d='M25 0V17H75V0'/%3E%3Cpath d='M39 0V7H61V0'/%3E%3Ccircle cx='50' cy='11.2' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M42.6 17A8.5 8.5 0 0 0 57.4 17'/%3E%3C!-- own penalty area --%3E%3Cpath d='M25 100V83H75V100'/%3E%3Cpath d='M39 100V93H61V100'/%3E%3Ccircle cx='50' cy='88.8' r='0.55' fill='rgba(255,255,255,0.9)' stroke='none'/%3E%3Cpath d='M42.6 83A8.5 8.5 0 0 1 57.4 83'/%3E%3C!-- corner arcs --%3E%3Cpath d='M0 5A5 5 0 0 0 5 0'/%3E%3Cpath d='M95 0A5 5 0 0 0 100 5'/%3E%3Cpath d='M0 95A5 5 0 0 1 5 100'/%3E%3Cpath d='M95 100A5 5 0 0 1 100 95'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
 }
 
-.pitch-markings::before {
-  border-width: 3px;
-  border-color: rgba(255,255,255,.82);
-}
-
+.pitch-markings::before,
 .pitch-markings::after {
-  display: block;
-  left: 50%;
-  right: auto;
-  bottom: auto;
-  top: 19%;
-  width: 150px;
-  height: 150px;
-  margin-left: -75px;
-  border: 3px solid rgba(255,255,255,.82);
-  border-radius: 50%;
-  border-left-color: transparent;
-  border-right-color: transparent;
-  border-top-color: transparent;
-  transform: translateY(-50%);
-  background:
-    radial-gradient(circle at 50% 452%, transparent 0 378px, rgba(255,255,255,.82) 379px 381px, transparent 382px) 50% 100% / 260px 82px no-repeat;
+  display: none;
 }
