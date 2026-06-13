@@ -108,13 +108,23 @@
   .pitch-stage {
     width: 100%;
     max-width: 760px;
+    min-height: 680px;
     margin-inline: auto;
+  }
+
+  .pitch-players {
+    min-height: 656px;
   }
 }
 
 @media (min-width: 1321px) and (max-height: 920px) {
   .pitch-stage {
     max-width: 760px;
+    min-height: 680px;
+  }
+
+  .pitch-players {
+    min-height: 656px;
   }
 }
 
