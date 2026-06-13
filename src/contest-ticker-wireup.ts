@@ -2,6 +2,8 @@ type TickerItem = {
   label: string;
   labelClass: 'entry' | 'live' | 'ad';
   text: string;
+  iconSrc?: string;
+  iconAlt?: string;
 };
 
 let isInitialized = false;
@@ -41,6 +43,8 @@ function buildTickerItems(): TickerItem[] {
     {
       label: '広告',
       labelClass: 'ad',
+      iconSrc: 'https://time-to-sell-web-2.vercel.app/favicon.ico',
+      iconAlt: '売り時くん',
       text: '売り時くん｜インデックス投資の売り時をゆるく見える化',
     },
     {
@@ -73,7 +77,26 @@ function createTickerElement(items: TickerItem[]) {
   renderItems.forEach((item, index) => {
     const row = document.createElement('span');
     row.className = 'contest-ticker__item';
-    row.innerHTML = `<b class="contest-ticker__label contest-ticker__label--${item.labelClass}">${item.label}</b><span>${item.text}</span>`;
+
+    const label = document.createElement('b');
+    label.className = `contest-ticker__label contest-ticker__label--${item.labelClass}`;
+    label.textContent = item.label;
+    row.appendChild(label);
+
+    if (item.iconSrc) {
+      const icon = document.createElement('img');
+      icon.className = 'contest-ticker__icon';
+      icon.src = item.iconSrc;
+      icon.alt = item.iconAlt || '';
+      icon.loading = 'lazy';
+      icon.decoding = 'async';
+      icon.addEventListener('error', () => icon.remove());
+      row.appendChild(icon);
+    }
+
+    const text = document.createElement('span');
+    text.textContent = item.text;
+    row.appendChild(text);
     row.setAttribute('aria-hidden', index >= items.length ? 'true' : 'false');
     track.appendChild(row);
   });
