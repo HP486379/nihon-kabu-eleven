@@ -5,7 +5,7 @@
 .contest-ticker__inner {
   position: relative;
   grid-template-columns: 210px minmax(0, 1fr);
-  min-height: 62px;
+  min-height: 78px;
   border-radius: 8px;
   border: 2px solid #12d7ff;
   background: linear-gradient(180deg, #03050b 0%, #08101f 48%, #03060f 100%);
@@ -24,7 +24,7 @@
 .contest-ticker__inner::after {
   content: "";
   position: absolute;
-  inset: 6px;
+  inset: 7px;
   border: 1px solid rgba(255,255,255,.10);
   border-radius: 5px;
   pointer-events: none;
@@ -52,7 +52,7 @@
 }
 
 .contest-ticker__head strong {
-  font-size: 23px;
+  font-size: 24px;
   color: #ff9d1c;
   text-shadow: 0 0 6px rgba(255,157,28,.95), 0 0 16px rgba(255,157,28,.55), 0 0 28px rgba(255,157,28,.24);
 }
@@ -62,12 +62,12 @@
 }
 
 .contest-ticker__track {
-  min-height: 62px;
+  min-height: 78px;
   font-size: 20px;
   letter-spacing: .045em;
   color: #f3fbff;
   text-shadow: 0 0 7px rgba(116,220,255,.42), 0 0 15px rgba(116,220,255,.20);
-  animation-duration: 28s;
+  animation-duration: 40s;
 }
 
 .contest-ticker__item {
@@ -99,13 +99,20 @@
   box-shadow: 0 0 7px rgba(61,255,134,.60), inset 0 0 10px rgba(61,255,134,.10);
 }
 
+.contest-ticker__label--ad {
+  color: #ff8bd2;
+  background: rgba(0,0,0,.42);
+  box-shadow: 0 0 7px rgba(255,139,210,.62), inset 0 0 10px rgba(255,139,210,.10);
+}
+
 @media (max-width: 900px) {
   .contest-ticker__inner {
-    min-height: 52px;
+    min-height: 58px;
   }
 
   .contest-ticker__track {
-    min-height: 52px;
+    min-height: 58px;
     font-size: 14px;
+    animation-duration: 32s;
   }
 }
