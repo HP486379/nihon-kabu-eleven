@@ -1,29 +1,54 @@
 .pitch-markings {
   pointer-events: none;
   background:
-    linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,.86)) 50% 50% / 100% 4px no-repeat,
+    /* halfway line */
+    linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,.86)) 50% 50% / 100% 3px no-repeat,
 
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 18% / 44% 4px no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 28% 9% / 4px 18% no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 72% 9% / 4px 18% no-repeat,
+    /* opponent penalty area */
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 19% / 58% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 21% 9.5% / 3px 19% no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 79% 9.5% / 3px 19% no-repeat,
 
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 7% / 22% 4px no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 39% 3.5% / 4px 7% no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 61% 3.5% / 4px 7% no-repeat,
+    /* opponent goal area */
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 7.2% / 24% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 38% 3.6% / 3px 7.2% no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 62% 3.6% / 3px 7.2% no-repeat,
 
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 82% / 44% 4px no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 28% 91% / 4px 18% no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 72% 91% / 4px 18% no-repeat,
+    /* own penalty area */
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 81% / 58% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 21% 90.5% / 3px 19% no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 79% 90.5% / 3px 19% no-repeat,
 
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 50% 93% / 22% 4px no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 39% 96.5% / 4px 7% no-repeat,
-    linear-gradient(rgba(255,255,255,.84), rgba(255,255,255,.84)) 61% 96.5% / 4px 7% no-repeat,
+    /* own goal area */
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 50% 92.8% / 24% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 38% 96.4% / 3px 7.2% no-repeat,
+    linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)) 62% 96.4% / 3px 7.2% no-repeat,
 
-    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 50% / 100% 100% no-repeat,
-    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 12.5% / 100% 100% no-repeat,
-    radial-gradient(circle, rgba(255,255,255,.92) 0 4px, transparent 5px) 50% 87.5% / 100% 100% no-repeat;
+    /* penalty spots */
+    radial-gradient(circle, rgba(255,255,255,.9) 0 4px, transparent 5px) 50% 13% / 100% 100% no-repeat,
+    radial-gradient(circle, rgba(255,255,255,.9) 0 4px, transparent 5px) 50% 87% / 100% 100% no-repeat;
+}
+
+.pitch-markings::before {
+  border-width: 3px;
+  border-color: rgba(255,255,255,.82);
 }
 
 .pitch-markings::after {
-  display: none;
+  display: block;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  top: 19%;
+  width: 150px;
+  height: 150px;
+  margin-left: -75px;
+  border: 3px solid rgba(255,255,255,.82);
+  border-radius: 50%;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-top-color: transparent;
+  transform: translateY(-50%);
+  background:
+    radial-gradient(circle at 50% 452%, transparent 0 378px, rgba(255,255,255,.82) 379px 381px, transparent 382px) 50% 100% / 260px 82px no-repeat;
 }
