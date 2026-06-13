@@ -19,6 +19,7 @@ import { initDashboardParticipantSummary } from './dashboard-participant-summary
 import { initDashboardParticipantRanking } from './dashboard-participant-ranking-wireup';
 import { initResultsPage } from './results-page-wireup';
 import { initDailyMatchLabelWireup } from './daily-match-label-wireup';
+import { initFormationPitchClassWireup } from './formation-pitch-class-wireup';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -132,6 +133,7 @@ initEntrySubmit();
 initPostEntryButtonRemoval();
 initContestTicker();
 initFormationMiniLayout();
+initFormationPitchClassWireup();
 initLowerLayoutWireup();
 initTeamNameSuffixPreview();
 initMatchDurationRules();
