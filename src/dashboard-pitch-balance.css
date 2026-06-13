@@ -1,7 +1,7 @@
 /* Dashboard pitch width balance
    - keep the wider desktop side navigation board
    - scale the main dashboard content up as one block
-   - allow vertical scrolling instead of forcing the pitch into one viewport
+   - use the 3-4-2-1 visual pitch ratio as the shared desktop reference
    - keep player-card / formation positioning logic untouched */
 
 @media (min-width: 1321px) {
@@ -108,23 +108,23 @@
   .pitch-stage {
     width: 100%;
     max-width: 760px;
-    min-height: 680px;
+    min-height: 790px;
     margin-inline: auto;
   }
 
   .pitch-players {
-    min-height: 656px;
+    min-height: 766px;
   }
 }
 
 @media (min-width: 1321px) and (max-height: 920px) {
   .pitch-stage {
     max-width: 760px;
-    min-height: 680px;
+    min-height: 790px;
   }
 
   .pitch-players {
-    min-height: 656px;
+    min-height: 766px;
   }
 }
 
