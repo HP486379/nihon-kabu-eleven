@@ -1,6 +1,8 @@
 .pitch-stage {
-  background: transparent;
-  box-shadow: none;
+  background: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 .pitch-stage::before,
@@ -9,8 +11,9 @@
   position: absolute;
   inset: 18px 16px 24px;
   border-radius: 0;
-  /* Keep the turf inside the touchline/golline so no decorative green frame remains outside the field. */
-  clip-path: polygon(7.5% 2.2%, 92.5% 2.2%, 98.25% 97.75%, 1.75% 97.75%);
+  /* Turf itself is now a trapezoid just outside the white touchline.
+     This removes the rectangular green surface around the pitch. */
+  clip-path: polygon(5.8% 0%, 94.2% 0%, 100% 100%, 0% 100%);
   pointer-events: none;
 }
 
