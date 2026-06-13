@@ -6,11 +6,28 @@ function isResultCalculationEnabled() {
   return ENABLED_VALUES.has(String(process.env.RESULTS_CALC_ENABLED || '').trim().toLowerCase());
 }
 
+function getAdminToken() {
+  return String(process.env.RESULTS_CALC_ADMIN_TOKEN || '').trim();
+}
+
+function getRequestToken(req) {
+  return String(req.get?.('x-results-calc-admin-token') || req.query?.adminToken || '').trim();
+}
+
+function canRunResultCalculation(req) {
+  if (!isResultCalculationEnabled()) return false;
+
+  const adminToken = getAdminToken();
+  if (!adminToken) return false;
+
+  return getRequestToken(req) === adminToken;
+}
+
 function disabledResponse(res) {
   return res.status(403).json({
     ok: false,
     error: 'Result calculation is disabled',
-    details: 'Set RESULTS_CALC_ENABLED=true on the backend to enable manual result calculation.',
+    details: 'Manual result calculation is restricted for the public beta. Results display remains available.',
     tsServer: new Date().toISOString(),
   });
 }
@@ -26,7 +43,7 @@ express.application.post = function guardedPost(path, ...handlers) {
     if (typeof handler !== 'function') return handler;
 
     return function resultCalculationGuard(req, res, next) {
-      if (!isResultCalculationEnabled()) {
+      if (!canRunResultCalculation(req)) {
         return disabledResponse(res);
       }
 
