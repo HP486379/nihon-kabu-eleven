@@ -1,48 +1,59 @@
 /* Dashboard pitch width balance
    - keep the current compact pitch ratio
    - center the pitch block better within the dashboard area
-   - widen the left-side boards enough to reduce unused desktop whitespace
+   - widen the left navigation board to reduce unused desktop whitespace
    - keep player-card / formation positioning untouched */
 
 @media (min-width: 1321px) {
   .app-shell {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr);
   }
 
   .sidebar {
-    padding: 24px 18px 14px;
+    padding: 24px 24px 14px;
     gap: 20px;
   }
 
+  .brand {
+    gap: 14px;
+  }
+
   .brand-logo {
-    width: 50px;
-    height: 56px;
+    width: 56px;
+    height: 62px;
   }
 
   .brand-text {
-    font-size: 19px;
-    line-height: 1.14;
+    font-size: 21px;
+    line-height: 1.12;
   }
 
   .sidebar-nav a {
-    padding: 12px 14px;
-    font-size: 14px;
-    gap: 12px;
+    padding: 13px 18px;
+    font-size: 15px;
+    gap: 14px;
   }
 
   .sidebar-nav a span {
-    width: 24px;
+    width: 26px;
   }
 
   .help-link {
-    padding: 10px 14px;
-    font-size: 14px;
+    padding: 11px 18px;
+    font-size: 15px;
   }
 
   .main {
-    width: min(calc(100vw - 250px), 1440px);
-    max-width: 1440px;
-    margin: 0 auto 0 0;
+    width: min(calc(100vw - 332px), 1320px);
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  .page-header,
+  .contest-ticker,
+  .match-strip {
+    width: min(100%, 1280px);
+    margin-inline: auto;
   }
 
   .dashboard-grid {
@@ -106,9 +117,21 @@
 }
 
 @media (min-width: 1600px) {
+  .app-shell {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
   .main {
-    width: min(calc(100vw - 250px), 1440px);
-    max-width: 1440px;
+    width: min(calc(100vw - 332px), 1320px);
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  .page-header,
+  .contest-ticker,
+  .match-strip {
+    width: min(100%, 1280px);
+    margin-inline: auto;
   }
 
   .dashboard-grid {
