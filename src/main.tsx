@@ -41,6 +41,7 @@ import './participants-page.css';
 import './results-page.css';
 import './dashboard-layout-tuning.css';
 import './dashboard-formation-fit.css';
+import './dashboard-pitch-balance.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
