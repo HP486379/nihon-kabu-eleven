@@ -1,0 +1,10 @@
+.pitch-stage::before,
+.pitch-stage::after {
+  inset: 18px 16px 24px !important;
+  clip-path: polygon(7% 1.6%, 93% 1.6%, 99% 98.4%, 1% 98.4%) !important;
+  border-radius: 0 !important;
+}
+
+.pitch-stage::before {
+  box-shadow: none !important;
+}
