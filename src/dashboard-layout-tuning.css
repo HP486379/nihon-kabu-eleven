@@ -1,0 +1,186 @@
+/* Dashboard layout tuning
+   - widen and left-align the main area on desktop
+   - reduce only the upper dashboard UI height
+   - do not change the central pitch internals */
+
+@media (min-width: 1321px) {
+  .main {
+    width: min(100%, 1450px);
+    max-width: 1450px;
+    margin: 0 auto 0 0;
+    padding: 16px 18px 12px;
+    gap: 8px;
+    align-content: start;
+  }
+
+  .page-header {
+    min-height: 96px;
+    padding: 15px 20px;
+    gap: 18px;
+    align-items: flex-start;
+  }
+
+  .match-kicker {
+    margin: 0 0 8px;
+    font-size: 13px;
+  }
+
+  .header-main h1 {
+    font-size: 36px;
+    line-height: 1;
+  }
+
+  .header-subline {
+    margin-top: 7px;
+    gap: 14px;
+    font-size: 13px;
+  }
+
+  .team-chip {
+    margin-top: 6px;
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .header-metrics {
+    width: 420px;
+  }
+
+  .metric-card {
+    padding: 9px 10px;
+  }
+
+  .metric-card span {
+    margin-bottom: 4px;
+    font-size: 10px;
+  }
+
+  .metric-card strong {
+    font-size: 13px;
+  }
+
+  .contest-ticker {
+    margin-top: 0;
+  }
+
+  .contest-ticker__inner {
+    grid-template-columns: 180px minmax(0, 1fr);
+    min-height: 46px;
+    border-radius: 8px;
+  }
+
+  .contest-ticker__inner::after {
+    inset: 5px;
+  }
+
+  .contest-ticker__head {
+    padding: 5px 16px;
+    gap: 0;
+  }
+
+  .contest-ticker__head span {
+    font-size: 9px;
+  }
+
+  .contest-ticker__head strong {
+    font-size: 18px;
+  }
+
+  .contest-ticker__track {
+    min-height: 46px;
+    gap: 28px;
+    font-size: 15px;
+  }
+
+  .contest-ticker__item {
+    gap: 10px;
+  }
+
+  .contest-ticker__item::after {
+    margin-left: 18px;
+  }
+
+  .contest-ticker__label {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .match-strip {
+    grid-template-columns: 1fr 1.2fr 1fr auto;
+    gap: 12px;
+    padding: 9px 14px;
+    border-radius: 14px;
+  }
+
+  .match-strip.match-strip-duration-enabled {
+    row-gap: 6px;
+  }
+
+  .match-strip > div {
+    min-height: 30px;
+  }
+
+  .match-strip > div span {
+    margin-bottom: 2px;
+  }
+
+  .match-strip > div:nth-child(1) span::before,
+  .match-strip > div:nth-child(2) span::before,
+  .match-strip > div:nth-child(3) span::before {
+    font-size: 11px;
+  }
+
+  .match-strip > div:nth-child(1) strong::before,
+  .match-strip > div:nth-child(2) strong::before,
+  .match-strip > div strong,
+  .match-strip.match-strip-duration-enabled > div:nth-child(1) strong::before {
+    font-size: 13px;
+  }
+
+  .lock-button {
+    min-width: 114px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .match-type-inline {
+    gap: 6px;
+    padding-top: 6px;
+  }
+
+  .match-type-inline > span {
+    font-size: 11px !important;
+  }
+
+  .match-type-chip {
+    min-height: 26px;
+    padding: 4px 9px;
+    gap: 4px;
+  }
+
+  .match-type-chip strong {
+    font-size: 11px !important;
+  }
+
+  .match-type-chip small {
+    font-size: 9px;
+  }
+
+  .match-type-inline > em {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 180px minmax(720px, 1fr) 310px;
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .main {
+    width: min(100%, 1450px);
+    max-width: 1450px;
+    margin: 0 auto 0 0;
+  }
+}
