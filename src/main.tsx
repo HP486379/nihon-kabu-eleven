@@ -20,6 +20,7 @@ import { initDashboardParticipantRanking } from './dashboard-participant-ranking
 import { initResultsPage } from './results-page-wireup';
 import { initDailyMatchLabelWireup } from './daily-match-label-wireup';
 import { initFormationPitchClassWireup } from './formation-pitch-class-wireup';
+import { initPublicBetaCopyWireup } from './public-beta-copy-wireup';
 import './styles.css';
 import './market-data.css';
 import './layout-fixes.css';
@@ -148,3 +149,4 @@ initDashboardParticipantSummary();
 initDashboardParticipantRanking();
 initResultsPage();
 initDailyMatchLabelWireup();
+initPublicBetaCopyWireup();
