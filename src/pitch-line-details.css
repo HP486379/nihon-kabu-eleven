@@ -9,7 +9,8 @@
   position: absolute;
   inset: 18px 16px 24px;
   border-radius: 0;
-  clip-path: polygon(7% 1.6%, 93% 1.6%, 99% 98.4%, 1% 98.4%);
+  /* Keep the turf inside the touchline/golline so no decorative green frame remains outside the field. */
+  clip-path: polygon(7.5% 2.2%, 92.5% 2.2%, 98.25% 97.75%, 1.75% 97.75%);
   pointer-events: none;
 }
 
