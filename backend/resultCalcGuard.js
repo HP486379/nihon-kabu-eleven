@@ -36,3 +36,5 @@ express.application.post = function guardedPost(path, ...handlers) {
 
   return originalPost.call(this, path, ...guardedHandlers);
 };
+
+await import('./entryResultsFormalPatch.js');
