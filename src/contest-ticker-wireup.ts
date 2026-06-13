@@ -43,7 +43,7 @@ function buildTickerItems(): TickerItem[] {
     {
       label: '広告',
       labelClass: 'ad',
-      iconSrc: 'https://time-to-sell-web-2.vercel.app/favicon.ico',
+      iconSrc: 'https://time-to-sell-web-2.vercel.app/assets/icon.png',
       iconAlt: '売り時くん',
       text: '売り時くん｜インデックス投資の売り時をゆるく見える化',
     },
