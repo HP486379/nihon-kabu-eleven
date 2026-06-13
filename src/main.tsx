@@ -78,3 +78,69 @@ function setEntryGuardStatus(button: HTMLButtonElement, message: string, type: '
     status.setAttribute('aria-live', 'polite');
     parent.appendChild(status);
   }
+
+  status.textContent = message;
+  status.dataset.status = type;
+  status.style.margin = '8px 0 0';
+  status.style.fontWeight = '700';
+}
+
+function initUserNameEntryGuard() {
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest<HTMLButtonElement>('.lock-button') : null;
+    if (!button || button.disabled) return;
+
+    const label = button.textContent?.trim() || '';
+    const isEntryAction = !label.includes('別チームを作る')
+      && !label.includes('チームを作り直す')
+      && !label.includes('取り消')
+      && (label.includes('チームを確定') || label.includes('エントリー'));
+    if (!isEntryAction || isValidUserName(readUserName())) return;
+
+    const raw = window.prompt('ユーザーネームを登録してください。半角英数字・ハイフン・アンダースコアで3〜24文字です。例：Taro');
+    if (raw === null) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setEntryGuardStatus(button, 'ユーザーネーム登録が必要です。キャンセルしたため、エントリーは保存していません。', 'warning');
+      return;
+    }
+
+    const normalized = normalizeUserName(raw);
+    if (!isValidUserName(normalized)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setEntryGuardStatus(button, 'ユーザーネームは半角英数字・ハイフン・アンダースコアで3〜24文字にしてください。', 'error');
+      return;
+    }
+
+    writeUserName(normalized);
+  }, true);
+}
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+
+initUserNameEntryGuard();
+initPitchDragDrop();
+initMemberLabelOverrides();
+initEntrySubmit();
+initPostEntryButtonRemoval();
+initContestTicker();
+initFormationMiniLayout();
+initLowerLayoutWireup();
+initTeamNameSuffixPreview();
+initMatchDurationRules();
+initContestSelectionSync();
+initContestListPage();
+initFormationPage();
+initParticipantsPage();
+initParticipantsMatchTabs();
+initDashboardParticipantSummary();
+initDashboardParticipantRanking();
+initResultsPage();
+initDailyMatchLabelWireup();
