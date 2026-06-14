@@ -1,3 +1,23 @@
+const SHOGI_FRONTLINE_ICON_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#321b06"/>
+      <stop offset="1" stop-color="#0b0618"/>
+    </linearGradient>
+    <linearGradient id="piece" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffe5a8"/>
+      <stop offset="1" stop-color="#d0912d"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <path d="M32 7l22 11v31L32 60 10 49V18L32 7z" fill="#08040d" stroke="#ffcf65" stroke-width="3"/>
+  <path d="M32 14l14 8-4 27H22l-4-27 14-8z" fill="url(#piece)" stroke="#fff1bd" stroke-width="2"/>
+  <text x="32" y="40" text-anchor="middle" font-size="26" font-weight="900" font-family="serif" fill="#1b0f05">将</text>
+  <path d="M14 50h36" stroke="#ff4470" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+</svg>
+`)}`;
+
 type TickerItem = {
   label: string;
   labelClass: 'entry' | 'live' | 'ad';
@@ -50,6 +70,8 @@ function buildTickerItems(): TickerItem[] {
     {
       label: '広告',
       labelClass: 'ad',
+      iconSrc: SHOGI_FRONTLINE_ICON_SRC,
+      iconAlt: '将棋戦線',
       text: '将棋戦線｜完全無料で遊べる戦略ボードゲーム',
     },
   ];
