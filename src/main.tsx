@@ -44,6 +44,7 @@ import './dashboard-layout-tuning.css';
 import './dashboard-formation-fit.css';
 import './dashboard-pitch-balance.css';
 import './pitch-line-details.css';
+import './pitch-player-glass.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
