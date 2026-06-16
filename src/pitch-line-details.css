@@ -11,32 +11,34 @@
   position: absolute;
   inset: 18px 16px 24px;
   border-radius: 0;
-  /* Turf itself is now a trapezoid just outside the white touchline.
-     This removes the rectangular green surface around the pitch. */
-  clip-path: polygon(5.8% 0%, 94.2% 0%, 100% 100%, 0% 100%);
   pointer-events: none;
 }
 
 .pitch-stage::before {
   z-index: 0;
+  /* Solid turf extends just outside the touchline so the pitch keeps its full trapezoid shape. */
+  clip-path: polygon(5.8% 0%, 94.2% 0%, 100% 100%, 0% 100%);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.10)),
-    repeating-linear-gradient(
-      180deg,
-      #65bd45 0,
-      #65bd45 36px,
-      #51a93b 36px,
-      #51a93b 72px
-    );
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 16%, rgba(0,0,0,0) 76%, rgba(0,0,0,.10)),
+    #53ad3f;
   box-shadow: none;
 }
 
 .pitch-stage::after {
   z-index: 0;
+  /* Stripe layer is clipped to the inside of the white touchline SVG. */
+  clip-path: polygon(7.2% 2.0%, 92.8% 2.0%, 98.6% 98.0%, 1.4% 98.0%);
   background:
-    radial-gradient(ellipse at center, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 58%),
-    linear-gradient(90deg, rgba(0,0,0,.08), rgba(0,0,0,0) 18%, rgba(0,0,0,0) 82%, rgba(0,0,0,.08));
-  opacity: .72;
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.08)),
+    radial-gradient(ellipse at center, rgba(255,255,255,.06) 0%, rgba(255,255,255,0) 60%),
+    repeating-linear-gradient(
+      180deg,
+      #66bd47 0,
+      #66bd47 36px,
+      #4fa83a 36px,
+      #4fa83a 72px
+    );
+  opacity: .96;
 }
 
 .pitch-markings {
