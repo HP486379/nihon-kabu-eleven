@@ -20,13 +20,13 @@
 .pitch-stage::before {
   z-index: 0;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.12)),
+    linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.10)),
     repeating-linear-gradient(
-      90deg,
-      #78c94a 0,
-      #78c94a 44px,
-      #4fab3f 44px,
-      #4fab3f 88px
+      180deg,
+      #65bd45 0,
+      #65bd45 36px,
+      #51a93b 36px,
+      #51a93b 72px
     );
   box-shadow: none;
 }
