@@ -245,8 +245,22 @@ function toParticipant(entry, fallbackRank) {
   };
 }
 
-async function listEntries(contestId) {
+function entryBelongsToCurrentPeriod(entry, requestedMatchType = '', requestedPeriodId = '') {
+  const entryMatchType = inferMatchType(entry);
+  if (requestedMatchType && entryMatchType !== requestedMatchType) return false;
+
+  const entryPeriodId = firstText(entry.period_id, entry.periodId);
+  if (!entryPeriodId) return false;
+
+  const activePeriodId = requestedPeriodId || periodIdFor(entryMatchType);
+  return entryPeriodId === activePeriodId;
+}
+
+async function listEntries(contestId, requestedMatchType = '', requestedPeriodId = '') {
   const supabase = requireSupabaseAdmin();
+  const matchType = isMatchType(requestedMatchType) ? requestedMatchType : '';
+  const periodId = firstText(requestedPeriodId) || (matchType ? periodIdFor(matchType) : '');
+
   let query = supabase
     .from('entries')
     .select('*')
@@ -255,11 +269,14 @@ async function listEntries(contestId) {
     .limit(100);
 
   if (contestId) query = query.eq('contest_id', contestId);
+  if (matchType) query = query.eq('match_type', matchType);
+  if (periodId) query = query.eq('period_id', periodId);
 
   const { data, error } = await query;
   if (error) throw httpError(500, 'Failed to load entries', error.message);
 
-  return (data || []).map((entry, index) => toParticipant(entry, index + 1));
+  const currentPeriodEntries = (data || []).filter((entry) => entryBelongsToCurrentPeriod(entry, matchType, periodId));
+  return currentPeriodEntries.map((entry, index) => toParticipant(entry, index + 1));
 }
 
 async function postEntriesHandler(req, res) {
@@ -290,15 +307,22 @@ async function postEntriesHandler(req, res) {
 async function getEntriesHandler(req, res) {
   const rawContestId = req.query?.contestId || req.query?.contest_id || '';
   const contestId = isUuid(rawContestId) ? String(rawContestId).trim() : '';
+  const rawMatchType = firstText(req.query?.matchType, req.query?.match_type);
+  const matchType = isMatchType(rawMatchType) ? rawMatchType : '';
+  const periodId = firstText(req.query?.periodId, req.query?.period_id) || (matchType ? periodIdFor(matchType) : '');
 
   try {
-    const entries = await listEntries(contestId);
+    const entries = await listEntries(contestId, matchType, periodId);
     return res.json({
       ok: true,
       entries,
       participants: entries,
       count: entries.length,
       contestId: contestId || null,
+      matchType: matchType || null,
+      match_type: matchType || null,
+      periodId: periodId || null,
+      period_id: periodId || null,
       tsServer: nowIso(),
     });
   } catch (err) {
