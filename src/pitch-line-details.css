@@ -20,16 +20,22 @@
 .pitch-stage::before {
   z-index: 0;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0) 13%, rgba(0,0,0,0) 76%, rgba(0,0,0,.10)),
-    linear-gradient(180deg, #74bd65 0%, #65b45c 24%, #4b9849 58%, #2f7f3e 100%);
+    linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.12)),
+    repeating-linear-gradient(
+      90deg,
+      #78c94a 0,
+      #78c94a 44px,
+      #4fab3f 44px,
+      #4fab3f 88px
+    );
   box-shadow: none;
 }
 
 .pitch-stage::after {
   z-index: 0;
   background:
-    repeating-linear-gradient(90deg, rgba(255,255,255,.045) 0, rgba(255,255,255,.045) 72px, rgba(255,255,255,.012) 72px, rgba(255,255,255,.012) 144px);
-  mix-blend-mode: screen;
+    radial-gradient(ellipse at center, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 58%),
+    linear-gradient(90deg, rgba(0,0,0,.08), rgba(0,0,0,0) 18%, rgba(0,0,0,0) 82%, rgba(0,0,0,.08));
   opacity: .72;
 }
 
