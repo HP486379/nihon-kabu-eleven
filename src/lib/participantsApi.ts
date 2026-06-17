@@ -1,5 +1,22 @@
 import { entryMatchesContest, getContestContext, getCurrentContestContext, toDisplayTeamName, toDisplayUserName, withContestQuery, type MatchType } from './contestContext';
 
+export type ParticipantMember = {
+  id?: string | null;
+  entryId?: string | null;
+  entry_id?: string | null;
+  stockCode?: string | null;
+  stock_code?: string | null;
+  code?: string | null;
+  stockName?: string | null;
+  stock_name?: string | null;
+  name?: string | null;
+  market?: string | null;
+  position?: string | null;
+  slotOrder?: number | string | null;
+  slot_order?: number | string | null;
+  weight?: number | string | null;
+};
+
 export type ParticipantApiEntry = {
   id?: string;
   entryId?: string;
@@ -28,6 +45,8 @@ export type ParticipantApiEntry = {
   style?: string | null;
   createdAt?: string | null;
   created_at?: string | null;
+  members?: ParticipantMember[] | null;
+  entry_members?: ParticipantMember[] | null;
 };
 
 export type ParticipantsApiResult = {
@@ -51,6 +70,7 @@ export type ParticipantItem = {
   status: string;
   style: string;
   createdAt: string;
+  members: ParticipantMember[];
 };
 
 export type CancelParticipantEntryTarget = {
@@ -105,6 +125,12 @@ function getDisplayOwner(entry: ParticipantApiEntry) {
   return rawOwner && rawOwner !== '参加チーム' ? toDisplayUserName(rawOwner) : '参加チーム';
 }
 
+function normalizeMembers(entry: ParticipantApiEntry): ParticipantMember[] {
+  if (Array.isArray(entry.members)) return entry.members;
+  if (Array.isArray(entry.entry_members)) return entry.entry_members;
+  return [];
+}
+
 function normalizeParticipant(entry: ParticipantApiEntry, index: number, matchType?: MatchType): ParticipantItem {
   const returnPct = toNumber(entry.returnPct ?? entry.return_pct ?? entry.resultPct ?? entry.result_pct ?? entry.weightedReturn ?? entry.weighted_return);
   const context = matchType ? getContestContext(matchType) : getCurrentContestContext();
@@ -120,6 +146,7 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number, matchTy
     status: firstText(entry.status) || '確定済み',
     style: firstText(entry.style) || '集計待ち',
     createdAt: firstText(entry.createdAt, entry.created_at),
+    members: normalizeMembers(entry),
   };
 }
 
