@@ -8,6 +8,14 @@
   display: none !important;
 }
 
+.app-shell.team-detail-page-mode main.main > *:not(.page-header):not(#team-detail-page) {
+  display: none !important;
+}
+
+.app-shell.team-detail-page-mode #team-detail-page {
+  display: block !important;
+}
+
 .team-detail-page {
   margin-top: 22px;
   padding: 28px;
