@@ -17,6 +17,7 @@ import { initParticipantsPage } from './participants-page-wireup';
 import { initParticipantsMatchTabs } from './participants-match-tabs-wireup';
 import { initDashboardParticipantSummary } from './dashboard-participant-summary-wireup';
 import { initDashboardParticipantRanking } from './dashboard-participant-ranking-wireup';
+import { initTeamDetailPage } from './team-detail-page-wireup';
 import { initResultsPage } from './results-page-wireup';
 import { initDailyMatchLabelWireup } from './daily-match-label-wireup';
 import { initFormationPitchClassWireup } from './formation-pitch-class-wireup';
@@ -46,6 +47,7 @@ import './dashboard-pitch-balance.css';
 import './pitch-line-details.css';
 import './pitch-player-glass.css';
 import './sidebar-logo-icon.css';
+import './team-detail-page.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
@@ -149,6 +151,7 @@ initParticipantsPage();
 initParticipantsMatchTabs();
 initDashboardParticipantSummary();
 initDashboardParticipantRanking();
+initTeamDetailPage();
 initResultsPage();
 initDailyMatchLabelWireup();
 initPublicBetaCopyWireup();
