@@ -4,6 +4,7 @@ import { getContestLabel, getEntryFormMatchType, type MatchType } from './lib/co
 const ROOT_ID = 'team-detail-page';
 const ACTIVE_CLASS = 'team-detail-page-mode';
 const MATCH_TYPES: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
+const POSITIONS = ['FW', 'MF', 'DF', 'GK'] as const;
 
 let initialized = false;
 let requestSeq = 0;
@@ -76,7 +77,7 @@ function getMemberName(member: TeamMember) {
 
 function getMemberPosition(member: TeamMember) {
   const position = firstText(member.position).toUpperCase();
-  return ['FW', 'MF', 'DF', 'GK'].includes(position) ? position : 'MF';
+  return POSITIONS.includes(position as typeof POSITIONS[number]) ? position : 'MF';
 }
 
 function getMemberOrder(member: TeamMember) {
@@ -147,6 +148,37 @@ function setDetailMessage(message: string, type: 'idle' | 'success' | 'error') {
   box.dataset.messageType = type;
 }
 
+function renderDetailPlayerCard(member: TeamMember) {
+  const position = getMemberPosition(member);
+  const positionClass = position.toLowerCase();
+  const code = getMemberCode(member);
+  const name = getMemberName(member);
+
+  return `
+    <article class="player-card position-${positionClass}">
+      <div class="position-pill">${position}</div>
+      <strong>${escapeHtml(name)}</strong>
+      <small>${escapeHtml(code)}</small>
+      <div class="player-change">選抜</div>
+      <svg class="sparkline spark-${positionClass}" viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="22" x2="112" y2="14" />
+      </svg>
+    </article>
+  `;
+}
+
+function renderPitchRow(members: TeamMember[], position: typeof POSITIONS[number]) {
+  const rows = members
+    .filter((member) => getMemberPosition(member) === position)
+    .sort((a, b) => getMemberOrder(a) - getMemberOrder(b));
+
+  return `
+    <div class="pitch-row row-${position.toLowerCase()}">
+      ${rows.map(renderDetailPlayerCard).join('')}
+    </div>
+  `;
+}
+
 function renderMemberSection(team: TeamDetailParticipant) {
   const members = getMembers(team);
   if (members.length === 0) {
@@ -158,28 +190,25 @@ function renderMemberSection(team: TeamDetailParticipant) {
     `;
   }
 
-  return ['FW', 'MF', 'DF', 'GK'].map((position) => {
-    const rows = members
-      .filter((member) => getMemberPosition(member) === position)
-      .sort((a, b) => getMemberOrder(a) - getMemberOrder(b));
-
-    if (rows.length === 0) return '';
-
-    return `
-      <section class="team-detail-position-group position-${position.toLowerCase()}">
-        <h3>${position}</h3>
-        <div class="team-detail-member-grid">
-          ${rows.map((member) => `
-            <article class="team-detail-member-card">
-              <span>${escapeHtml(getMemberCode(member))}</span>
-              <strong>${escapeHtml(getMemberName(member))}</strong>
-              <small>${escapeHtml(firstText(member.market) || '日本株')}</small>
-            </article>
-          `).join('')}
+  return `
+    <div class="pitch-card team-detail-pitch-card">
+      <div class="pitch-stage">
+        <div class="pitch-markings"></div>
+        <div class="pitch-players">
+          ${renderPitchRow(members, 'FW')}
+          ${renderPitchRow(members, 'MF')}
+          ${renderPitchRow(members, 'DF')}
+          ${renderPitchRow(members, 'GK')}
         </div>
-      </section>
-    `;
-  }).join('');
+      </div>
+      <div class="pitch-legend">
+        <span class="fw">FW</span>（フォワード）
+        <span class="mf">MF</span>（ミッドフィールダー）
+        <span class="df">DF</span>（ディフェンダー）
+        <span class="gk">GK</span>（ゴールキーパー）
+      </div>
+    </div>
+  `;
 }
 
 function createOrGetPage() {
@@ -262,7 +291,7 @@ function renderDetail(team: TeamDetailParticipant, matchType: MatchType) {
     <div class="team-detail-members">
       <div class="team-detail-section-title">
         <h3>代表メンバー</h3>
-        <p>チームの布陣と銘柄構成を見せ合うための詳細ページです。</p>
+        <p>ダッシュボードと同じピッチ・カード表示で布陣を確認できます。</p>
       </div>
       ${renderMemberSection(team)}
     </div>
