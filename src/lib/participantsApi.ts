@@ -70,7 +70,7 @@ export type ParticipantItem = {
   status: string;
   style: string;
   createdAt: string;
-  members: ParticipantMember[];
+  members?: ParticipantMember[];
 };
 
 export type CancelParticipantEntryTarget = {
