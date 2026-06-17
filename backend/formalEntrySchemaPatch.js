@@ -204,10 +204,30 @@ function displayStatus(status) {
   return status || '確定済み';
 }
 
+function normalizeMember(member) {
+  return {
+    id: member.id || null,
+    entryId: member.entry_id || null,
+    entry_id: member.entry_id || null,
+    stockCode: member.stock_code || null,
+    stock_code: member.stock_code || null,
+    code: member.stock_code || null,
+    stockName: member.stock_name || member.stock_code || '',
+    stock_name: member.stock_name || member.stock_code || '',
+    name: member.stock_name || member.stock_code || '',
+    market: member.market || '日本株',
+    position: member.position || 'MF',
+    slotOrder: member.slot_order || 999,
+    slot_order: member.slot_order || 999,
+    weight: member.weight || 0,
+  };
+}
+
 function toParticipant(entry, fallbackRank) {
   const matchType = inferMatchType(entry);
   const displayTeamName = entry.display_team_name || stripTeamPrefix(entry.team_name);
   const displayUserName = entry.display_user_name || stripUserPrefix(entry.owner || entry.user_name || '参加チーム');
+  const members = Array.isArray(entry.entry_members) ? entry.entry_members.map(normalizeMember) : [];
   return {
     id: entry.id,
     entryId: entry.id,
@@ -242,6 +262,8 @@ function toParticipant(entry, fallbackRank) {
     locked_at: entry.locked_at,
     calculatedAt: null,
     calculated_at: null,
+    members,
+    entry_members: members,
   };
 }
 
@@ -254,6 +276,31 @@ function entryBelongsToCurrentPeriod(entry, requestedMatchType = '', requestedPe
 
   const activePeriodId = requestedPeriodId || periodIdFor(entryMatchType);
   return entryPeriodId === activePeriodId;
+}
+
+async function attachEntryMembers(supabase, entries) {
+  const entryIds = [...new Set((entries || []).map((entry) => entry.id).filter(Boolean))];
+  if (entryIds.length === 0) return entries || [];
+
+  const { data, error } = await supabase
+    .from('entry_members')
+    .select('id,entry_id,stock_code,stock_name,market,position,slot_order,weight')
+    .in('entry_id', entryIds)
+    .order('slot_order', { ascending: true });
+
+  if (error) throw httpError(500, 'Failed to load entry members', error.message);
+
+  const grouped = new Map();
+  (data || []).forEach((member) => {
+    const key = member.entry_id;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(member);
+  });
+
+  return (entries || []).map((entry) => ({
+    ...entry,
+    entry_members: grouped.get(entry.id) || [],
+  }));
 }
 
 async function listEntries(contestId, requestedMatchType = '', requestedPeriodId = '') {
@@ -276,7 +323,8 @@ async function listEntries(contestId, requestedMatchType = '', requestedPeriodId
   if (error) throw httpError(500, 'Failed to load entries', error.message);
 
   const currentPeriodEntries = (data || []).filter((entry) => entryBelongsToCurrentPeriod(entry, matchType, periodId));
-  return currentPeriodEntries.map((entry, index) => toParticipant(entry, index + 1));
+  const entriesWithMembers = await attachEntryMembers(supabase, currentPeriodEntries);
+  return entriesWithMembers.map((entry, index) => toParticipant(entry, index + 1));
 }
 
 async function postEntriesHandler(req, res) {
