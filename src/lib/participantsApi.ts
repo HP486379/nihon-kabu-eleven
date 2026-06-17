@@ -35,6 +35,14 @@ export type ParticipantApiEntry = {
   match_type?: string | null;
   contestType?: string | null;
   contest_type?: string | null;
+  periodId?: string | null;
+  period_id?: string | null;
+  baseDate?: string | null;
+  base_date?: string | null;
+  resultDate?: string | null;
+  result_date?: string | null;
+  resultBasis?: string | null;
+  result_basis?: string | null;
   returnPct?: number | string | null;
   return_pct?: number | string | null;
   resultPct?: number | string | null;
@@ -54,6 +62,24 @@ export type ParticipantsApiResult = {
   entries?: ParticipantApiEntry[];
   participants?: ParticipantApiEntry[];
   data?: ParticipantApiEntry[];
+  matchType?: string | null;
+  match_type?: string | null;
+  periodId?: string | null;
+  period_id?: string | null;
+  baseDate?: string | null;
+  base_date?: string | null;
+  resultDate?: string | null;
+  result_date?: string | null;
+  period?: {
+    matchType?: string | null;
+    match_type?: string | null;
+    periodId?: string | null;
+    period_id?: string | null;
+    baseDate?: string | null;
+    base_date?: string | null;
+    resultDate?: string | null;
+    result_date?: string | null;
+  } | null;
   message?: string;
   error?: string;
   details?: string | null;
@@ -66,6 +92,10 @@ export type ParticipantItem = {
   owner: string;
   formation: string;
   matchType: string;
+  periodId: string;
+  baseDate: string;
+  resultDate: string;
+  resultBasis: string;
   returnPct: number | null;
   status: string;
   style: string;
@@ -141,7 +171,11 @@ function normalizeParticipant(entry: ParticipantApiEntry, index: number, matchTy
     team: toDisplayTeamName(firstText(entry.teamName, entry.team_name) || `エントリー ${index + 1}`),
     owner: getDisplayOwner(entry),
     formation: firstText(entry.formation) || '-',
-    matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || context.label,
+    matchType: firstText(entry.matchType, entry.match_type, entry.contestType, entry.contest_type) || context.matchType,
+    periodId: firstText(entry.periodId, entry.period_id),
+    baseDate: firstText(entry.baseDate, entry.base_date),
+    resultDate: firstText(entry.resultDate, entry.result_date),
+    resultBasis: firstText(entry.resultBasis, entry.result_basis),
     returnPct,
     status: firstText(entry.status) || '確定済み',
     style: firstText(entry.style) || '集計待ち',
@@ -194,7 +228,8 @@ async function parseApiResponse<T extends { ok?: boolean; message?: string; erro
 export async function fetchParticipants(matchType?: MatchType): Promise<ParticipantItem[]> {
   clearLocalSubmittedEntries();
   const context = matchType ? getContestContext(matchType) : getCurrentContestContext();
-  const response = await fetch(withContestQuery(`${API_BASE}/api/entries?ts=${Date.now()}`, context.contestId), {
+  const url = `${API_BASE}/api/entries?matchType=${encodeURIComponent(context.matchType)}&ts=${Date.now()}`;
+  const response = await fetch(withContestQuery(url, context.contestId), {
     cache: 'no-store',
     headers: {
       'Cache-Control': 'no-cache',
