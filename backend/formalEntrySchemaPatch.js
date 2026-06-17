@@ -56,6 +56,28 @@ function stripOwnerSuffix(value) {
   return String(value || '').trim().replace(OWNER_SUFFIX_RE, '');
 }
 
+function toDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(date, days) {
+  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function nextBusinessDay(date) {
+  let next = addUtcDays(date, 1);
+  while (next.getUTCDay() === 0 || next.getUTCDay() === 6) next = addUtcDays(next, 1);
+  return next;
+}
+
+function normalizeToBusinessDay(date) {
+  let next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  while (next.getUTCDay() === 0 || next.getUTCDay() === 6) next = addUtcDays(next, 1);
+  return next;
+}
+
 function periodIdFor(matchType, date = new Date()) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -73,6 +95,73 @@ function periodIdFor(matchType, date = new Date()) {
   return `weekly_${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
+function isoWeekStartDate(year, weekNo) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayNum = jan4.getUTCDay() || 7;
+  const week1Monday = addUtcDays(jan4, 1 - dayNum);
+  return addUtcDays(week1Monday, (weekNo - 1) * 7);
+}
+
+function periodStartDateFor(matchType, periodId, fallbackDate = new Date()) {
+  const fallback = new Date(Date.UTC(fallbackDate.getUTCFullYear(), fallbackDate.getUTCMonth(), fallbackDate.getUTCDate()));
+
+  if (matchType === 'daily') {
+    const match = String(periodId || '').match(/^daily_(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    return fallback;
+  }
+
+  if (matchType === 'weekly') {
+    const match = String(periodId || '').match(/^weekly_(\d{4})-W(\d{2})$/);
+    if (match) return isoWeekStartDate(Number(match[1]), Number(match[2]));
+    const dayNum = fallback.getUTCDay() || 7;
+    return addUtcDays(fallback, 1 - dayNum);
+  }
+
+  if (matchType === 'monthly') {
+    const match = String(periodId || '').match(/^monthly_(\d{4})-(\d{2})$/);
+    if (match) return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
+    return new Date(Date.UTC(fallback.getUTCFullYear(), fallback.getUTCMonth(), 1));
+  }
+
+  if (matchType === 'quarterly') {
+    const match = String(periodId || '').match(/^quarterly_(\d{4})-Q([1-4])$/);
+    if (match) return new Date(Date.UTC(Number(match[1]), (Number(match[2]) - 1) * 3, 1));
+    return new Date(Date.UTC(fallback.getUTCFullYear(), Math.floor(fallback.getUTCMonth() / 3) * 3, 1));
+  }
+
+  return fallback;
+}
+
+function resultDateFor(matchType, baseDate) {
+  if (matchType === 'daily') return nextBusinessDay(baseDate);
+  if (matchType === 'weekly') return normalizeToBusinessDay(addUtcDays(baseDate, 7));
+
+  const months = matchType === 'quarterly' ? 3 : 1;
+  const result = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + months, baseDate.getUTCDate()));
+  return normalizeToBusinessDay(result);
+}
+
+function periodMetaFor(matchType, periodId = '', date = new Date()) {
+  const safeMatchType = isMatchType(matchType) ? matchType : 'daily';
+  const resolvedPeriodId = firstText(periodId) || periodIdFor(safeMatchType, date);
+  const baseDate = periodStartDateFor(safeMatchType, resolvedPeriodId, date);
+  const resultDate = resultDateFor(safeMatchType, baseDate);
+
+  return {
+    matchType: safeMatchType,
+    match_type: safeMatchType,
+    periodId: resolvedPeriodId,
+    period_id: resolvedPeriodId,
+    baseDate: toDateOnly(baseDate),
+    base_date: toDateOnly(baseDate),
+    resultDate: toDateOnly(resultDate),
+    result_date: toDateOnly(resultDate),
+    resultBasis: 'scheduled_close',
+    result_basis: 'scheduled_close',
+  };
+}
+
 function normalizePayload(body) {
   const contestId = isUuid(body?.contestId || body?.contest_id) ? String(body.contestId || body.contest_id).trim() : DEV_CONTEST_ID;
   const teamName = firstText(body?.teamName, body?.team_name);
@@ -87,6 +176,7 @@ function normalizePayload(body) {
 
   const matchType = inferMatchType(body || {});
   const periodId = firstText(body?.periodId, body?.period_id) || periodIdFor(matchType);
+  const periodMeta = periodMetaFor(matchType, periodId);
   const displayTeamName = firstText(body?.displayTeamName, body?.display_team_name) || stripTeamPrefix(teamName);
   const displayUserName = firstText(body?.displayUserName, body?.display_user_name) || stripUserPrefix(userName);
   const ownerKeyBase = firstText(body?.ownerKeyBase, body?.owner_key_base) || stripOwnerSuffix(ownerKey);
@@ -101,6 +191,8 @@ function normalizePayload(body) {
     members,
     matchType,
     periodId,
+    baseDate: periodMeta.baseDate,
+    resultDate: periodMeta.resultDate,
     displayTeamName,
     displayUserName,
   };
@@ -185,10 +277,14 @@ async function persistEntry(entry) {
   const { error: membersError } = await supabase.from('entry_members').insert(memberRows);
   if (membersError) throw httpError(500, 'Failed to save entry members', membersError.message);
 
+  const periodMeta = periodMetaFor(savedEntry.match_type || entry.matchType, savedEntry.period_id || entry.periodId);
+
   return {
     ...savedEntry,
     match_type: savedEntry.match_type || entry.matchType,
     period_id: savedEntry.period_id || entry.periodId,
+    base_date: periodMeta.base_date,
+    result_date: periodMeta.result_date,
     display_user_name: savedEntry.display_user_name || entry.displayUserName,
     display_team_name: savedEntry.display_team_name || entry.displayTeamName,
     owner_key: savedEntry.owner_key || entry.ownerKey,
@@ -225,6 +321,8 @@ function normalizeMember(member) {
 
 function toParticipant(entry, fallbackRank) {
   const matchType = inferMatchType(entry);
+  const periodId = entry.period_id || periodIdFor(matchType);
+  const periodMeta = periodMetaFor(matchType, periodId);
   const displayTeamName = entry.display_team_name || stripTeamPrefix(entry.team_name);
   const displayUserName = entry.display_user_name || stripUserPrefix(entry.owner || entry.user_name || '参加チーム');
   const members = Array.isArray(entry.entry_members) ? entry.entry_members.map(normalizeMember) : [];
@@ -245,8 +343,14 @@ function toParticipant(entry, fallbackRank) {
     formation: entry.formation,
     matchType,
     match_type: matchType,
-    periodId: entry.period_id || periodIdFor(matchType),
-    period_id: entry.period_id || periodIdFor(matchType),
+    periodId,
+    period_id: periodId,
+    baseDate: periodMeta.baseDate,
+    base_date: periodMeta.base_date,
+    resultDate: periodMeta.resultDate,
+    result_date: periodMeta.result_date,
+    resultBasis: periodMeta.resultBasis,
+    result_basis: periodMeta.result_basis,
     status: displayStatus(entry.status),
     style: '集計待ち',
     rank: fallbackRank,
@@ -331,6 +435,7 @@ async function postEntriesHandler(req, res) {
   try {
     const normalized = normalizePayload(req.body || {});
     const savedEntry = await persistEntry(normalized);
+    const periodMeta = periodMetaFor(savedEntry.match_type, savedEntry.period_id);
     return res.status(201).json({
       ok: true,
       status: 'saved',
@@ -340,6 +445,11 @@ async function postEntriesHandler(req, res) {
       match_type: savedEntry.match_type,
       periodId: savedEntry.period_id,
       period_id: savedEntry.period_id,
+      baseDate: periodMeta.baseDate,
+      base_date: periodMeta.base_date,
+      resultDate: periodMeta.resultDate,
+      result_date: periodMeta.result_date,
+      period: periodMeta,
       tsServer: nowIso(),
     });
   } catch (err) {
@@ -358,6 +468,7 @@ async function getEntriesHandler(req, res) {
   const rawMatchType = firstText(req.query?.matchType, req.query?.match_type);
   const matchType = isMatchType(rawMatchType) ? rawMatchType : '';
   const periodId = firstText(req.query?.periodId, req.query?.period_id) || (matchType ? periodIdFor(matchType) : '');
+  const periodMeta = matchType ? periodMetaFor(matchType, periodId) : null;
 
   try {
     const entries = await listEntries(contestId, matchType, periodId);
@@ -371,6 +482,11 @@ async function getEntriesHandler(req, res) {
       match_type: matchType || null,
       periodId: periodId || null,
       period_id: periodId || null,
+      baseDate: periodMeta?.baseDate || null,
+      base_date: periodMeta?.base_date || null,
+      resultDate: periodMeta?.resultDate || null,
+      result_date: periodMeta?.result_date || null,
+      period: periodMeta,
       tsServer: nowIso(),
     });
   } catch (err) {
