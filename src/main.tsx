@@ -48,6 +48,7 @@ import './pitch-line-details.css';
 import './pitch-player-glass.css';
 import './sidebar-logo-icon.css';
 import './team-detail-page.css';
+import './team-detail-pitch-view.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
