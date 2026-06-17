@@ -5,6 +5,7 @@ const ROOT_ID = 'team-detail-page';
 const ACTIVE_CLASS = 'team-detail-page-mode';
 const MATCH_TYPES: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
 const POSITIONS = ['FW', 'MF', 'DF', 'GK'] as const;
+const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
 let initialized = false;
 let requestSeq = 0;
@@ -29,6 +30,26 @@ type TeamDetailParticipant = ParticipantItem & {
   members?: TeamMember[];
 };
 
+type MarketQuote = {
+  requestedSymbol?: string;
+  symbol?: string;
+  shortName?: string | null;
+  longName?: string | null;
+  displayName?: string | null;
+  periodReturnPct?: number | null;
+  changePct?: number | null;
+};
+
+type PriceCandle = {
+  t?: number;
+  close: number;
+};
+
+type DetailMarketData = {
+  quoteMap: Record<string, MarketQuote>;
+  historyMap: Record<string, PriceCandle[]>;
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -45,6 +66,11 @@ function firstText(...values: unknown[]) {
 
 function formatPct(value: number | null) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '集計待ち';
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
+function formatCardPct(value: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '取得待ち';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
@@ -84,6 +110,37 @@ function getMemberOrder(member: TeamMember) {
   const raw = member.slotOrder ?? member.slot_order;
   const parsed = typeof raw === 'number' ? raw : Number(raw);
   return Number.isFinite(parsed) ? parsed : 999;
+}
+
+function normalizeCode(value: string) {
+  return value.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+}
+
+function normalizeQuoteCode(quote: MarketQuote) {
+  return normalizeCode(quote.requestedSymbol || quote.symbol || '');
+}
+
+function getStockDisplayName(member: TeamMember, quote?: MarketQuote) {
+  const name = quote?.displayName || quote?.longName || quote?.shortName || getMemberName(member);
+  return name.replace(/\s*\(任意銘柄\)\s*$/g, '');
+}
+
+function buildSparklinePoints(candles: PriceCandle[] | undefined, width = 112, height = 34) {
+  const closes = (candles || [])
+    .map((candle) => Number(candle.close))
+    .filter((value) => Number.isFinite(value));
+  if (closes.length < 2) return '';
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const xStep = width / Math.max(1, closes.length - 1);
+
+  return closes.map((close, index) => {
+    const x = index * xStep;
+    const y = height - ((close - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
 }
 
 function getShareMemberLine(team: TeamDetailParticipant) {
@@ -148,38 +205,74 @@ function setDetailMessage(message: string, type: 'idle' | 'success' | 'error') {
   box.dataset.messageType = type;
 }
 
-function renderDetailPlayerCard(member: TeamMember) {
+async function loadDetailMarketData(members: TeamMember[]): Promise<DetailMarketData> {
+  const codes = [...new Set(members.map(getMemberCode).map(normalizeCode).filter(Boolean))];
+  const quoteMap: Record<string, MarketQuote> = {};
+  const historyMap: Record<string, PriceCandle[]> = {};
+  if (codes.length === 0) return { quoteMap, historyMap };
+
+  try {
+    const response = await fetch(`${MARKET_API_BASE}/api/quotes?symbols=${encodeURIComponent(codes.join(','))}`, { cache: 'no-store' });
+    if (response.ok) {
+      const payload = await response.json() as { results?: MarketQuote[] };
+      (payload.results || []).forEach((quote) => {
+        const code = normalizeQuoteCode(quote);
+        if (code) quoteMap[code] = quote;
+      });
+    }
+  } catch (_error) {
+    // Market data is optional for the detail page. Keep the cards visible even when the proxy is unavailable.
+  }
+
+  await Promise.all(codes.map(async (code) => {
+    try {
+      const response = await fetch(`${MARKET_API_BASE}/api/history/${encodeURIComponent(code)}?range=3mo&interval=1d`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json() as { candles?: PriceCandle[] };
+      historyMap[code] = payload.candles || [];
+    } catch (_error) {
+      historyMap[code] = [];
+    }
+  }));
+
+  return { quoteMap, historyMap };
+}
+
+function renderDetailPlayerCard(member: TeamMember, marketData: DetailMarketData) {
   const position = getMemberPosition(member);
   const positionClass = position.toLowerCase();
-  const code = getMemberCode(member);
-  const name = getMemberName(member);
+  const code = normalizeCode(getMemberCode(member));
+  const quote = marketData.quoteMap[code];
+  const returnPct = typeof quote?.periodReturnPct === 'number' ? quote.periodReturnPct : null;
+  const trendClass = (returnPct ?? 0) >= 0 ? 'trend-up' : 'trend-down';
+  const points = buildSparklinePoints(marketData.historyMap[code]);
 
   return `
     <article class="player-card position-${positionClass}">
       <div class="position-pill">${position}</div>
-      <strong>${escapeHtml(name)}</strong>
+      <strong>${escapeHtml(getStockDisplayName(member, quote))}</strong>
       <small>${escapeHtml(code)}</small>
-      <div class="player-change">選抜</div>
-      <svg class="sparkline spark-${positionClass}" viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
-        <line x1="0" y1="22" x2="112" y2="14" />
+      <div class="player-change ${trendClass}">${escapeHtml(formatCardPct(returnPct))}</div>
+      <svg class="sparkline spark-${positionClass} ${trendClass}" viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
+        ${points ? `<polyline points="${escapeHtml(points)}" />` : '<line x1="0" y1="22" x2="112" y2="14" />'}
       </svg>
     </article>
   `;
 }
 
-function renderPitchRow(members: TeamMember[], position: typeof POSITIONS[number]) {
+function renderPitchRow(members: TeamMember[], position: typeof POSITIONS[number], marketData: DetailMarketData) {
   const rows = members
     .filter((member) => getMemberPosition(member) === position)
     .sort((a, b) => getMemberOrder(a) - getMemberOrder(b));
 
   return `
     <div class="pitch-row row-${position.toLowerCase()}">
-      ${rows.map(renderDetailPlayerCard).join('')}
+      ${rows.map((member) => renderDetailPlayerCard(member, marketData)).join('')}
     </div>
   `;
 }
 
-function renderMemberSection(team: TeamDetailParticipant) {
+function renderMemberSection(team: TeamDetailParticipant, marketData: DetailMarketData) {
   const members = getMembers(team);
   if (members.length === 0) {
     return `
@@ -195,10 +288,10 @@ function renderMemberSection(team: TeamDetailParticipant) {
       <div class="pitch-stage">
         <div class="pitch-markings"></div>
         <div class="pitch-players">
-          ${renderPitchRow(members, 'FW')}
-          ${renderPitchRow(members, 'MF')}
-          ${renderPitchRow(members, 'DF')}
-          ${renderPitchRow(members, 'GK')}
+          ${renderPitchRow(members, 'FW', marketData)}
+          ${renderPitchRow(members, 'MF', marketData)}
+          ${renderPitchRow(members, 'DF', marketData)}
+          ${renderPitchRow(members, 'GK', marketData)}
         </div>
       </div>
       <div class="pitch-legend">
@@ -253,7 +346,7 @@ function renderError(message: string) {
   `;
 }
 
-function renderDetail(team: TeamDetailParticipant, matchType: MatchType) {
+function renderDetail(team: TeamDetailParticipant, matchType: MatchType, marketData: DetailMarketData = { quoteMap: {}, historyMap: {} }) {
   const page = createOrGetPage();
   const matchLabel = getContestLabel(matchType);
   page.dataset.entryId = team.id;
@@ -293,7 +386,7 @@ function renderDetail(team: TeamDetailParticipant, matchType: MatchType) {
         <h3>代表メンバー</h3>
         <p>ダッシュボードと同じピッチ・カード表示で布陣を確認できます。</p>
       </div>
-      ${renderMemberSection(team)}
+      ${renderMemberSection(team, marketData)}
     </div>
   `;
 }
@@ -325,7 +418,10 @@ async function showTeamDetail(entryId: string, preferredMatchType?: MatchType) {
       renderError('現在の大会期間に該当するチームが見つかりませんでした。');
       return;
     }
-    renderDetail(result.team, result.matchType);
+
+    const marketData = await loadDetailMarketData(getMembers(result.team));
+    if (requestId !== requestSeq) return;
+    renderDetail(result.team, result.matchType, marketData);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (error) {
     if (requestId !== requestSeq) return;
