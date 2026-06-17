@@ -62,18 +62,65 @@ function getDetailUrl(entryId: string, matchType: MatchType) {
   return `${base}#/teams/${matchType}/${encodeURIComponent(entryId)}`;
 }
 
+function getMembers(team: TeamDetailParticipant) {
+  return Array.isArray(team.members) ? team.members : [];
+}
+
+function getMemberCode(member: TeamMember) {
+  return firstText(member.stockCode, member.stock_code, member.code);
+}
+
+function getMemberName(member: TeamMember) {
+  return firstText(member.stockName, member.stock_name, member.name, getMemberCode(member));
+}
+
+function getMemberPosition(member: TeamMember) {
+  const position = firstText(member.position).toUpperCase();
+  return ['FW', 'MF', 'DF', 'GK'].includes(position) ? position : 'MF';
+}
+
+function getMemberOrder(member: TeamMember) {
+  const raw = member.slotOrder ?? member.slot_order;
+  const parsed = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(parsed) ? parsed : 999;
+}
+
+function getShareMemberLine(team: TeamDetailParticipant) {
+  const members = getMembers(team);
+  if (members.length === 0) return '';
+
+  const forwards = members
+    .filter((member) => getMemberPosition(member) === 'FW')
+    .sort((a, b) => getMemberOrder(a) - getMemberOrder(b))
+    .map(getMemberName)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (forwards.length > 0) return `注目FW：${forwards.join(' / ')}`;
+
+  const picks = members
+    .sort((a, b) => getMemberOrder(a) - getMemberOrder(b))
+    .map(getMemberName)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return picks.length > 0 ? `代表メンバー：${picks.join(' / ')}` : '';
+}
+
 function getShareText(team: TeamDetailParticipant, matchType: MatchType) {
   const matchLabel = getContestLabel(matchType);
+  const memberLine = getShareMemberLine(team);
   return [
     `日本株代表イレブン2026で「${team.team}」を編成しました⚽📈`,
     '',
     `大会：${matchLabel}`,
     `布陣：${team.formation}`,
+    memberLine,
     `暫定順位：${team.rank}位`,
     `暫定リターン：${formatPct(team.returnPct)}`,
     '',
     '#日本株代表イレブン #日本株 #個人開発',
-  ].join('\n');
+  ].filter((line) => line !== '').join('\n');
 }
 
 function openXShare(team: TeamDetailParticipant, matchType: MatchType) {
@@ -100,36 +147,13 @@ function setDetailMessage(message: string, type: 'idle' | 'success' | 'error') {
   box.dataset.messageType = type;
 }
 
-function getMembers(team: TeamDetailParticipant) {
-  return Array.isArray(team.members) ? team.members : [];
-}
-
-function getMemberCode(member: TeamMember) {
-  return firstText(member.stockCode, member.stock_code, member.code);
-}
-
-function getMemberName(member: TeamMember) {
-  return firstText(member.stockName, member.stock_name, member.name, getMemberCode(member));
-}
-
-function getMemberPosition(member: TeamMember) {
-  const position = firstText(member.position).toUpperCase();
-  return ['FW', 'MF', 'DF', 'GK'].includes(position) ? position : 'MF';
-}
-
-function getMemberOrder(member: TeamMember) {
-  const raw = member.slotOrder ?? member.slot_order;
-  const parsed = typeof raw === 'number' ? raw : Number(raw);
-  return Number.isFinite(parsed) ? parsed : 999;
-}
-
 function renderMemberSection(team: TeamDetailParticipant) {
   const members = getMembers(team);
   if (members.length === 0) {
     return `
       <div class="team-detail-empty-members">
-        <strong>銘柄メンバーは取得待ちです</strong>
-        <span>このチームの11銘柄は、今後の詳細API拡張でここに表示します。まずはチーム共有を先行公開しています。</span>
+        <strong>銘柄メンバーはまだ表示できません</strong>
+        <span>このチームの銘柄データが取得できない場合は、APIの反映完了後に再読み込みしてください。</span>
       </div>
     `;
   }
@@ -203,6 +227,8 @@ function renderError(message: string) {
 function renderDetail(team: TeamDetailParticipant, matchType: MatchType) {
   const page = createOrGetPage();
   const matchLabel = getContestLabel(matchType);
+  page.dataset.entryId = team.id;
+  page.dataset.matchType = matchType;
   page.innerHTML = `
     <div class="team-detail-page-hero">
       <div>
@@ -225,7 +251,7 @@ function renderDetail(team: TeamDetailParticipant, matchType: MatchType) {
       <div><span>暫定順位</span><b>${team.rank ? `${team.rank}位` : '-'}</b></div>
       <div><span>暫定リターン</span><b>${escapeHtml(formatPct(team.returnPct))}</b></div>
       <div><span>状態</span><b>${escapeHtml(team.status || '確定済み')}</b></div>
-      <div><span>共有URL</span><b>発行済み</b></div>
+      <div><span>代表メンバー</span><b>${getMembers(team).length || '-'}銘柄</b></div>
     </div>
 
     <div class="team-detail-share-preview">
@@ -325,11 +351,6 @@ function bindDetailPageActions() {
       hideTeamDetail();
       return;
     }
-
-    const detailData = page.dataset;
-    const entryId = detailData.entryId || '';
-    const matchType = detailData.matchType as MatchType | undefined;
-    if (!entryId || !matchType) return;
   });
 }
 
