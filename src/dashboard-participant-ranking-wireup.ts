@@ -1,8 +1,9 @@
 import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
+import { getEntryFormMatchType, type MatchType } from './lib/contestContext';
 
 let isInitialized = false;
-let isLoading = false;
 let lastSignature = '';
+let requestSeq = 0;
 
 function escapeHtml(value: string) {
   return value
@@ -42,15 +43,16 @@ function renderRows(participants: ParticipantItem[]) {
   `).join('');
 }
 
-function renderDashboardRanking(participants: ParticipantItem[]) {
+function renderDashboardRanking(participants: ParticipantItem[], matchType: MatchType) {
   const table = getRankingTable();
   if (!table) return false;
 
-  const signature = participants.map((participant) => `${participant.id}:${participant.rank}:${participant.returnPct ?? 'waiting'}:${participant.team}`).join('|');
+  const signature = `${matchType}::${participants.map((participant) => `${participant.id}:${participant.rank}:${participant.returnPct ?? 'waiting'}:${participant.team}`).join('|')}`;
   if (signature === lastSignature && table.dataset.source === 'api') return true;
   lastSignature = signature;
 
   table.dataset.source = 'api';
+  table.dataset.matchType = matchType;
   table.innerHTML = `
     <div class="ranking-header"><span>順位</span><span>チーム</span><span>成績</span></div>
     ${renderRows(participants)}
@@ -77,17 +79,17 @@ function renderDashboardRankingError(message: string) {
 }
 
 async function refreshDashboardRanking() {
-  if (isLoading) return;
-  isLoading = true;
+  const matchType = getEntryFormMatchType();
+  const requestId = ++requestSeq;
 
   try {
-    const participants = await fetchParticipants();
-    renderDashboardRanking(participants);
+    const participants = await fetchParticipants(matchType);
+    if (requestId !== requestSeq) return;
+    renderDashboardRanking(participants, matchType);
   } catch (error) {
+    if (requestId !== requestSeq) return;
     const message = error instanceof Error ? error.message : String(error);
     renderDashboardRankingError(message);
-  } finally {
-    isLoading = false;
   }
 }
 
