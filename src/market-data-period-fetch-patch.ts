@@ -144,6 +144,8 @@ async function patchQuotesResponse(
 }
 
 function rewriteHistoryUrl(url: URL) {
+  if (url.searchParams.get('periodLocked') === '1') return url.toString();
+
   const { range } = getActiveMarketPeriod();
   const nextUrl = new URL(url.toString());
   nextUrl.searchParams.set('range', range);
