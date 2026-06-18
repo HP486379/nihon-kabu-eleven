@@ -6,8 +6,29 @@ const ACTIVE_CLASS = 'team-detail-page-mode';
 const OTHER_PAGE_CLASSES = ['participants-page-mode', 'contest-list-mode', 'formation-page-mode', 'results-page-mode'];
 const MATCH_TYPES: MatchType[] = ['daily', 'weekly', 'monthly', 'quarterly'];
 const POSITIONS = ['FW', 'MF', 'DF', 'GK'] as const;
+const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
+
+const RANGE_BY_MATCH: Record<MatchType, string> = {
+  daily: '5d',
+  weekly: '5d',
+  monthly: '1mo',
+  quarterly: '3mo',
+};
+
+const RETURN_MODE_BY_MATCH: Record<MatchType, 'daily' | 'period'> = {
+  daily: 'daily',
+  weekly: 'period',
+  monthly: 'period',
+  quarterly: 'period',
+};
+
+type PriceCandle = {
+  t?: number;
+  close?: number;
+};
 
 let requestSeq = 0;
+let marketSyncSeq = 0;
 let initialized = false;
 
 function escapeHtml(value: string) {
@@ -24,13 +45,21 @@ function firstText(...values: unknown[]) {
   return typeof found === 'string' ? found.trim() : '';
 }
 
+function normalizeCode(value: string) {
+  return value.replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '').toUpperCase();
+}
+
 function formatPct(value: number | null | undefined) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '集計待ち';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
+function formatCardPct(value: number) {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+}
+
 function getMemberCode(member: ParticipantMember) {
-  return firstText(member.stockCode, member.stock_code, member.code).replace(/\.T$/i, '').replace(/[^0-9A-Z]/gi, '');
+  return normalizeCode(firstText(member.stockCode, member.stock_code, member.code));
 }
 
 function getMemberName(member: ParticipantMember) {
@@ -204,6 +233,127 @@ function getShareText(team: ParticipantItem, matchType: MatchType) {
   ].filter((line) => line !== '').join('\n');
 }
 
+function computePeriodReturn(candles: PriceCandle[], mode: 'daily' | 'period') {
+  const closes = candles
+    .map((candle) => Number(candle.close))
+    .filter((value) => Number.isFinite(value));
+
+  if (mode === 'daily') {
+    const last = closes.at(-1);
+    const previous = closes.at(-2);
+    return typeof last === 'number' && typeof previous === 'number' && previous !== 0
+      ? (last / previous - 1) * 100
+      : null;
+  }
+
+  const first = closes.at(0);
+  const last = closes.at(-1);
+  return typeof first === 'number' && typeof last === 'number' && first !== 0
+    ? (last / first - 1) * 100
+    : null;
+}
+
+function buildSparklinePoints(candles: PriceCandle[], width = 112, height = 34) {
+  const closes = candles
+    .map((candle) => Number(candle.close))
+    .filter((value) => Number.isFinite(value));
+  if (closes.length < 2) return '';
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const step = width / Math.max(1, closes.length - 1);
+
+  return closes.map((close, index) => {
+    const x = index * step;
+    const y = height - ((close - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+async function fetchCandles(code: string, range: string) {
+  const url = `${MARKET_API_BASE}/api/history/${encodeURIComponent(code)}?range=${encodeURIComponent(range)}&interval=1d&periodLocked=1`;
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) return [];
+  const payload = await response.json() as { candles?: PriceCandle[] };
+  return Array.isArray(payload.candles) ? payload.candles : [];
+}
+
+function getCardCode(card: HTMLElement) {
+  return normalizeCode(card.querySelector('small')?.textContent || '');
+}
+
+function getCardPosition(card: HTMLElement) {
+  if (card.classList.contains('position-fw')) return 'fw';
+  if (card.classList.contains('position-mf')) return 'mf';
+  if (card.classList.contains('position-df')) return 'df';
+  if (card.classList.contains('position-gk')) return 'gk';
+  return 'mf';
+}
+
+function updateCardMarket(card: HTMLElement, returnPct: number, candles: PriceCandle[]) {
+  const position = getCardPosition(card);
+  const trendClass = returnPct >= 0 ? 'trend-up' : 'trend-down';
+  const oppositeClass = returnPct >= 0 ? 'trend-down' : 'trend-up';
+
+  const change = card.querySelector<HTMLElement>('.player-change');
+  if (change) {
+    change.textContent = formatCardPct(returnPct);
+    change.classList.remove(oppositeClass);
+    change.classList.add(trendClass);
+  }
+
+  const svg = card.querySelector<SVGSVGElement>('svg.sparkline');
+  if (!svg) return;
+
+  svg.classList.remove('trend-up', 'trend-down');
+  svg.classList.add(trendClass);
+  svg.classList.add(`spark-${position}`);
+
+  const points = buildSparklinePoints(candles);
+  if (!points) return;
+
+  svg.querySelectorAll('line').forEach((line) => line.remove());
+  let polyline = svg.querySelector<SVGPolylineElement>('polyline');
+  if (!polyline) {
+    polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    svg.appendChild(polyline);
+  }
+  polyline.setAttribute('points', points);
+}
+
+async function syncTeamDetailCardMarketPeriod(matchType: MatchType) {
+  const seq = ++marketSyncSeq;
+  const page = document.getElementById(ROOT_ID);
+  if (!page) return;
+
+  const range = RANGE_BY_MATCH[matchType] || '3mo';
+  const mode = RETURN_MODE_BY_MATCH[matchType] || 'period';
+  const cards = Array.from(page.querySelectorAll<HTMLElement>('.team-detail-pitch-card .player-card'));
+  if (cards.length === 0) return;
+
+  await Promise.all(cards.map(async (card) => {
+    const code = getCardCode(card);
+    if (!code) return;
+
+    try {
+      const candles = await fetchCandles(code, range);
+      if (seq !== marketSyncSeq || candles.length < 2) return;
+      const returnPct = computePeriodReturn(candles, mode);
+      if (returnPct === null || !document.body.contains(card)) return;
+      updateCardMarket(card, returnPct, candles);
+    } catch (_error) {
+      // Keep the existing detail card display when market data is unavailable.
+    }
+  }));
+}
+
+function scheduleTeamDetailMarketSync(matchType: MatchType, delay = 0) {
+  window.setTimeout(() => {
+    void syncTeamDetailCardMarketPeriod(matchType);
+  }, delay);
+}
+
 function renderDetail(team: ParticipantItem, matchType: MatchType) {
   enterTeamDetailMode();
   const page = ensureTeamDetailHost();
@@ -248,6 +398,9 @@ function renderDetail(team: ParticipantItem, matchType: MatchType) {
       ${renderMemberSection(team)}
     </div>
   `;
+
+  scheduleTeamDetailMarketSync(matchType, 80);
+  scheduleTeamDetailMarketSync(matchType, 700);
 }
 
 async function renderCurrentRoute() {
