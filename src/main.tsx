@@ -19,6 +19,7 @@ import { initDashboardParticipantSummary } from './dashboard-participant-summary
 import { initDashboardParticipantRanking } from './dashboard-participant-ranking-wireup';
 import { initDashboardMatchStatus } from './dashboard-match-status-wireup';
 import { initDashboardCardMarketPeriodSync } from './dashboard-card-market-period-sync';
+import { initTeamDetailHostGuard } from './team-detail-host-guard';
 import { initTeamDetailPage } from './team-detail-page-wireup';
 import { initMarketDataPeriodFetchPatch } from './market-data-period-fetch-patch';
 import { initResultsPage } from './results-page-wireup';
@@ -160,6 +161,7 @@ initDashboardParticipantSummary();
 initDashboardParticipantRanking();
 initDashboardMatchStatus();
 initDashboardCardMarketPeriodSync();
+initTeamDetailHostGuard();
 initTeamDetailPage();
 initResultsPage();
 initDailyMatchLabelWireup();
