@@ -72,8 +72,8 @@ function computePeriodReturn(candles: PriceCandle[], mode: 'daily' | 'period') {
     : null;
 }
 
-async function fetchHistory(originalFetch: typeof window.fetch, code: string, range: string, signal?: AbortSignal | null) {
-  const url = `/api/history/${encodeURIComponent(code)}?range=${encodeURIComponent(range)}&interval=1d`;
+async function fetchHistory(originalFetch: typeof window.fetch, apiOrigin: string, code: string, range: string, signal?: AbortSignal | null) {
+  const url = `${apiOrigin}/api/history/${encodeURIComponent(code)}?range=${encodeURIComponent(range)}&interval=1d`;
   const response = await originalFetch(url, { signal: signal || undefined });
   if (!response.ok) return [];
   const payload = await response.json() as { candles?: PriceCandle[] };
@@ -95,7 +95,7 @@ async function patchQuotesResponse(
   const uniqueCodes = [...new Set(codes)];
   const historyEntries = await Promise.all(uniqueCodes.map(async (code) => {
     try {
-      const candles = await fetchHistory(originalFetch, code, range, init?.signal || null);
+      const candles = await fetchHistory(originalFetch, requestUrl.origin, code, range, init?.signal || null);
       return [code, candles] as const;
     } catch (_error) {
       return [code, []] as const;
@@ -132,11 +132,14 @@ async function patchQuotesResponse(
     periodRange: range,
     periodReturnMode: returnMode,
   };
+  const headers = new Headers(originalResponse.headers);
+  headers.delete('content-length');
+  headers.set('content-type', 'application/json');
 
   return new Response(JSON.stringify(patchedPayload), {
     status: originalResponse.status,
     statusText: originalResponse.statusText,
-    headers: originalResponse.headers,
+    headers,
   });
 }
 
