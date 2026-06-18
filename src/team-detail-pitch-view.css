@@ -15,6 +15,38 @@
   font-size: 16px;
 }
 
+#team-detail-page .team-detail-pitch-card .player-change {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 92px;
+  line-height: 1.1;
+}
+
+#team-detail-page .team-detail-pitch-card .player-change::before {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+#team-detail-page[data-match-type="daily"] .team-detail-pitch-card .player-change::before {
+  content: "本日リターン";
+}
+
+#team-detail-page[data-match-type="weekly"] .team-detail-pitch-card .player-change::before {
+  content: "1週間リターン";
+}
+
+#team-detail-page[data-match-type="monthly"] .team-detail-pitch-card .player-change::before {
+  content: "1か月リターン";
+}
+
+#team-detail-page[data-match-type="quarterly"] .team-detail-pitch-card .player-change::before {
+  content: "3か月リターン";
+}
+
 @media (max-width: 760px) {
   .team-detail-pitch-card {
     overflow-x: auto;
