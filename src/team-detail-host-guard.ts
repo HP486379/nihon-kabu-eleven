@@ -22,6 +22,13 @@ const RETURN_MODE_BY_MATCH: Record<MatchType, 'daily' | 'period'> = {
   quarterly: 'period',
 };
 
+const RETURN_LABEL_BY_MATCH: Record<MatchType, string> = {
+  daily: '本日リターン',
+  weekly: '1週間リターン',
+  monthly: '1か月リターン',
+  quarterly: '3か月リターン',
+};
+
 type PriceCandle = {
   t?: number;
   close?: number;
@@ -150,17 +157,19 @@ function renderError(message: string) {
   `;
 }
 
-function renderPlayerCard(member: ParticipantMember) {
+function renderPlayerCard(member: ParticipantMember, matchType: MatchType) {
   const position = getMemberPosition(member);
   const positionClass = position.toLowerCase();
   const code = getMemberCode(member);
   const name = getMemberName(member);
+  const periodLabel = RETURN_LABEL_BY_MATCH[matchType] || '期間リターン';
 
   return `
     <article class="player-card position-${positionClass}">
       <div class="position-pill">${position}</div>
       <strong>${escapeHtml(name)}</strong>
       <small>${escapeHtml(code)}</small>
+      <div class="player-period-label">${escapeHtml(periodLabel)}</div>
       <div class="player-change trend-up">取得待ち</div>
       <svg class="sparkline spark-${positionClass} trend-up" viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
         <line x1="0" y1="22" x2="112" y2="14" />
@@ -169,19 +178,19 @@ function renderPlayerCard(member: ParticipantMember) {
   `;
 }
 
-function renderPitchRow(members: ParticipantMember[], position: typeof POSITIONS[number]) {
+function renderPitchRow(members: ParticipantMember[], position: typeof POSITIONS[number], matchType: MatchType) {
   const rows = members
     .filter((member) => getMemberPosition(member) === position)
     .sort((a, b) => getMemberOrder(a) - getMemberOrder(b));
 
   return `
     <div class="pitch-row row-${position.toLowerCase()}">
-      ${rows.map(renderPlayerCard).join('')}
+      ${rows.map((member) => renderPlayerCard(member, matchType)).join('')}
     </div>
   `;
 }
 
-function renderMemberSection(team: ParticipantItem) {
+function renderMemberSection(team: ParticipantItem, matchType: MatchType) {
   const members = Array.isArray(team.members) ? team.members : [];
   if (members.length === 0) {
     return `
@@ -197,10 +206,10 @@ function renderMemberSection(team: ParticipantItem) {
       <div class="pitch-stage">
         <div class="pitch-markings"></div>
         <div class="pitch-players">
-          ${renderPitchRow(members, 'FW')}
-          ${renderPitchRow(members, 'MF')}
-          ${renderPitchRow(members, 'DF')}
-          ${renderPitchRow(members, 'GK')}
+          ${renderPitchRow(members, 'FW', matchType)}
+          ${renderPitchRow(members, 'MF', matchType)}
+          ${renderPitchRow(members, 'DF', matchType)}
+          ${renderPitchRow(members, 'GK', matchType)}
         </div>
       </div>
       <div class="pitch-legend">
@@ -395,7 +404,7 @@ function renderDetail(team: ParticipantItem, matchType: MatchType) {
         <h3>代表メンバー</h3>
         <p>ダッシュボードと同じピッチ・カード表示で布陣を確認できます。</p>
       </div>
-      ${renderMemberSection(team)}
+      ${renderMemberSection(team, matchType)}
     </div>
   `;
 
