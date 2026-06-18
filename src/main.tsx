@@ -18,6 +18,7 @@ import { initParticipantsMatchTabs } from './participants-match-tabs-wireup';
 import { initDashboardParticipantSummary } from './dashboard-participant-summary-wireup';
 import { initDashboardParticipantRanking } from './dashboard-participant-ranking-wireup';
 import { initTeamDetailPage } from './team-detail-page-wireup';
+import { initMarketDataPeriodFetchPatch } from './market-data-period-fetch-patch';
 import { initResultsPage } from './results-page-wireup';
 import { initDailyMatchLabelWireup } from './daily-match-label-wireup';
 import { initFormationPitchClassWireup } from './formation-pitch-class-wireup';
@@ -127,6 +128,8 @@ function initUserNameEntryGuard() {
     writeUserName(normalized);
   }, true);
 }
+
+initMarketDataPeriodFetchPatch();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
