@@ -20,6 +20,7 @@ import { initDashboardParticipantRanking } from './dashboard-participant-ranking
 import { initDashboardMatchStatus } from './dashboard-match-status-wireup';
 import { initDashboardCardMarketPeriodSync } from './dashboard-card-market-period-sync';
 import { initTeamDetailPage } from './team-detail-page-wireup';
+import { initTeamDetailCardMarketPeriodSync } from './team-detail-card-market-period-sync';
 import { initMarketDataPeriodFetchPatch } from './market-data-period-fetch-patch';
 import { initResultsPage } from './results-page-wireup';
 import { initDailyMatchLabelWireup } from './daily-match-label-wireup';
@@ -161,6 +162,7 @@ initDashboardParticipantRanking();
 initDashboardMatchStatus();
 initDashboardCardMarketPeriodSync();
 initTeamDetailPage();
+initTeamDetailCardMarketPeriodSync();
 initResultsPage();
 initDailyMatchLabelWireup();
 initPublicBetaCopyWireup();
