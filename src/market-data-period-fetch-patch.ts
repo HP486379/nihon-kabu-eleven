@@ -151,6 +151,10 @@ function rewriteHistoryUrl(url: URL) {
   return nextUrl.toString();
 }
 
+function shouldKeepExplicitHistoryRange(url: URL) {
+  return url.searchParams.get('periodLocked') === '1';
+}
+
 export function initMarketDataPeriodFetchPatch() {
   if (initialized) return;
   initialized = true;
@@ -172,6 +176,7 @@ export function initMarketDataPeriodFetchPatch() {
     }
 
     if (url.pathname.startsWith('/api/history/')) {
+      if (shouldKeepExplicitHistoryRange(url)) return originalFetch(input, init);
       return originalFetch(rewriteHistoryUrl(url), init);
     }
 
