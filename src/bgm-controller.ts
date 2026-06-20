@@ -11,19 +11,21 @@ let loopTimer: number | null = null;
 let stepIndex = 0;
 let playing = false;
 
-const STEP_MS = 145;
-const LEAD_SEQUENCE = [
-  659.25, 0, 783.99, 0,
-  880.00, 987.77, 880.00, 783.99,
-  659.25, 0, 739.99, 0,
-  783.99, 880.00, 987.77, 1174.66,
+const STEP_MS = 920;
+
+const CHORD_SEQUENCE = [
+  [130.81, 196.00, 261.63, 329.63],
+  [98.00, 196.00, 246.94, 392.00],
+  [110.00, 220.00, 261.63, 440.00],
+  [87.31, 174.61, 220.00, 349.23],
+  [98.00, 196.00, 246.94, 392.00],
+  [130.81, 196.00, 261.63, 329.63],
 ];
 
-const BASS_SEQUENCE = [
-  164.81, 0, 196.00, 0,
-  220.00, 0, 196.00, 0,
-  146.83, 0, 174.61, 0,
-  196.00, 0, 220.00, 0,
+const BELL_SEQUENCE = [
+  523.25, 659.25, 783.99, 987.77,
+  880.00, 783.99, 659.25, 587.33,
+  523.25, 0, 392.00, 0,
 ];
 
 function readStoredState(): BgmState {
@@ -53,7 +55,7 @@ function ensureAudioGraph() {
 
   const context = new AudioContextCtor();
   const gain = context.createGain();
-  gain.gain.value = 0.42;
+  gain.gain.value = 0.34;
   gain.connect(context.destination);
 
   audioContext = context;
@@ -61,85 +63,131 @@ function ensureAudioGraph() {
   return { audioContext: context, masterGain: gain };
 }
 
-function playTone(frequency: number, duration: number, type: OscType, gainValue: number, when: number) {
+function playTone(
+  frequency: number,
+  duration: number,
+  type: OscType,
+  gainValue: number,
+  when: number,
+  attack = 0.08,
+  releaseOffset = 0.08,
+) {
   if (!audioContext || !masterGain || frequency <= 0) return;
 
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+
   osc.type = type;
   osc.frequency.setValueAtTime(frequency, when);
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(type === 'sine' ? 1100 : 1800, when);
+  filter.Q.setValueAtTime(0.5, when);
 
   gain.gain.setValueAtTime(0.0001, when);
-  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainValue), when + 0.012);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainValue), when + attack);
   gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
 
-  osc.connect(gain);
+  osc.connect(filter);
+  filter.connect(gain);
   gain.connect(masterGain);
   osc.start(when);
-  osc.stop(when + duration + 0.02);
+  osc.stop(when + duration + releaseOffset);
 }
 
-function playKick(when: number) {
+function playChord(frequencies: number[], when: number) {
+  frequencies.forEach((frequency, index) => {
+    const octaveShift = index === 0 ? 0.5 : 1;
+    const gain = index === 0 ? 0.13 : 0.055;
+    playTone(frequency * octaveShift, 3.4, index === 0 ? 'sine' : 'triangle', gain, when + index * 0.025, 0.45, 0.4);
+  });
+}
+
+function playBell(frequency: number, when: number) {
+  if (!frequency) return;
+  playTone(frequency, 1.15, 'sine', 0.105, when, 0.018, 0.22);
+  playTone(frequency * 2.01, 0.78, 'triangle', 0.034, when + 0.012, 0.018, 0.18);
+  playTone(frequency * 3.02, 0.46, 'sine', 0.018, when + 0.018, 0.012, 0.14);
+}
+
+function playTimpani(when: number) {
   if (!audioContext || !masterGain) return;
 
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(98, when);
-  osc.frequency.exponentialRampToValueAtTime(42, when + 0.14);
+  osc.frequency.setValueAtTime(82, when);
+  osc.frequency.exponentialRampToValueAtTime(46, when + 0.34);
 
-  gain.gain.setValueAtTime(0.36, when);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(260, when);
+  filter.Q.setValueAtTime(0.9, when);
 
-  osc.connect(gain);
+  gain.gain.setValueAtTime(0.32, when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.58);
+
+  osc.connect(filter);
+  filter.connect(gain);
   gain.connect(masterGain);
   osc.start(when);
-  osc.stop(when + 0.2);
+  osc.stop(when + 0.64);
 }
 
-function playHat(when: number) {
+function playSoftNoiseSwell(when: number) {
   if (!audioContext || !masterGain) return;
 
-  const bufferSize = Math.floor(audioContext.sampleRate * 0.035);
+  const bufferSize = Math.floor(audioContext.sampleRate * 1.1);
   const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
   const data = buffer.getChannelData(0);
   for (let index = 0; index < bufferSize; index += 1) {
-    data[index] = (Math.random() * 2 - 1) * 0.5;
+    data[index] = (Math.random() * 2 - 1) * 0.18;
   }
 
   const noise = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
   const gain = audioContext.createGain();
-  gain.gain.setValueAtTime(0.08, when);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(700, when);
+  filter.Q.setValueAtTime(0.4, when);
+
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(0.045, when + 0.38);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 1.1);
+
   noise.buffer = buffer;
-  noise.connect(gain);
+  noise.connect(filter);
+  filter.connect(gain);
   gain.connect(masterGain);
   noise.start(when);
-  noise.stop(when + 0.04);
+  noise.stop(when + 1.15);
 }
 
 function playStartupCue() {
   if (!audioContext) return;
-  const now = audioContext.currentTime + 0.02;
-  playTone(523.25, 0.08, 'square', 0.11, now);
-  playTone(659.25, 0.08, 'square', 0.11, now + 0.09);
-  playTone(783.99, 0.12, 'square', 0.12, now + 0.18);
-  playKick(now + 0.02);
+  const now = audioContext.currentTime + 0.03;
+  playChord(CHORD_SEQUENCE[0], now);
+  playBell(523.25, now + 0.22);
+  playBell(783.99, now + 0.56);
+  playTimpani(now + 0.04);
 }
 
 function playStep() {
   if (!audioContext || !playing) return;
 
-  const now = audioContext.currentTime + 0.025;
-  const lead = LEAD_SEQUENCE[stepIndex % LEAD_SEQUENCE.length];
-  const bass = BASS_SEQUENCE[stepIndex % BASS_SEQUENCE.length];
+  const now = audioContext.currentTime + 0.035;
+  const chord = CHORD_SEQUENCE[stepIndex % CHORD_SEQUENCE.length];
+  const bell = BELL_SEQUENCE[stepIndex % BELL_SEQUENCE.length];
 
-  if (lead) playTone(lead, 0.09, 'square', 0.14, now);
-  if (bass) playTone(bass, 0.12, 'triangle', 0.13, now);
-  if (stepIndex % 4 === 0) playKick(now);
-  if (stepIndex % 2 === 1) playHat(now);
+  playChord(chord, now);
 
-  stepIndex = (stepIndex + 1) % LEAD_SEQUENCE.length;
+  if (stepIndex % 2 === 0) playTimpani(now + 0.02);
+  if (stepIndex % 3 === 0) playSoftNoiseSwell(now + 0.08);
+  playBell(bell, now + 0.42);
+
+  stepIndex = (stepIndex + 1) % Math.max(CHORD_SEQUENCE.length, BELL_SEQUENCE.length);
 }
 
 function updateButton(button: HTMLButtonElement) {
@@ -164,7 +212,7 @@ async function startBgm(button: HTMLButtonElement) {
   writeStoredState('on');
   updateButton(button);
   playStartupCue();
-  window.setTimeout(playStep, 280);
+  window.setTimeout(playStep, 950);
   loopTimer = window.setInterval(playStep, STEP_MS);
 }
 
