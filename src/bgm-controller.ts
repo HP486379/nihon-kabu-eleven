@@ -14,20 +14,29 @@ let playing = false;
 const STEP_MS = 420;
 const LOOP_STEPS = 32;
 
-// Original stadium guitar-rock anthem phrase.
+// Original stadium guitar-rock anthem phrase written for the requested progression:
+// C / G / Am / Em / F / C / F / G.
 // This intentionally avoids copying any existing J.League/J'S THEME melody.
 const LEAD_MELODY = [
-  659.25, 0, 739.99, 0, 783.99, 880.00, 987.77, 0,
-  880.00, 0, 783.99, 0, 739.99, 659.25, 587.33, 0,
-  659.25, 0, 783.99, 0, 987.77, 1046.50, 987.77, 880.00,
-  783.99, 0, 739.99, 0, 659.25, 587.33, 659.25, 0,
+  659.25, 783.99, 1046.50, 0,
+  493.88, 587.33, 783.99, 0,
+  523.25, 659.25, 880.00, 0,
+  493.88, 659.25, 783.99, 0,
+  440.00, 523.25, 698.46, 0,
+  659.25, 783.99, 1046.50, 0,
+  440.00, 523.25, 698.46, 783.99,
+  783.99, 987.77, 1046.50, 0,
 ];
 
 const CHANT_MELODY = [
-  329.63, 0, 369.99, 0, 392.00, 440.00, 493.88, 0,
-  440.00, 0, 392.00, 0, 369.99, 329.63, 293.66, 0,
-  329.63, 0, 392.00, 0, 493.88, 523.25, 493.88, 440.00,
-  392.00, 0, 369.99, 0, 329.63, 293.66, 329.63, 0,
+  329.63, 392.00, 523.25, 0,
+  246.94, 293.66, 392.00, 0,
+  261.63, 329.63, 440.00, 0,
+  246.94, 329.63, 392.00, 0,
+  220.00, 261.63, 349.23, 0,
+  329.63, 392.00, 523.25, 0,
+  220.00, 261.63, 349.23, 392.00,
+  392.00, 493.88, 523.25, 0,
 ];
 
 // Requested progression: C / G / Am / Em / F / C / F / G.
@@ -274,7 +283,8 @@ function playStartupCue() {
   playPowerChord(POWER_CHORDS[0], now);
   playKick(now + 0.02);
   playLeadGuitar(659.25, now + 0.18, 0.42);
-  playLeadGuitar(783.99, now + 0.55, 0.48);
+  playLeadGuitar(783.99, now + 0.50, 0.42);
+  playLeadGuitar(1046.50, now + 0.84, 0.56);
 }
 
 function playStep() {
@@ -294,7 +304,7 @@ function playStep() {
   if (beat === 2) playSnareClap(now + 0.015);
   if (step % 2 === 0) playNoiseHit(now + 0.02, 0.07, 0.035, 4300, 'highpass');
 
-  if (lead) playLeadGuitar(lead, now + 0.045, step % 8 === 6 ? 0.72 : 0.46);
+  if (lead) playLeadGuitar(lead, now + 0.045, step % 4 === 2 ? 0.68 : 0.46);
 
   // After the first half of the loop, add a quiet stadium-singalong layer.
   if (step >= 16 && chant) playCrowdChant(chant, now + 0.055);
