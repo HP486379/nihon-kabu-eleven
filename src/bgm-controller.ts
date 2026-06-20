@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'nihon-kabu-eleven:bgm-enabled';
 
 type BgmState = 'on' | 'off';
-
+type AudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
 type OscType = OscillatorType;
 
 let initialized = false;
@@ -45,7 +45,12 @@ function writeStoredState(state: BgmState) {
 function ensureAudioGraph() {
   if (audioContext && masterGain) return { audioContext, masterGain };
 
-  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  const audioWindow = window as AudioWindow;
+  const AudioContextCtor = audioWindow.AudioContext || audioWindow.webkitAudioContext;
+  if (!AudioContextCtor) {
+    throw new Error('このブラウザはWeb Audioに対応していません。');
+  }
+
   const context = new AudioContextCtor();
   const gain = context.createGain();
   gain.gain.value = 0.18;
@@ -95,7 +100,7 @@ function playKick(when: number) {
 function playHat(when: number) {
   if (!audioContext || !masterGain) return;
 
-  const bufferSize = audioContext.sampleRate * 0.035;
+  const bufferSize = Math.floor(audioContext.sampleRate * 0.035);
   const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
   const data = buffer.getChannelData(0);
   for (let index = 0; index < bufferSize; index += 1) {
