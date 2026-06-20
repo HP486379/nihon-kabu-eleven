@@ -53,7 +53,7 @@ function ensureAudioGraph() {
 
   const context = new AudioContextCtor();
   const gain = context.createGain();
-  gain.gain.value = 0.18;
+  gain.gain.value = 0.42;
   gain.connect(context.destination);
 
   audioContext = context;
@@ -85,16 +85,16 @@ function playKick(when: number) {
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(92, when);
+  osc.frequency.setValueAtTime(98, when);
   osc.frequency.exponentialRampToValueAtTime(42, when + 0.14);
 
-  gain.gain.setValueAtTime(0.16, when);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.16);
+  gain.gain.setValueAtTime(0.36, when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
 
   osc.connect(gain);
   gain.connect(masterGain);
   osc.start(when);
-  osc.stop(when + 0.18);
+  osc.stop(when + 0.2);
 }
 
 function playHat(when: number) {
@@ -104,18 +104,27 @@ function playHat(when: number) {
   const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
   const data = buffer.getChannelData(0);
   for (let index = 0; index < bufferSize; index += 1) {
-    data[index] = (Math.random() * 2 - 1) * 0.45;
+    data[index] = (Math.random() * 2 - 1) * 0.5;
   }
 
   const noise = audioContext.createBufferSource();
   const gain = audioContext.createGain();
-  gain.gain.setValueAtTime(0.045, when);
+  gain.gain.setValueAtTime(0.08, when);
   gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
   noise.buffer = buffer;
   noise.connect(gain);
   gain.connect(masterGain);
   noise.start(when);
   noise.stop(when + 0.04);
+}
+
+function playStartupCue() {
+  if (!audioContext) return;
+  const now = audioContext.currentTime + 0.02;
+  playTone(523.25, 0.08, 'square', 0.11, now);
+  playTone(659.25, 0.08, 'square', 0.11, now + 0.09);
+  playTone(783.99, 0.12, 'square', 0.12, now + 0.18);
+  playKick(now + 0.02);
 }
 
 function playStep() {
@@ -125,8 +134,8 @@ function playStep() {
   const lead = LEAD_SEQUENCE[stepIndex % LEAD_SEQUENCE.length];
   const bass = BASS_SEQUENCE[stepIndex % BASS_SEQUENCE.length];
 
-  if (lead) playTone(lead, 0.09, 'square', 0.055, now);
-  if (bass) playTone(bass, 0.12, 'triangle', 0.07, now);
+  if (lead) playTone(lead, 0.09, 'square', 0.14, now);
+  if (bass) playTone(bass, 0.12, 'triangle', 0.13, now);
   if (stepIndex % 4 === 0) playKick(now);
   if (stepIndex % 2 === 1) playHat(now);
 
@@ -145,12 +154,17 @@ async function startBgm(button: HTMLButtonElement) {
   const graph = ensureAudioGraph();
   await graph.audioContext.resume();
 
+  if (graph.audioContext.state === 'suspended') {
+    throw new Error('ブラウザが音声再生を一時停止しています。もう一度BGMボタンを押してください。');
+  }
+
   if (playing) return;
   playing = true;
   stepIndex = 0;
   writeStoredState('on');
   updateButton(button);
-  playStep();
+  playStartupCue();
+  window.setTimeout(playStep, 280);
   loopTimer = window.setInterval(playStep, STEP_MS);
 }
 
