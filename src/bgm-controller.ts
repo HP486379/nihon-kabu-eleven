@@ -11,44 +11,31 @@ let loopTimer: number | null = null;
 let stepIndex = 0;
 let playing = false;
 
-const STEP_MS = 420;
-const LOOP_STEPS = 32;
+// Modern soccer-game style: rhythm first, short synth hooks, no quoted song melody.
+const STEP_MS = 150;
+const LOOP_STEPS = 64;
 
-// Original stadium guitar-rock anthem phrase written for the requested progression:
-// C / G / Am / Em / F / C / F / G.
-// This intentionally avoids copying any existing J.League/J'S THEME melody.
-const LEAD_MELODY = [
-  659.25, 783.99, 1046.50, 0,
-  493.88, 587.33, 783.99, 0,
-  523.25, 659.25, 880.00, 0,
-  493.88, 659.25, 783.99, 0,
-  440.00, 523.25, 698.46, 0,
-  659.25, 783.99, 1046.50, 0,
-  440.00, 523.25, 698.46, 783.99,
-  783.99, 987.77, 1046.50, 0,
+const ROOT_SEQUENCE = [
+  65.41, 73.42, 82.41, 87.31,
+  98.00, 110.00, 98.00, 87.31,
 ];
 
-const CHANT_MELODY = [
-  329.63, 392.00, 523.25, 0,
-  246.94, 293.66, 392.00, 0,
-  261.63, 329.63, 440.00, 0,
-  246.94, 329.63, 392.00, 0,
-  220.00, 261.63, 349.23, 0,
-  329.63, 392.00, 523.25, 0,
-  220.00, 261.63, 349.23, 392.00,
-  392.00, 493.88, 523.25, 0,
+const STADIUM_HOOK = [
+  0, 0, 523.25, 0, 587.33, 0, 659.25, 0,
+  783.99, 0, 659.25, 587.33, 523.25, 0, 0, 0,
+  0, 0, 523.25, 0, 587.33, 0, 698.46, 0,
+  783.99, 0, 698.46, 659.25, 587.33, 0, 0, 0,
+  0, 0, 659.25, 0, 783.99, 0, 880.00, 0,
+  987.77, 0, 880.00, 783.99, 698.46, 0, 0, 0,
+  0, 0, 783.99, 0, 880.00, 0, 1046.50, 0,
+  987.77, 0, 880.00, 783.99, 659.25, 0, 0, 0,
 ];
 
-// Requested progression: C / G / Am / Em / F / C / F / G.
-const POWER_CHORDS = [
-  [65.41, 98.00, 130.81],
-  [98.00, 146.83, 196.00],
-  [110.00, 164.81, 220.00],
-  [82.41, 123.47, 164.81],
-  [87.31, 130.81, 174.61],
-  [65.41, 98.00, 130.81],
-  [87.31, 130.81, 174.61],
-  [98.00, 146.83, 196.00],
+const BASS_PATTERN = [
+  1, 0, 0, 1,
+  0, 0, 1, 0,
+  1, 0, 1, 0,
+  0, 0, 1, 0,
 ];
 
 function readStoredState(): BgmState {
@@ -78,7 +65,7 @@ function ensureAudioGraph() {
 
   const context = new AudioContextCtor();
   const gain = context.createGain();
-  gain.gain.value = 0.30;
+  gain.gain.value = 0.28;
   gain.connect(context.destination);
 
   audioContext = context;
@@ -86,7 +73,7 @@ function ensureAudioGraph() {
   return { audioContext: context, masterGain: gain };
 }
 
-function createDistortionCurve(amount = 240) {
+function createDistortionCurve(amount = 140) {
   const sampleCount = 44100;
   const curve = new Float32Array(sampleCount);
   const deg = Math.PI / 180;
@@ -105,9 +92,9 @@ function playTone(
   type: OscType,
   gainValue: number,
   when: number,
-  attack = 0.02,
-  releaseOffset = 0.06,
-  filterFrequency = 2200,
+  attack = 0.01,
+  releaseOffset = 0.03,
+  filterFrequency = 1800,
 ) {
   if (!audioContext || !masterGain || frequency <= 0) return;
 
@@ -119,7 +106,7 @@ function playTone(
   osc.frequency.setValueAtTime(frequency, when);
   filter.type = 'lowpass';
   filter.frequency.setValueAtTime(filterFrequency, when);
-  filter.Q.setValueAtTime(0.7, when);
+  filter.Q.setValueAtTime(0.8, when);
 
   gain.gain.setValueAtTime(0.0001, when);
   gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainValue), when + attack);
@@ -132,84 +119,99 @@ function playTone(
   osc.stop(when + duration + releaseOffset);
 }
 
-function playLeadGuitar(frequency: number, when: number, duration = 0.46) {
+function playStadiumLead(frequency: number, when: number, duration = 0.18) {
   if (!audioContext || !masterGain || frequency <= 0) return;
 
   const oscA = audioContext.createOscillator();
   const oscB = audioContext.createOscillator();
   const drive = audioContext.createWaveShaper();
   const bandpass = audioContext.createBiquadFilter();
-  const lowpass = audioContext.createBiquadFilter();
   const gain = audioContext.createGain();
 
   oscA.type = 'sawtooth';
-  oscB.type = 'triangle';
+  oscB.type = 'square';
   oscA.frequency.setValueAtTime(frequency, when);
-  oscB.frequency.setValueAtTime(frequency * 1.006, when);
+  oscB.frequency.setValueAtTime(frequency * 0.997, when);
 
-  drive.curve = createDistortionCurve(360);
+  drive.curve = createDistortionCurve(190);
   drive.oversample = '4x';
 
   bandpass.type = 'bandpass';
-  bandpass.frequency.setValueAtTime(1400, when);
-  bandpass.Q.setValueAtTime(1.7, when);
-
-  lowpass.type = 'lowpass';
-  lowpass.frequency.setValueAtTime(3300, when);
-  lowpass.Q.setValueAtTime(0.8, when);
+  bandpass.frequency.setValueAtTime(1900, when);
+  bandpass.frequency.linearRampToValueAtTime(2500, when + duration * 0.5);
+  bandpass.Q.setValueAtTime(1.8, when);
 
   gain.gain.setValueAtTime(0.0001, when);
-  gain.gain.exponentialRampToValueAtTime(0.21, when + 0.018);
-  gain.gain.setValueAtTime(0.15, when + Math.max(0.03, duration - 0.09));
+  gain.gain.exponentialRampToValueAtTime(0.16, when + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
 
   oscA.connect(drive);
   oscB.connect(drive);
   drive.connect(bandpass);
-  bandpass.connect(lowpass);
-  lowpass.connect(gain);
+  bandpass.connect(gain);
   gain.connect(masterGain);
 
   oscA.start(when);
   oscB.start(when);
-  oscA.stop(when + duration + 0.05);
-  oscB.stop(when + duration + 0.05);
+  oscA.stop(when + duration + 0.03);
+  oscB.stop(when + duration + 0.03);
 }
 
-function playPowerChord(frequencies: number[], when: number) {
+function playSynthStab(root: number, when: number) {
   if (!audioContext || !masterGain) return;
 
-  const drive = audioContext.createWaveShaper();
+  const frequencies = [root * 2, root * 3, root * 4];
   const filter = audioContext.createBiquadFilter();
   const gain = audioContext.createGain();
 
-  drive.curve = createDistortionCurve(520);
-  drive.oversample = '4x';
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(1150, when);
-  filter.frequency.linearRampToValueAtTime(1850, when + 0.08);
-  filter.Q.setValueAtTime(0.9, when);
+  filter.frequency.setValueAtTime(900, when);
+  filter.frequency.linearRampToValueAtTime(2600, when + 0.08);
+  filter.frequency.exponentialRampToValueAtTime(700, when + 0.34);
+  filter.Q.setValueAtTime(1.4, when);
 
   gain.gain.setValueAtTime(0.0001, when);
-  gain.gain.exponentialRampToValueAtTime(0.18, when + 0.018);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.55);
+  gain.gain.exponentialRampToValueAtTime(0.10, when + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.36);
 
   frequencies.forEach((frequency, index) => {
     const osc = audioContext!.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(frequency * (index === 0 ? 1 : 2), when);
-    osc.connect(drive);
+    osc.type = index === 0 ? 'sawtooth' : 'triangle';
+    osc.frequency.setValueAtTime(frequency * (index === 2 ? 1.005 : 1), when);
+    osc.connect(filter);
     osc.start(when);
-    osc.stop(when + 0.62);
+    osc.stop(when + 0.40);
   });
 
-  drive.connect(filter);
   filter.connect(gain);
   gain.connect(masterGain);
 }
 
-function playBass(frequency: number, when: number) {
-  playTone(frequency, 0.34, 'sawtooth', 0.115, when, 0.012, 0.04, 420);
+function playBass(root: number, when: number, accent = false) {
+  if (!audioContext || !masterGain) return;
+
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+  const frequency = root * (accent ? 2 : 1);
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(frequency, when);
+  osc.frequency.exponentialRampToValueAtTime(frequency * 0.96, when + 0.20);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(accent ? 520 : 360, when);
+  filter.Q.setValueAtTime(1.3, when);
+
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(accent ? 0.13 : 0.10, when + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.25);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(when);
+  osc.stop(when + 0.29);
 }
 
 function playKick(when: number) {
@@ -220,21 +222,21 @@ function playKick(when: number) {
   const filter = audioContext.createBiquadFilter();
 
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(95, when);
-  osc.frequency.exponentialRampToValueAtTime(42, when + 0.18);
+  osc.frequency.setValueAtTime(115, when);
+  osc.frequency.exponentialRampToValueAtTime(42, when + 0.15);
 
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(220, when);
-  filter.Q.setValueAtTime(1.2, when);
+  filter.frequency.setValueAtTime(230, when);
+  filter.Q.setValueAtTime(1.1, when);
 
-  gain.gain.setValueAtTime(0.31, when);
-  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.28);
+  gain.gain.setValueAtTime(0.32, when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.24);
 
   osc.connect(filter);
   filter.connect(gain);
   gain.connect(masterGain);
   osc.start(when);
-  osc.stop(when + 0.34);
+  osc.stop(when + 0.28);
 }
 
 function playNoiseHit(when: number, duration: number, gainValue: number, filterFrequency: number, filterType: BiquadFilterType) {
@@ -253,7 +255,7 @@ function playNoiseHit(when: number, duration: number, gainValue: number, filterF
 
   filter.type = filterType;
   filter.frequency.setValueAtTime(filterFrequency, when);
-  filter.Q.setValueAtTime(0.8, when);
+  filter.Q.setValueAtTime(0.9, when);
 
   gain.gain.setValueAtTime(gainValue, when);
   gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
@@ -267,47 +269,66 @@ function playNoiseHit(when: number, duration: number, gainValue: number, filterF
 }
 
 function playSnareClap(when: number) {
-  playNoiseHit(when, 0.18, 0.13, 1700, 'bandpass');
-  playNoiseHit(when + 0.018, 0.23, 0.08, 2600, 'highpass');
+  playNoiseHit(when, 0.12, 0.10, 1700, 'bandpass');
+  playNoiseHit(when + 0.018, 0.16, 0.07, 3300, 'highpass');
 }
 
-function playCrowdChant(frequency: number, when: number) {
-  if (frequency <= 0) return;
-  playTone(frequency, 0.56, 'triangle', 0.055, when, 0.10, 0.08, 1500);
-  playTone(frequency * 1.5, 0.50, 'sine', 0.026, when + 0.012, 0.12, 0.08, 1200);
+function playHat(when: number, open = false) {
+  playNoiseHit(when, open ? 0.10 : 0.035, open ? 0.045 : 0.025, open ? 7200 : 6200, 'highpass');
+}
+
+function playRiser(when: number) {
+  if (!audioContext || !masterGain) return;
+
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(220, when);
+  osc.frequency.linearRampToValueAtTime(880, when + 0.85);
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1200, when);
+  filter.frequency.linearRampToValueAtTime(3600, when + 0.85);
+  filter.Q.setValueAtTime(2.4, when);
+
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.linearRampToValueAtTime(0.055, when + 0.45);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.90);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(when);
+  osc.stop(when + 0.95);
 }
 
 function playStartupCue() {
   if (!audioContext) return;
   const now = audioContext.currentTime + 0.035;
-  playPowerChord(POWER_CHORDS[0], now);
-  playKick(now + 0.02);
-  playLeadGuitar(659.25, now + 0.18, 0.42);
-  playLeadGuitar(783.99, now + 0.50, 0.42);
-  playLeadGuitar(1046.50, now + 0.84, 0.56);
+  playKick(now);
+  playSynthStab(ROOT_SEQUENCE[0], now + 0.02);
+  playStadiumLead(659.25, now + 0.18, 0.14);
+  playStadiumLead(783.99, now + 0.34, 0.14);
+  playStadiumLead(987.77, now + 0.50, 0.20);
 }
 
 function playStep() {
   if (!audioContext || !playing) return;
 
-  const now = audioContext.currentTime + 0.025;
+  const now = audioContext.currentTime + 0.035;
   const step = stepIndex % LOOP_STEPS;
-  const beat = step % 4;
-  const chordIndex = Math.floor(step / 4) % POWER_CHORDS.length;
-  const chord = POWER_CHORDS[chordIndex];
-  const lead = LEAD_MELODY[step];
-  const chant = CHANT_MELODY[step];
+  const barStep = step % 16;
+  const root = ROOT_SEQUENCE[Math.floor(step / 8) % ROOT_SEQUENCE.length];
+  const hook = STADIUM_HOOK[step];
 
-  if (beat === 0) playPowerChord(chord, now);
-  if (beat === 0 || beat === 2) playKick(now + 0.01);
-  if (beat === 1 || beat === 3) playBass(chord[0], now + 0.02);
-  if (beat === 2) playSnareClap(now + 0.015);
-  if (step % 2 === 0) playNoiseHit(now + 0.02, 0.07, 0.035, 4300, 'highpass');
-
-  if (lead) playLeadGuitar(lead, now + 0.045, step % 4 === 2 ? 0.68 : 0.46);
-
-  // After the first half of the loop, add a quiet stadium-singalong layer.
-  if (step >= 16 && chant) playCrowdChant(chant, now + 0.055);
+  if (barStep === 0 || barStep === 4 || barStep === 8 || barStep === 12) playKick(now);
+  if (barStep === 4 || barStep === 12) playSnareClap(now + 0.01);
+  if (step % 2 === 0) playHat(now + 0.008, barStep === 14);
+  if (BASS_PATTERN[barStep]) playBass(root, now + 0.015, barStep === 0 || barStep === 8);
+  if (barStep === 0 || barStep === 10) playSynthStab(root, now + 0.02);
+  if (hook) playStadiumLead(hook, now + 0.025, barStep % 8 === 2 ? 0.22 : 0.16);
+  if (barStep === 15 && step >= 48) playRiser(now + 0.01);
 
   stepIndex = (stepIndex + 1) % LOOP_STEPS;
 }
@@ -334,7 +355,7 @@ async function startBgm(button: HTMLButtonElement) {
   writeStoredState('on');
   updateButton(button);
   playStartupCue();
-  window.setTimeout(playStep, 620);
+  window.setTimeout(playStep, 520);
   loopTimer = window.setInterval(playStep, STEP_MS);
 }
 
