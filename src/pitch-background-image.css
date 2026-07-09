@@ -1,4 +1,13 @@
-/* Pitch background image override is disabled.
-   The image asset did not render correctly in production, so this file is intentionally non-destructive.
-   Do not override .pitch-stage here until the image asset can be verified outside production.
+/* Pitch background image preview
+   - uses a normal JPG public asset
+   - keeps existing pitch markings visible as a safe fallback/overlay
+   - visual-only change: player layout, card size, formation logic, participant list, and cancel behavior are untouched
 */
+
+.pitch-card .pitch-stage {
+  background-color: #287d35 !important;
+  background-image: url('/images/pitch-bg-angled-photo.jpg') !important;
+  background-size: 100% 100% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
