@@ -1,8 +1,20 @@
-/* Realistic pitch background override is temporarily disabled.
-   The first data-URI implementation failed to load the image in production,
-   so this file is intentionally non-destructive until the background image is
-   added as a normal public asset.
-
-   Keep this file loaded after the other pitch styles, but do not override the
-   existing CSS pitch rendering here.
+/* Realistic pitch background image override
+   - uses the approved angled aerial pitch image as a normal public asset
+   - visual-only change: player layout, card size, formation logic, participant list, and cancel behavior are untouched
 */
+
+.pitch-card .pitch-stage {
+  background-color: #287d35 !important;
+  background-image: url('/images/pitch-bg-angled-photo.svg') !important;
+  background-size: 100% 100% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* The image asset already includes pitch markings and grass stripes. */
+.pitch-card .pitch-stage::before,
+.pitch-card .pitch-stage::after,
+.pitch-card .pitch-markings,
+.pitch-card .pitch-zone-labels {
+  display: none !important;
+}
