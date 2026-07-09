@@ -1,4 +1,20 @@
-/* Pitch background image override is disabled.
-   The approved image did not fit the live pitch aspect and became visibly pixelated/cropped in production.
-   Keep this file non-destructive so the original CSS pitch remains active.
+/* Clean top-down pitch background
+   - uses a vector asset based on the approved top-down pitch image
+   - visual-only change: player layout, card size, formation logic, participant list, and cancel behavior are untouched
 */
+
+.pitch-card .pitch-stage {
+  background-color: #287d35 !important;
+  background-image: url('/images/pitch-bg-topdown-clean.svg') !important;
+  background-size: 100% 100% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* The SVG already includes grass stripes and pitch markings. */
+.pitch-card .pitch-stage::before,
+.pitch-card .pitch-stage::after,
+.pitch-card .pitch-markings,
+.pitch-card .pitch-zone-labels {
+  display: none !important;
+}
