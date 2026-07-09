@@ -59,6 +59,7 @@ import './dashboard-match-status.css';
 import './team-detail-page.css';
 import './team-detail-pitch-view.css';
 import './mobile-web-fixes.css';
+import './pitch-background-image.css';
 
 const USER_NAME_STORAGE_KEY = 'nihon-kabu-eleven:user-name';
 
