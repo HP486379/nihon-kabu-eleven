@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 1013" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="baseGrass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#237f18"/>
+      <stop offset="0.5" stop-color="#3f9d23"/>
+      <stop offset="1" stop-color="#237f18"/>
+    </linearGradient>
+    <filter id="grassTexture" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.038" numOctaves="4" seed="9" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0.22 0 0 0 0  0 0.42 0 0 0  0 0 0.16 0 0  0 0 0 0.22 0"/>
+      <feBlend in="SourceGraphic" mode="multiply"/>
+    </filter>
+    <filter id="lineGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.7" flood-color="#003b0f" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+
+  <rect width="760" height="1013" fill="url(#baseGrass)"/>
+
+  <g filter="url(#grassTexture)">
+    <rect x="0" y="0" width="760" height="1013" fill="#2e8d1b" opacity="0.45"/>
+    <rect x="0" y="0" width="760" height="96" fill="#1f7516" opacity="0.55"/>
+    <rect x="0" y="96" width="760" height="96" fill="#5abf32" opacity="0.42"/>
+    <rect x="0" y="192" width="760" height="96" fill="#238019" opacity="0.48"/>
+    <rect x="0" y="288" width="760" height="96" fill="#65c637" opacity="0.45"/>
+    <rect x="0" y="384" width="760" height="96" fill="#2c8e1d" opacity="0.52"/>
+    <rect x="0" y="480" width="760" height="96" fill="#67c939" opacity="0.44"/>
+    <rect x="0" y="576" width="760" height="96" fill="#2f8d1d" opacity="0.48"/>
+    <rect x="0" y="672" width="760" height="96" fill="#63c436" opacity="0.42"/>
+    <rect x="0" y="768" width="760" height="96" fill="#2a861a" opacity="0.52"/>
+    <rect x="0" y="864" width="760" height="96" fill="#5fbd34" opacity="0.42"/>
+    <rect x="0" y="960" width="760" height="53" fill="#267d18" opacity="0.55"/>
+  </g>
+
+  <rect width="760" height="1013" fill="none"/>
+
+  <g fill="none" stroke="#f7fff2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)" opacity="0.96">
+    <rect x="45" y="32" width="670" height="949"/>
+
+    <line x1="45" y1="506.5" x2="715" y2="506.5"/>
+    <circle cx="380" cy="506.5" r="94"/>
+
+    <rect x="205" y="32" width="350" height="154"/>
+    <rect x="292" y="32" width="176" height="54"/>
+    <path d="M306 186 A74 74 0 0 0 454 186"/>
+
+    <rect x="205" y="827" width="350" height="154"/>
+    <rect x="292" y="927" width="176" height="54"/>
+    <path d="M306 827 A74 74 0 0 1 454 827"/>
+
+    <path d="M45 32 Q45 65 78 65"/>
+    <path d="M715 32 Q715 65 682 65"/>
+    <path d="M45 981 Q45 948 78 948"/>
+    <path d="M715 981 Q715 948 682 948"/>
+  </g>
+
+  <g fill="#f7fff2" filter="url(#lineGlow)" opacity="0.98">
+    <circle cx="380" cy="506.5" r="5.4"/>
+    <circle cx="380" cy="135" r="5"/>
+    <circle cx="380" cy="878" r="5"/>
+  </g>
+</svg>
