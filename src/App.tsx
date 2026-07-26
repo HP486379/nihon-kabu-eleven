@@ -303,9 +303,10 @@ function App() {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`market proxy ${response.status}`);
-        const payload = await response.json() as { results?: MarketQuote[] };
+        const payload = await response.json() as { results?: unknown };
+        const results = Array.isArray(payload.results) ? payload.results as MarketQuote[] : [];
         const nextMap: Record<string, MarketQuote> = {};
-        (payload.results || []).forEach((quote) => {
+        results.forEach((quote) => {
           const code = normalizeQuoteCode(quote);
           if (code) nextMap[code] = quote;
         });
@@ -339,7 +340,7 @@ function App() {
           });
           if (!response.ok) return [code, []];
           const payload = await response.json() as HistoryResponse;
-          return [code, payload.candles || []];
+          return [code, Array.isArray(payload.candles) ? payload.candles : []];
         } catch (_error) {
           if (controller.signal.aborted) return [code, []];
           return [code, []];
@@ -370,8 +371,8 @@ function App() {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`search ${response.status}`);
-        const payload = await response.json() as { results?: SearchResult[] };
-        setSearchResults(payload.results || []);
+        const payload = await response.json() as { results?: unknown };
+        setSearchResults(Array.isArray(payload.results) ? payload.results as SearchResult[] : []);
         setSearchStatus('success');
       } catch (error) {
         if (controller.signal.aborted) return;
