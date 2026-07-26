@@ -164,13 +164,15 @@ initLowerLayoutWireup();
 initTeamNameSuffixPreview();
 initMatchDurationRules();
 }
-if (false) {
+if (true) {
 initContestSelectionSync();
 initContestListPage();
 initFormationPage();
 initParticipantsPage();
 initParticipantsMatchTabs();
 initDashboardParticipantSummary();
+}
+if (false) {
 initDashboardCardMarketPeriodSync();
 initTeamDetailHostGuard();
 initTeamDetailPage();
