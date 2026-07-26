@@ -177,8 +177,10 @@ initDashboardCardMarketPeriodSync();
 initTeamDetailHostGuard();
 initTeamDetailPage();
 }
-if (false) {
+if (true) {
 initResultsPage();
+}
+if (false) {
 initDailyMatchLabelWireup();
 initPublicBetaCopyWireup();
 }
