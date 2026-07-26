@@ -1,4 +1,16 @@
 /* Lower layout fixes: keep the main pitch untouched. */
+.main.lower-layout-default-order > .stock-list-card:not([data-generated-bench-card="true"]) {
+  order: 10;
+}
+
+.main.lower-layout-default-order > .market-data-card {
+  order: 20;
+}
+
+.main.lower-layout-default-order > .page-footer {
+  order: 30;
+}
+
 .market-data-card .card-title-row {
   cursor: default;
   user-select: none;
