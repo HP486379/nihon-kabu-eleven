@@ -150,28 +150,32 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-initUserNameEntryGuard();
-initPitchDragDrop();
-initMemberLabelOverrides();
-initEntrySubmit();
-initPostEntryButtonRemoval();
-initContestTicker();
-initFormationMiniLayout();
-initAutoFormationWireup();
-initFormationPitchClassWireup();
-initLowerLayoutWireup();
-initTeamNameSuffixPreview();
-initMatchDurationRules();
-initContestSelectionSync();
-initContestListPage();
-initFormationPage();
-initParticipantsPage();
-initParticipantsMatchTabs();
-initDashboardParticipantSummary();
-initDashboardCardMarketPeriodSync();
-initTeamDetailHostGuard();
-initTeamDetailPage();
-initResultsPage();
-initDailyMatchLabelWireup();
-initPublicBetaCopyWireup();
+function initDomWireups() {
+  initUserNameEntryGuard();
+  initPitchDragDrop();
+  initMemberLabelOverrides();
+  initEntrySubmit();
+  initPostEntryButtonRemoval();
+  initContestTicker();
+  initFormationMiniLayout();
+  initAutoFormationWireup();
+  initFormationPitchClassWireup();
+  initLowerLayoutWireup();
+  initTeamNameSuffixPreview();
+  initMatchDurationRules();
+  initContestSelectionSync();
+  initContestListPage();
+  initFormationPage();
+  initParticipantsPage();
+  initParticipantsMatchTabs();
+  initDashboardParticipantSummary();
+  initDashboardCardMarketPeriodSync();
+  initTeamDetailHostGuard();
+  initTeamDetailPage();
+  initResultsPage();
+  initDailyMatchLabelWireup();
+  initPublicBetaCopyWireup();
+}
+
+window.setTimeout(initDomWireups, 3000);
 initBgmController();
