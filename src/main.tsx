@@ -178,7 +178,7 @@ initTeamDetailHostGuard();
 initTeamDetailPage();
 }
 if (true) {
-initResultsPage();
+window.setTimeout(initResultsPage, 0);
 }
 if (false) {
 initDailyMatchLabelWireup();
