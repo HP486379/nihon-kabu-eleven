@@ -169,7 +169,6 @@ function initDomWireups() {
   initParticipantsPage();
   initParticipantsMatchTabs();
   initDashboardParticipantSummary();
-  initDashboardParticipantRanking();
   initDashboardCardMarketPeriodSync();
   initTeamDetailHostGuard();
   initTeamDetailPage();
