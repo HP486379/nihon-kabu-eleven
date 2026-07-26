@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import AppErrorBoundary from './AppErrorBoundary';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
 import './styles.css';
@@ -15,9 +16,15 @@ import './sidebar-scale-tuning.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>,
 );
 
-initPitchDragDrop();
-initMemberLabelOverrides();
+function initDomWireups() {
+  initPitchDragDrop();
+  initMemberLabelOverrides();
+}
+
+window.setTimeout(initDomWireups, 3000);
