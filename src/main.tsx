@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import AppErrorBoundary from './AppErrorBoundary';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
 import { initEntrySubmit } from './entry-submit-wireup';
@@ -143,34 +144,38 @@ initMarketDataPeriodFetchPatch();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>,
 );
 
-initUserNameEntryGuard();
-initPitchDragDrop();
-initMemberLabelOverrides();
-initEntrySubmit();
-initPostEntryButtonRemoval();
-initContestTicker();
-initFormationMiniLayout();
-initAutoFormationWireup();
-initFormationPitchClassWireup();
-initLowerLayoutWireup();
-initTeamNameSuffixPreview();
-initMatchDurationRules();
-initContestSelectionSync();
-initContestListPage();
-initFormationPage();
-initParticipantsPage();
-initParticipantsMatchTabs();
-initDashboardParticipantSummary();
-initDashboardParticipantRanking();
-initDashboardMatchStatus();
-initDashboardCardMarketPeriodSync();
-initTeamDetailHostGuard();
-initTeamDetailPage();
-initResultsPage();
-initDailyMatchLabelWireup();
-initPublicBetaCopyWireup();
+function initDomWireups() {
+  initUserNameEntryGuard();
+  initPitchDragDrop();
+  initMemberLabelOverrides();
+  initEntrySubmit();
+  initPostEntryButtonRemoval();
+  initContestTicker();
+  initFormationMiniLayout();
+  initAutoFormationWireup();
+  initFormationPitchClassWireup();
+  initLowerLayoutWireup();
+  initTeamNameSuffixPreview();
+  initMatchDurationRules();
+  initContestSelectionSync();
+  initContestListPage();
+  initFormationPage();
+  initParticipantsPage();
+  initParticipantsMatchTabs();
+  initDashboardParticipantSummary();
+  initDashboardCardMarketPeriodSync();
+  initTeamDetailHostGuard();
+  initTeamDetailPage();
+  initResultsPage();
+  initDailyMatchLabelWireup();
+  initPublicBetaCopyWireup();
+}
+
+window.setTimeout(initDomWireups, 3000);
 initBgmController();
