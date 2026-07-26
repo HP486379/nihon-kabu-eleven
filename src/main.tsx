@@ -150,7 +150,6 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-if (true) {
 initUserNameEntryGuard();
 initPitchDragDrop();
 initMemberLabelOverrides();
@@ -163,25 +162,18 @@ initFormationPitchClassWireup();
 initLowerLayoutWireup();
 initTeamNameSuffixPreview();
 initMatchDurationRules();
-}
-if (true) {
 initContestSelectionSync();
 initContestListPage();
 initFormationPage();
 initParticipantsPage();
 initParticipantsMatchTabs();
 initDashboardParticipantSummary();
-}
-if (true) {
+initDashboardParticipantRanking();
+initDashboardMatchStatus();
 initDashboardCardMarketPeriodSync();
 initTeamDetailHostGuard();
 initTeamDetailPage();
-}
-if (true) {
-window.setTimeout(initResultsPage, 0);
-}
-if (false) {
+initResultsPage();
 initDailyMatchLabelWireup();
 initPublicBetaCopyWireup();
-}
 initBgmController();
