@@ -1,8 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { fetchParticipants, type ParticipantItem } from './lib/participantsApi';
+import { getEntryFormMatchType, type MatchType } from './lib/contestContext';
 
 type Market = 'プライム' | 'スタンダード' | 'グロース' | '任意追加';
 type Position = 'FW' | 'MF' | 'DF' | 'GK';
 type FormationKey = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '3-4-3' | '5-3-2' | '3-4-2-1' | '5-4-1';
+type DashboardRankingStatus = 'loading' | 'success' | 'error';
 
 type Stock = {
   code: string;
@@ -74,6 +77,13 @@ type MiniPitchDot = {
 const POSITIONS: Position[] = ['FW', 'MF', 'DF', 'GK'];
 const MARKET_API_BASE = ((import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/$/, '');
 
+const MATCH_TYPE_LABELS: Record<MatchType, string> = {
+  daily: 'デイリーマッチ',
+  weekly: '1週間マッチ',
+  monthly: '1か月マッチ',
+  quarterly: '3か月マッチ',
+};
+
 const FORMATIONS: Formation[] = [
   { key: '4-3-3', label: '4-3-3', counts: { FW: 3, MF: 3, DF: 4, GK: 1 }, weights: { FW: 0.35, MF: 0.30, DF: 0.25, GK: 0.10 }, description: '成長期待を前線に並べる標準的な攻撃型' },
   { key: '4-2-3-1', label: '4-2-3-1', counts: { FW: 1, MF: 5, DF: 4, GK: 1 }, weights: { FW: 0.25, MF: 0.40, DF: 0.25, GK: 0.10 }, description: '絶対的エースを中盤で支える1トップ＋中盤支配型' },
@@ -135,14 +145,6 @@ const STOCKS: Stock[] = [
   { code: '9166', name: 'GENDA', market: 'グロース', change: 2.1, contribution: 0.62, fit: { FW: 92, MF: 65, DF: 32, GK: 26 }, tags: ['エンタメ', 'M&A', '攻撃'] },
 ];
 
-const SAMPLE_TEAMS = [
-  { rank: 1, name: '半導体ジャパン', returnPct: 18.42, status: '暫定首位' },
-  { rank: 2, name: 'ツヨシジャパン', returnPct: 15.68, status: '逆転圏内' },
-  { rank: 3, name: '高配当ジャパン', returnPct: 9.74, status: '堅守型' },
-  { rank: 4, name: 'グロース連合', returnPct: 7.31, status: '追走中' },
-  { rank: 5, name: '任天堂FC', returnPct: 5.92, status: '守備固め' },
-];
-
 function formatTeamName(input: string) {
   const trimmed = input.trim();
   if (!trimmed) return 'マイジャパン';
@@ -155,6 +157,12 @@ function clampScore(score: number) {
 
 function formatPct(value?: number | null) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '取得待ち';
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatRankingPct(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '集計待ち';
   const sign = value >= 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
@@ -278,6 +286,10 @@ function App() {
   const [historyMap, setHistoryMap] = useState<Record<string, PriceCandle[]>>({});
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [dashboardParticipants, setDashboardParticipants] = useState<ParticipantItem[]>([]);
+  const [dashboardRankingStatus, setDashboardRankingStatus] = useState<DashboardRankingStatus>('loading');
+  const [dashboardRankingError, setDashboardRankingError] = useState<string | null>(null);
+  const [dashboardRankingMatchType, setDashboardRankingMatchType] = useState<MatchType>('quarterly');
   const [selected, setSelected] = useState<SelectedStock[]>(() => assignFormationPositions(STOCKS.slice(0, 11), DEFAULT_FORMATION));
 
   const teamName = formatTeamName(teamNameInput);
@@ -286,6 +298,54 @@ function App() {
   const allStocks = useMemo(() => [...STOCKS, ...customStocks], [customStocks]);
   const selectedCodesKey = useMemo(() => selected.map((stock) => stock.code).sort().join(','), [selected]);
   const trimmedQuery = query.trim();
+
+  useEffect(() => {
+    let isActive = true;
+    let requestSeq = 0;
+
+    const loadDashboardParticipants = async () => {
+      const requestId = ++requestSeq;
+      const matchType = getEntryFormMatchType();
+      setDashboardRankingMatchType(matchType);
+      setDashboardRankingStatus('loading');
+      setDashboardRankingError(null);
+
+      try {
+        const participants = await fetchParticipants(matchType);
+        if (!isActive || requestId !== requestSeq) return;
+        setDashboardParticipants(participants.slice(0, 5));
+        setDashboardRankingStatus('success');
+      } catch (error) {
+        if (!isActive || requestId !== requestSeq) return;
+        setDashboardParticipants([]);
+        setDashboardRankingStatus('error');
+        setDashboardRankingError(error instanceof Error ? error.message : String(error));
+      }
+    };
+
+    const refreshDashboardParticipants = () => {
+      void loadDashboardParticipants();
+    };
+
+    refreshDashboardParticipants();
+
+    window.addEventListener('nihon-kabu-eleven:entry-saved', refreshDashboardParticipants);
+    window.addEventListener('nihon-kabu-eleven:contest-changed', refreshDashboardParticipants);
+    window.addEventListener('focus', refreshDashboardParticipants);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) refreshDashboardParticipants();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isActive = false;
+      window.removeEventListener('nihon-kabu-eleven:entry-saved', refreshDashboardParticipants);
+      window.removeEventListener('nihon-kabu-eleven:contest-changed', refreshDashboardParticipants);
+      window.removeEventListener('focus', refreshDashboardParticipants);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedCodesKey) {
@@ -699,15 +759,36 @@ function App() {
               </div>
               <div className="ranking-table">
                 <div className="ranking-header"><span>順位</span><span>チーム</span><span>成績</span></div>
-                {SAMPLE_TEAMS.map((team) => (
-                  <div className={`ranking-row ${team.name === teamName ? 'my-team-row' : ''}`} key={team.rank}>
-                    <span className="rank-badge">{team.rank}</span>
-                    <div className="ranking-name"><strong>{team.name}</strong><small>{team.status}</small></div>
-                    <b>+{team.returnPct.toFixed(2)}%</b>
+                {dashboardRankingStatus === 'loading' && (
+                  <div className="ranking-row">
+                    <span className="rank-badge">…</span>
+                    <div className="ranking-name"><strong>集計中</strong><small>API / Supabase の参加チームを読み込んでいます</small></div>
+                    <b>--</b>
+                  </div>
+                )}
+                {dashboardRankingStatus === 'error' && (
+                  <div className="ranking-row">
+                    <span className="rank-badge">!</span>
+                    <div className="ranking-name"><strong>取得失敗</strong><small>{dashboardRankingError || '参加チームを取得できませんでした'}</small></div>
+                    <b>--</b>
+                  </div>
+                )}
+                {dashboardRankingStatus === 'success' && dashboardParticipants.length === 0 && (
+                  <div className="ranking-row">
+                    <span className="rank-badge">-</span>
+                    <div className="ranking-name"><strong>参加チームなし</strong><small>現在選択中の大会タイプに登録がありません</small></div>
+                    <b>--</b>
+                  </div>
+                )}
+                {dashboardRankingStatus === 'success' && dashboardParticipants.map((participant) => (
+                  <div className={`ranking-row ${participant.team === teamName ? 'my-team-row' : ''}`} key={participant.id || `${participant.rank}-${participant.team}`}>
+                    <span className="rank-badge">{participant.rank}</span>
+                    <div className="ranking-name"><strong>{participant.team}</strong><small>{participant.style || participant.status}</small></div>
+                    <b>{formatRankingPct(participant.returnPct)}</b>
                   </div>
                 ))}
               </div>
-              <p className="ranking-footnote">※ 貢献度はチームリターンに対する寄与度</p>
+              <p className="ranking-footnote">※ API / Supabase の参加チームを{MATCH_TYPE_LABELS[dashboardRankingMatchType]}で表示しています。</p>
             </div>
           </div>
         </section>
