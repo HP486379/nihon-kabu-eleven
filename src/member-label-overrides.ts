@@ -211,7 +211,6 @@ function scheduleApplyMemberLabels() {
 function applyMemberLabels() {
   syncMemberLabels();
   syncEntryLabels();
-  syncMatchupChart();
 }
 
 export function initMemberLabelOverrides() {
