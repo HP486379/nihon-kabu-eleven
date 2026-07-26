@@ -2,19 +2,31 @@ import React from 'react';
 
 type AppErrorBoundaryState = {
   error: Error | null;
+  componentStack: string;
 };
 
 const STORAGE_PREFIX = 'nihon-kabu-eleven:';
 
-export default class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppErrorBoundaryState> {
-  state: AppErrorBoundaryState = { error: null };
+function formatErrorDetails(error: Error | null, componentStack: string) {
+  if (!error) return '';
+  return [
+    `name: ${error.name || 'Error'}`,
+    `message: ${error.message || '(no message)'}`,
+    error.stack ? `stack:\n${error.stack}` : '',
+    componentStack ? `componentStack:\n${componentStack}` : '',
+  ].filter(Boolean).join('\n\n');
+}
 
-  static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+export default class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppErrorBoundaryState> {
+  state: AppErrorBoundaryState = { error: null, componentStack: '' };
+
+  static getDerivedStateFromError(error: Error): Partial<AppErrorBoundaryState> {
     return { error };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('Application render failed', error, info);
+    this.setState({ componentStack: info.componentStack || '' });
   }
 
   private reload = () => {
@@ -35,6 +47,8 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
   render() {
     if (!this.state.error) return this.props.children;
 
+    const errorDetails = formatErrorDetails(this.state.error, this.state.componentStack);
+
     return (
       <main
         role="alert"
@@ -50,7 +64,7 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
       >
         <section
           style={{
-            width: 'min(560px, 100%)',
+            width: 'min(760px, 100%)',
             padding: '28px',
             border: '1px solid #dbe3f0',
             borderRadius: '18px',
@@ -62,10 +76,30 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
           <p style={{ margin: '0 0 20px', lineHeight: 1.7 }}>
             一時的なデータ不整合が発生しました。まず再読み込みをお試しください。
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
             <button type="button" onClick={this.reload}>再読み込み</button>
             <button type="button" onClick={this.resetAppStorageAndReload}>保存データをリセットして再読み込み</button>
           </div>
+          <details style={{ marginTop: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>開発者向けエラー詳細を表示</summary>
+            <pre
+              style={{
+                marginTop: '12px',
+                maxHeight: '320px',
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                border: '1px solid #dbe3f0',
+                borderRadius: '12px',
+                background: '#f8fafc',
+                padding: '12px',
+                fontSize: '12px',
+                lineHeight: 1.5,
+              }}
+            >
+              {errorDetails || 'No error details available.'}
+            </pre>
+          </details>
         </section>
       </main>
     );
