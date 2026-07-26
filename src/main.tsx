@@ -172,10 +172,12 @@ initParticipantsPage();
 initParticipantsMatchTabs();
 initDashboardParticipantSummary();
 }
-if (false) {
+if (true) {
 initDashboardCardMarketPeriodSync();
 initTeamDetailHostGuard();
 initTeamDetailPage();
+}
+if (false) {
 initResultsPage();
 initDailyMatchLabelWireup();
 initPublicBetaCopyWireup();
