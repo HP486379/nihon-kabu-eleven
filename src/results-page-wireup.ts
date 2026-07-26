@@ -566,13 +566,26 @@ function bindResultsNavigation() {
 }
 
 export function initResultsPage() {
-  const tryBind = () => bindResultsNavigation();
-  if (tryBind()) return;
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const link = target?.closest<HTMLAnchorElement>('.sidebar-nav a');
+    if (!link) return;
 
-  const observer = new MutationObserver(() => {
-    if (tryBind()) observer.disconnect();
+    const label = link.textContent || '';
+    if (label.includes('結果発表')) {
+      event.preventDefault();
+      showResultsPage();
+      return;
+    }
+
+    if (label.includes('ダッシュボード')) {
+      event.preventDefault();
+      showDashboard();
+      return;
+    }
+
+    if (['試合モード', 'フォーメーション', '参加チーム'].some((item) => label.includes(item))) {
+      document.querySelector('.app-shell')?.classList.remove(ACTIVE_CLASS);
+    }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  window.setTimeout(() => observer.disconnect(), 5000);
 }

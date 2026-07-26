@@ -293,6 +293,7 @@ function applyLowerLayout(): void {
   addRemoveButtonsToChosenCards();
 
   if (isSearchMode) {
+    main.classList.remove('lower-layout-default-order');
     const positionStatus = stockList.querySelector('.position-status')?.textContent || '';
     removeGeneratedBenchCard();
     const bench = makeBenchCard(positionStatus);
@@ -303,7 +304,10 @@ function applyLowerLayout(): void {
 
   removeGeneratedBenchCard();
   if (title) title.textContent = 'ベンチ入りメンバー（日本株代表候補リスト）';
-  main.insertBefore(stockList, marketData);
+  // Keep React's DOM order intact. Moving either section with insertBefore()
+  // makes React reconcile children under a parent whose nodes have been
+  // reordered behind its back, which can crash a refresh with removeChild().
+  main.classList.add('lower-layout-default-order');
 }
 
 export function initLowerLayoutWireup(): void {
