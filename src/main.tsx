@@ -168,8 +168,6 @@ initFormationPage();
 initParticipantsPage();
 initParticipantsMatchTabs();
 initDashboardParticipantSummary();
-initDashboardParticipantRanking();
-initDashboardMatchStatus();
 initDashboardCardMarketPeriodSync();
 initTeamDetailHostGuard();
 initTeamDetailPage();
