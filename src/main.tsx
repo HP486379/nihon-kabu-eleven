@@ -150,7 +150,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-if (false) {
+if (true) {
 initUserNameEntryGuard();
 initPitchDragDrop();
 initMemberLabelOverrides();
@@ -163,6 +163,8 @@ initFormationPitchClassWireup();
 initLowerLayoutWireup();
 initTeamNameSuffixPreview();
 initMatchDurationRules();
+}
+if (false) {
 initContestSelectionSync();
 initContestListPage();
 initFormationPage();
