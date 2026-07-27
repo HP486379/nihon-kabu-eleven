@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import AppErrorBoundary from './AppErrorBoundary';
+import { installRemoveChildGuard } from './dom-remove-child-guard';
 import { initPitchDragDrop } from './pitch-drag-drop';
 import { initMemberLabelOverrides } from './member-label-overrides';
 import { initEntrySubmit } from './entry-submit-wireup';
@@ -140,6 +141,7 @@ function initUserNameEntryGuard() {
   }, true);
 }
 
+installRemoveChildGuard();
 initMarketDataPeriodFetchPatch();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
