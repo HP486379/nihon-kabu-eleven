@@ -10,6 +10,10 @@ function formatPct(value: number | null) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
+function getRankingCard() {
+  return document.querySelector<HTMLElement>('.ranking-card');
+}
+
 function getRankingTable() {
   return document.querySelector<HTMLElement>('.ranking-card .ranking-table');
 }
@@ -18,24 +22,29 @@ function getRankingRows(table: HTMLElement) {
   return Array.from(table.querySelectorAll<HTMLElement>('.ranking-row'));
 }
 
-function setRowHidden(row: HTMLElement, hidden: boolean) {
-  row.hidden = hidden;
-  row.style.display = hidden ? 'none' : '';
+function setDisplayAttr(element: HTMLElement | null, name: string, value: string) {
+  if (!element) return;
+  element.dataset[name] = value;
 }
 
-function writeRow(row: HTMLElement, rank: string, team: string, status: string, result: string) {
-  row.className = 'ranking-row';
-  setRowHidden(row, false);
+function setRowData(row: HTMLElement, rank: string, team: string, status: string, result: string, entryId = '') {
+  row.dataset.rankingEmpty = 'false';
+  if (entryId) row.dataset.entryId = entryId;
 
-  const badge = row.querySelector<HTMLElement>('.rank-badge');
-  const name = row.querySelector<HTMLElement>('.ranking-name strong');
-  const sub = row.querySelector<HTMLElement>('.ranking-name small');
-  const value = row.querySelector<HTMLElement>('b');
+  setDisplayAttr(row.querySelector<HTMLElement>('.rank-badge'), 'rankingRank', rank);
+  setDisplayAttr(row.querySelector<HTMLElement>('.ranking-name strong'), 'rankingTeam', team);
+  setDisplayAttr(row.querySelector<HTMLElement>('.ranking-name small'), 'rankingStatus', status);
+  setDisplayAttr(row.querySelector<HTMLElement>('b'), 'rankingResult', result);
+}
 
-  if (badge) badge.textContent = rank;
-  if (name) name.textContent = team;
-  if (sub) sub.textContent = status;
-  if (value) value.textContent = result;
+function clearRowData(row: HTMLElement) {
+  row.dataset.rankingEmpty = 'true';
+  delete row.dataset.entryId;
+
+  setDisplayAttr(row.querySelector<HTMLElement>('.rank-badge'), 'rankingRank', '');
+  setDisplayAttr(row.querySelector<HTMLElement>('.ranking-name strong'), 'rankingTeam', '');
+  setDisplayAttr(row.querySelector<HTMLElement>('.ranking-name small'), 'rankingStatus', '');
+  setDisplayAttr(row.querySelector<HTMLElement>('b'), 'rankingResult', '');
 }
 
 function renderMessage(table: HTMLElement, rank: string, title: string, message: string) {
@@ -43,63 +52,62 @@ function renderMessage(table: HTMLElement, rank: string, title: string, message:
   const [firstRow, ...restRows] = rows;
   if (!firstRow) return false;
 
-  writeRow(firstRow, rank, title, message, '--');
-  restRows.forEach((row) => setRowHidden(row, true));
+  setRowData(firstRow, rank, title, message, '--');
+  restRows.forEach(clearRowData);
   return true;
 }
 
 function renderDashboardRanking(participants: ParticipantItem[], matchType: MatchType) {
+  const card = getRankingCard();
   const table = getRankingTable();
-  if (!table) return false;
+  if (!card || !table) return false;
 
   const signature = `${matchType}::${participants.map((participant) => `${participant.id}:${participant.rank}:${participant.returnPct ?? 'waiting'}:${participant.team}`).join('|')}`;
-  if (signature === lastSignature && table.dataset.source === 'api') return true;
+  if (signature === lastSignature && card.dataset.rankingSource === 'api') return true;
   lastSignature = signature;
 
+  card.dataset.rankingSource = 'api';
+  card.dataset.rankingMatchType = matchType;
   table.dataset.source = 'api';
   table.dataset.matchType = matchType;
 
   if (participants.length === 0) {
-    const rendered = renderMessage(table, '-', '参加チームなし', '現在選択中の大会タイプに登録がありません');
-    const footnote = document.querySelector<HTMLElement>('.ranking-card .ranking-footnote');
-    if (footnote) footnote.textContent = '※ API / Supabase の参加チームを現在の大会タイプで表示しています。';
-    return rendered;
+    return renderMessage(table, '-', '参加チームなし', '現在選択中の大会タイプに登録がありません');
   }
 
   const rows = getRankingRows(table);
   if (rows.length === 0) return false;
 
   participants.slice(0, rows.length).forEach((participant, index) => {
-    writeRow(
+    setRowData(
       rows[index],
       String(participant.rank),
       participant.team,
       participant.style || participant.status,
       formatPct(participant.returnPct),
+      participant.id,
     );
-    rows[index].dataset.entryId = participant.id;
   });
 
-  rows.slice(participants.length).forEach((row) => setRowHidden(row, true));
-
-  const footnote = document.querySelector<HTMLElement>('.ranking-card .ranking-footnote');
-  if (footnote) footnote.textContent = '※ API / Supabase の参加チームを現在の大会タイプで表示しています。';
+  rows.slice(participants.length).forEach(clearRowData);
   return true;
 }
 
 function renderDashboardRankingError(message: string) {
+  const card = getRankingCard();
   const table = getRankingTable();
-  if (!table) return;
+  if (!card || !table) return;
 
+  card.dataset.rankingSource = 'error';
   table.dataset.source = 'error';
   renderMessage(table, '!', '取得失敗', message);
 }
 
 async function refreshDashboardRanking() {
-  const matchType = getEntryFormMatchType();
   const requestId = ++requestSeq;
 
   try {
+    const matchType = getEntryFormMatchType();
     const participants = await fetchParticipants(matchType);
     if (requestId !== requestSeq) return;
     renderDashboardRanking(participants, matchType);

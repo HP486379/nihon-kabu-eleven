@@ -58,6 +58,7 @@ import './pitch-line-details.css';
 import './pitch-player-glass.css';
 import './sidebar-logo-icon.css';
 import './dashboard-match-status.css';
+import './dashboard-participant-ranking-data.css';
 import './team-detail-page.css';
 import './team-detail-pitch-view.css';
 import './mobile-web-fixes.css';
@@ -171,6 +172,7 @@ function initDomWireups() {
   initParticipantsPage();
   initParticipantsMatchTabs();
   initDashboardParticipantSummary();
+  initDashboardParticipantRanking();
   initDashboardCardMarketPeriodSync();
   initTeamDetailHostGuard();
   initTeamDetailPage();

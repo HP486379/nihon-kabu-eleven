@@ -1,0 +1,34 @@
+.ranking-card[data-ranking-source] .ranking-row[data-ranking-empty="true"] {
+  display: none;
+}
+
+.ranking-card[data-ranking-source] .rank-badge,
+.ranking-card[data-ranking-source] .ranking-name strong,
+.ranking-card[data-ranking-source] .ranking-name small,
+.ranking-card[data-ranking-source] .ranking-row > b {
+  font-size: 0;
+}
+
+.ranking-card[data-ranking-source] .rank-badge::after,
+.ranking-card[data-ranking-source] .ranking-name strong::after,
+.ranking-card[data-ranking-source] .ranking-name small::after,
+.ranking-card[data-ranking-source] .ranking-row > b::after {
+  font-size: 1rem;
+}
+
+.ranking-card[data-ranking-source] .rank-badge::after {
+  content: attr(data-ranking-rank);
+}
+
+.ranking-card[data-ranking-source] .ranking-name strong::after {
+  content: attr(data-ranking-team);
+}
+
+.ranking-card[data-ranking-source] .ranking-name small::after {
+  content: attr(data-ranking-status);
+  font-size: 0.78rem;
+}
+
+.ranking-card[data-ranking-source] .ranking-row > b::after {
+  content: attr(data-ranking-result);
+}
